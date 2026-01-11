@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.openmbee.gearshift.engine
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -171,4 +186,96 @@ class MofEngine(val registry: MetamodelRegistry) {
      * Get all instances.
      */
     fun getAllInstances(): Collection<MofObject> = instances.values
+
+    /**
+     * Invoke an operation on an instance.
+     *
+     * @param instance The instance to invoke the operation on
+     * @param operationName The name of the operation to invoke
+     * @param arguments Map of parameter names to values
+     * @return The result of the operation invocation
+     */
+    fun invokeOperation(
+        instance: MofObject,
+        operationName: String,
+        arguments: Map<String, Any?> = emptyMap()
+    ): Any? {
+        val operation = findOperation(instance.metaClass, operationName)
+            ?: throw IllegalArgumentException(
+                "Operation '$operationName' not found in class: ${instance.className}"
+            )
+
+        // Validate arguments match parameters
+        validateArguments(operation, arguments)
+
+        // Execute the operation body
+        val result = evaluateOperation(instance, operation, arguments)
+
+        logger.debug { "Invoked operation $operationName on ${instance.className} instance" }
+        return result
+    }
+
+    /**
+     * Find an operation in a metaclass or its superclasses.
+     */
+    private fun findOperation(metaClass: MetaClass, operationName: String): MetaOperation? {
+        // Check direct operations
+        metaClass.operations.firstOrNull { it.name == operationName }?.let { return it }
+
+        // Check inherited operations
+        metaClass.superclasses.forEach { superclassName ->
+            registry.getClass(superclassName)?.let { superclass ->
+                findOperation(superclass, operationName)?.let { return it }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Validate that provided arguments match the operation's parameters.
+     */
+    private fun validateArguments(operation: MetaOperation, arguments: Map<String, Any?>) {
+        // Check for required parameters
+        operation.parameters.forEach { param ->
+            if (param.defaultValue == null && !arguments.containsKey(param.name)) {
+                throw IllegalArgumentException(
+                    "Missing required parameter '${param.name}' for operation '${operation.name}'"
+                )
+            }
+        }
+
+        // Check for unknown arguments
+        arguments.keys.forEach { argName ->
+            if (operation.parameters.none { it.name == argName }) {
+                throw IllegalArgumentException(
+                    "Unknown parameter '$argName' for operation '${operation.name}'"
+                )
+            }
+        }
+    }
+
+    /**
+     * Evaluate an operation body.
+     * Supports simple property access expressions and will be extended for more complex bodies.
+     */
+    private fun evaluateOperation(
+        instance: MofObject,
+        operation: MetaOperation,
+        arguments: Map<String, Any?>
+    ): Any? {
+        val body = operation.body ?: return null
+
+        // For simple cases where body is just a property name, return that property's value
+        if (operation.parameters.isEmpty() && body.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+            return instance.getProperty(body)
+        }
+
+        // TODO: Integrate with OCL or expression evaluator for complex bodies
+        logger.warn {
+            "Complex operation body evaluation not yet implemented: ${operation.name}. " +
+            "Body: $body"
+        }
+        return null
+    }
 }

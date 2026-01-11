@@ -1,7 +1,24 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaProperty
+import org.openmbee.gearshift.metamodel.MetaOperation
 
 /**
  * KerML Element (Root.Element)
@@ -12,64 +29,73 @@ fun createElementMetaClass() = MetaClass(
     isAbstract = true,
     description = "Abstract root of the KerML element hierarchy",
     attributes = listOf(
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "elementId",
             type = "String",
             multiplicity = "1",
             description = "Unique identifier for this element"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "aliasIds",
             type = "String",
             multiplicity = "0..*",
             isOrdered = true,
             description = "Alias identifiers for this element"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "declaredShortName",
             type = "String",
             multiplicity = "0..1",
             description = "Declared short name"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "declaredName",
             type = "String",
             multiplicity = "0..1",
             description = "Declared name"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "isImpliedIncluded",
             type = "Boolean",
             multiplicity = "1",
             description = "Whether this element is implied included"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "shortName",
             type = "String",
             multiplicity = "0..1",
             isDerived = true,
             description = "Effective short name (derived)"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "name",
             type = "String",
             multiplicity = "0..1",
             isDerived = true,
             description = "Effective name (derived)"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "qualifiedName",
             type = "String",
             multiplicity = "0..1",
             isDerived = true,
             description = "Fully qualified name (derived)"
         ),
-        org.openmbee.gearshift.metamodel.MetaProperty(
+        MetaProperty(
             name = "isLibraryElement",
             type = "Boolean",
             multiplicity = "1",
             isDerived = true,
             description = "Whether this is a library element (derived)"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "effectiveName",
+            returnType = "String",
+            description = "Return an effective name for this Element. By default this is the same as its declaredName.",
+            body = "declaredName",
+            isQuery = true
         )
     )
 )

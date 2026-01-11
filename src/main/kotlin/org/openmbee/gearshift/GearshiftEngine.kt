@@ -1,3 +1,18 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.openmbee.gearshift
 
 import org.openmbee.gearshift.engine.MetamodelRegistry
@@ -107,6 +122,24 @@ class GearshiftEngine {
         val instance = repository.get(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return mofEngine.validate(instance)
+    }
+
+    /**
+     * Invoke an operation on an instance.
+     *
+     * @param instanceId The ID of the instance to invoke the operation on
+     * @param operationName The name of the operation to invoke
+     * @param arguments Map of parameter names to values (default: empty)
+     * @return The result of the operation invocation
+     */
+    fun invokeOperation(
+        instanceId: String,
+        operationName: String,
+        arguments: Map<String, Any?> = emptyMap()
+    ): Any? {
+        val instance = repository.get(instanceId)
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+        return mofEngine.invokeOperation(instance, operationName, arguments)
     }
 
     // ===== Query and Search =====

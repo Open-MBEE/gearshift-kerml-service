@@ -49,7 +49,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 application {
@@ -95,6 +95,7 @@ license {
         "**/.antlr/**",
         "**/third-party/**",
         "**/gradle/**",
+        "**/antlr/**",
         "gradlew",
         "gradlew.bat"
     ))
@@ -106,4 +107,7 @@ license {
     // Use slash-star style for Kotlin/Java files
     mapping("kt", "SLASHSTAR_STYLE")
     mapping("java", "SLASHSTAR_STYLE")
+
+    // Skip license check for ANTLR-generated files
+    skipExistingHeaders = true
 }

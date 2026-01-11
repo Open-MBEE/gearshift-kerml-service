@@ -298,16 +298,17 @@ membershipImport
 //     | importedNamespace = FilterPackage
 //       { ownedRelatedElement += importedNamespace }
 namespaceImport
-    : importedNamespace=qualifiedName DOUBLE_COLON STAR
+    : qualifiedName DOUBLE_COLON STAR
       ( DOUBLE_COLON isRecursive=DOUBLE_STAR )?
-    | importedNamespace=filterPackage
+    | filterPackageImport
     ;
 
 // FilterPackage : Package =
 //     ownedRelationship += ImportDeclaration
 //     ( ownedRelationship += FilterPackageMember )+
-filterPackage
-    : importDeclaration
+// Inlined to avoid left recursion with importDeclaration
+filterPackageImport
+    : ( membershipImport | qualifiedName DOUBLE_COLON STAR ( DOUBLE_COLON isRecursive=DOUBLE_STAR )? )
       filterPackageMember+
     ;
 
@@ -511,8 +512,8 @@ ownedSpecialization
 //     | specific += OwnedFeatureChain
 //       { ownedRelatedElement += specific }
 specificType
-    : specific=qualifiedName
-    | specific=ownedFeatureChain
+    : qualifiedName
+    | ownedFeatureChain
     ;
 
 // GeneralType : Specialization =
@@ -520,8 +521,8 @@ specificType
 //     | general += OwnedFeatureChain
 //       { ownedRelatedElement += general }
 generalType
-    : general=qualifiedName
-    | general=ownedFeatureChain
+    : qualifiedName
+    | ownedFeatureChain
     ;
 
 // 8.2.4.1.3 Conjugation
@@ -542,12 +543,12 @@ generalType
 conjugation
     : ( CONJUGATION identification )?
       CONJUGATE
-      ( conjugatedType=qualifiedName
-      | conjugatedType=featureChain
+      ( qualifiedName
+      | featureChain
       )
       conjugatesToken
-      ( originalType=qualifiedName
-      | originalType=featureChain
+      ( qualifiedName
+      | featureChain
       )
       relationshipBody
     ;
@@ -557,8 +558,8 @@ conjugation
 //     | originalType = FeatureChain
 //       { ownedRelatedElement += originalType }
 ownedConjugation
-    : originalType=qualifiedName
-    | originalType=featureChain
+    : qualifiedName
+    | featureChain
     ;
 
 // 8.2.4.1.4 Disjoining
@@ -579,12 +580,12 @@ ownedConjugation
 disjoining
     : ( DISJOINING identification )?
       DISJOINT
-      ( typeDisjoined=qualifiedName
-      | typeDisjoined=featureChain
+      ( qualifiedName
+      | featureChain
       )
       FROM
-      ( disjoiningType=qualifiedName
-      | disjoiningType=featureChain
+      ( qualifiedName
+      | featureChain
       )
       relationshipBody
     ;
@@ -594,8 +595,8 @@ disjoining
 //     | disjoiningType = FeatureChain
 //       { ownedRelatedElement += disjoiningType }
 ownedDisjoining
-    : disjoiningType=qualifiedName
-    | disjoiningType=featureChain
+    : qualifiedName
+    | featureChain
     ;
 
 // 8.2.4.1.5 Unioning, Intersecting and Differencing
@@ -1027,12 +1028,12 @@ ownedFeatureChaining
 featureInverting
     : ( INVERTING identification? )?
       INVERSE
-      ( featureInverted=qualifiedName
-      | featureInverted=ownedFeatureChain
+      ( qualifiedName
+      | ownedFeatureChain
       )
       OF
-      ( invertingFeature=qualifiedName
-      | invertingFeature=ownedFeatureChain
+      ( qualifiedName
+      | ownedFeatureChain
       )
       relationshipBody
     ;
@@ -1042,8 +1043,8 @@ featureInverting
 //     | invertingFeature = OwnedFeatureChain
 //       { ownedRelatedElement += invertingFeature }
 ownedFeatureInverting
-    : invertingFeature=qualifiedName
-    | invertingFeature=ownedFeatureChain
+    : qualifiedName
+    | ownedFeatureChain
     ;
 
 // 8.2.4.3.7 Type Featuring
@@ -1392,41 +1393,20 @@ ownedExpressionMember
 //     | MetaclassificationExpression
 //     | ExtentExpression
 //     | PrimaryExpression
+// Refactored to use direct left recursion to eliminate mutual recursion
 ownedExpression
-    : conditionalExpression
-    | conditionalBinaryOperatorExpression
-    | binaryOperatorExpression
-    | unaryOperatorExpression
-    | classificationExpression
-    | metaclassificationExpression
-    | extentExpression
+    : IF ownedExpression QUESTION ownedExpression ELSE ownedExpression emptyResultMember
+    | ownedExpression conditionalBinaryOperator ownedExpression emptyResultMember
+    | ownedExpression binaryOperator ownedExpression emptyResultMember
+    | unaryOperator ownedExpression emptyResultMember
+    | classificationTestOperator typeReferenceMember emptyResultMember
+    | ownedExpression classificationTestOperator typeReferenceMember emptyResultMember
+    | castOperator typeResultMember emptyResultMember
+    | ownedExpression castOperator typeResultMember emptyResultMember
+    | metadataAccessExpression metaclassificationTestOperator typeReferenceMember emptyResultMember
+    | metadataAccessExpression metacastOperator typeResultMember emptyResultMember
+    | ALL typeReferenceMember
     | primaryExpression
-    ;
-
-// ConditionalExpression : OperatorExpression =
-//     operator = 'if'
-//     ownedRelationship += ArgumentMember '?'
-//     ownedRelationship += ArgumentExpressionMember 'else'
-//     ownedRelationship += ArgumentExpressionMember
-//     ownedRelationship += EmptyResultMember
-conditionalExpression
-    : operator=IF
-      argumentMember QUESTION
-      argumentExpressionMember ELSE
-      argumentExpressionMember
-      emptyResultMember
-    ;
-
-// ConditionalBinaryOperatorExpression : OperatorExpression =
-//     ownedRelationship += ArgumentMember
-//     operator = ConditionalBinaryOperator
-//     ownedRelationship += ArgumentExpressionMember
-//     ownedRelationship += EmptyResultMember
-conditionalBinaryOperatorExpression
-    : argumentMember
-      operator=conditionalBinaryOperator
-      argumentExpressionMember
-      emptyResultMember
     ;
 
 // ConditionalBinaryOperator =
@@ -1507,9 +1487,9 @@ unaryOperator
 //     ownedRelationship += EmptyResultMember
 classificationExpression
     : argumentMember?
-      ( operator=classificationTestOperator
+      ( classificationTestOperator
         typeReferenceMember
-      | operator=castOperator
+      | castOperator
         typeResultMember
       )
       emptyResultMember
@@ -1539,9 +1519,9 @@ castOperator
 //     ownedRelationship += EmptyResultMember
 metaclassificationExpression
     : metadataArgumentMember
-      ( operator=metaclassificationTestOperator
+      ( metaclassificationTestOperator
         typeReferenceMember
-      | operator=metacastOperator
+      | metacastOperator
         typeResultMember
       )
       emptyResultMember
@@ -1668,9 +1648,18 @@ emptyFeature
 // PrimaryExpression : Expression =
 //     FeatureChainExpression
 //     | NonFeatureChainPrimaryExpression
+// Refactored to use direct left recursion to eliminate mutual recursion
 primaryExpression
-    : featureChainExpression
-    | nonFeatureChainPrimaryExpression
+    : primaryExpression LBRACKET sequenceExpressionListMember RBRACKET
+    | primaryExpression HASH LPAREN sequenceExpressionListMember RPAREN
+    | primaryExpression DOT featureChainMember
+    | primaryExpression DOT bodyArgumentMember
+    | primaryExpression DOT_QUESTION bodyArgumentMember
+    | primaryExpression ARROW invocationTypeMember
+      ( bodyArgumentMember | functionReferenceArgumentMember | argumentList )
+      emptyResultMember
+    | LPAREN sequenceExpressionList RPAREN
+    | baseExpression
     ;
 
 // PrimaryArgumentValue : FeatureValue =
