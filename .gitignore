@@ -7,3 +7,5 @@
 
 #ANTLR
 .antlr
+# Ignore Gradle build output directory
+build
