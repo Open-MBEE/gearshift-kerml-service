@@ -18,14 +18,26 @@ package org.openmbee.gearshift.engine
 import org.openmbee.gearshift.metamodel.MetaClass
 
 /**
- * Runtime instance of a metamodel class.
+ * Runtime instance of a metamodel class - represents a node in the model graph.
  * Holds property values and provides access to its metaclass definition.
+ *
+ * In the graph model:
+ * - MDMObject instances are nodes
+ * - MDMLink instances are edges
+ * - MetaClass defines the node type/schema
  */
-class MofObject(
+class MDMObject(
     val className: String,
     val metaClass: MetaClass
 ) {
     private val properties = mutableMapOf<String, Any?>()
+
+    /**
+     * The ID of this object in the repository.
+     * Set when the object is stored in a repository.
+     */
+    var id: String? = null
+        internal set
 
     /**
      * Set a property value.
@@ -57,6 +69,6 @@ class MofObject(
     }
 
     override fun toString(): String {
-        return "MofObject(className='$className', properties=$properties)"
+        return "MDMObject(className='$className', properties=$properties)"
     }
 }

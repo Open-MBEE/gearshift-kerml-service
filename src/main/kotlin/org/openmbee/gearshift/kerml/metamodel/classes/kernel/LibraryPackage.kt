@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LibraryPackage metaclass.
@@ -31,7 +31,6 @@ fun createLibraryPackageMetaClass() = MetaClass(
         MetaProperty(
             name = "isStandard",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this is a standard library package"
         )
     ),

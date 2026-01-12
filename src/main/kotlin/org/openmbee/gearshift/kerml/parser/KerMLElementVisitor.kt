@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.parser
 
 import org.openmbee.gearshift.GearshiftEngine
-import org.openmbee.gearshift.engine.MofObject
+import org.openmbee.gearshift.engine.MDMObject
 
 /**
  * Base visitor interface for KerML grammar elements.
@@ -28,7 +28,7 @@ interface KerMLElementVisitor<T> {
      *
      * @param ctx The ANTLR parser context to visit
      * @param engine The Gearshift engine for creating instances
-     * @return The constructed element (typically a MofObject instance ID or the object itself)
+     * @return The constructed element (typically a MDMObject instance ID or the object itself)
      */
     fun visit(ctx: T, engine: GearshiftEngine): Any?
 }
@@ -54,7 +54,7 @@ abstract class BaseKerMLVisitor<T> : KerMLElementVisitor<T> {
         engine: GearshiftEngine,
         metaclassName: String,
         elementId: String? = null
-    ): Pair<String, MofObject> {
+    ): Pair<String, MDMObject> {
         return engine.createInstance(metaclassName, elementId)
     }
 

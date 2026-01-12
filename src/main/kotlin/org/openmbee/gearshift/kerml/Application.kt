@@ -32,7 +32,7 @@ fun main(args: Array<String>) {
 
     // Initialize KerML metamodel
     println("Initializing KerML Metamodel...")
-    KerMLMetamodel.initialize(engine)
+    KerMLMetamodelLoader.initialize(engine)
     println()
 
     // Validate metamodel
@@ -78,8 +78,9 @@ fun main(args: Array<String>) {
     // Repository statistics
     val stats = engine.getStatistics()
     println("Repository Statistics:")
-    println("  Total instances: ${stats.totalObjects}")
-    println("  Type distribution: ${stats.typeDistribution}")
+    println("  Total instances: ${stats.objects.totalObjects}")
+    println("  Type distribution: ${stats.objects.typeDistribution}")
+    println("  Total links: ${stats.links.totalLinks}")
     println()
 
     println("=".repeat(70))

@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralRational metaclass.
@@ -31,7 +31,6 @@ fun createLiteralRationalMetaClass() = MetaClass(
         MetaProperty(
             name = "value",
             type = "String",
-            multiplicity = "1",
             description = "The rational value as a string"
         )
     ),

@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralInteger metaclass.
@@ -31,7 +31,6 @@ fun createLiteralIntegerMetaClass() = MetaClass(
         MetaProperty(
             name = "value",
             type = "Integer",
-            multiplicity = "1",
             description = "The integer value"
         )
     ),

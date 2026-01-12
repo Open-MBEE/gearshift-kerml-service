@@ -31,13 +31,11 @@ fun createTextualRepresentationMetaClass() = MetaClass(
         MetaProperty(
             name = "language",
             type = "String",
-            multiplicity = "1",
             description = "The language of the textual representation"
         ),
         MetaProperty(
             name = "body",
             type = "String",
-            multiplicity = "1",
             description = "The text of the representation"
         )
     ),

@@ -31,7 +31,6 @@ fun createRelationshipMetaClass() = MetaClass(
         MetaProperty(
             name = "isImplied",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this Relationship is implied or explicitly stated"
         )
     ),

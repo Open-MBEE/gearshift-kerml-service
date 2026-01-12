@@ -42,8 +42,8 @@ class NameResolver(
      */
     data class ResolutionResult(
         val membershipId: String,
-        val membership: MofObject,
-        val memberElement: MofObject
+        val membership: MDMObject,
+        val memberElement: MDMObject
     )
 
     /**
@@ -172,7 +172,7 @@ class NameResolver(
      * Full resolution: resolve name considering all memberships including imported.
      * Implements KerML 8.2.3.5.4.
      */
-    private fun fullResolution(name: String, namespace: MofObject): ResolutionResult? {
+    private fun fullResolution(name: String, namespace: MDMObject): ResolutionResult? {
         // First try visible resolution
         visibleResolution(name, namespace)?.let { return it }
 
@@ -190,7 +190,7 @@ class NameResolver(
      *
      * Visible memberships = owned memberships + imported memberships
      */
-    private fun visibleResolution(name: String, namespace: MofObject): ResolutionResult? {
+    private fun visibleResolution(name: String, namespace: MDMObject): ResolutionResult? {
         // Search in owned memberships
         resolveInOwnedMemberships(name, namespace)?.let { return it }
 
@@ -206,7 +206,7 @@ class NameResolver(
      */
     private fun resolveInRedefinitionContext(
         qualifiedName: QualifiedName,
-        owningType: MofObject
+        owningType: MDMObject
     ): ResolutionResult? {
         val specializations = getOwnedSpecializations(owningType)
 
@@ -223,7 +223,7 @@ class NameResolver(
     /**
      * Resolve in owned memberships of a namespace.
      */
-    private fun resolveInOwnedMemberships(name: String, namespace: MofObject): ResolutionResult? {
+    private fun resolveInOwnedMemberships(name: String, namespace: MDMObject): ResolutionResult? {
         val memberships = getOwnedMemberships(namespace)
 
         for (membership in memberships) {
@@ -243,7 +243,7 @@ class NameResolver(
     /**
      * Resolve in imported memberships.
      */
-    private fun resolveInImportedMemberships(name: String, namespace: MofObject): ResolutionResult? {
+    private fun resolveInImportedMemberships(name: String, namespace: MDMObject): ResolutionResult? {
         val imports = getImports(namespace)
 
         for (import in imports) {
@@ -257,7 +257,7 @@ class NameResolver(
     /**
      * Resolve in inherited memberships (for Types).
      */
-    private fun resolveInInheritedMemberships(name: String, type: MofObject): ResolutionResult? {
+    private fun resolveInInheritedMemberships(name: String, type: MDMObject): ResolutionResult? {
         val specializations = getOwnedSpecializations(type)
         val visited = mutableSetOf<String>()
 
@@ -277,70 +277,70 @@ class NameResolver(
 
     // ===== Helper methods to interact with model instances =====
 
-    private fun isNamespace(obj: MofObject): Boolean {
+    private fun isNamespace(obj: MDMObject): Boolean {
         val metaClass = obj.metaClass
         return metaClass.name == "Namespace" ||
-               registry.isSubclassOf(metaClass.name, "Namespace")
+                registry.isSubclassOf(metaClass.name, "Namespace")
     }
 
-    private fun isType(obj: MofObject): Boolean {
+    private fun isType(obj: MDMObject): Boolean {
         val metaClass = obj.metaClass
         return metaClass.name == "Type" ||
-               registry.isSubclassOf(metaClass.name, "Type")
+                registry.isSubclassOf(metaClass.name, "Type")
     }
 
-    private fun isRootNamespace(obj: MofObject): Boolean {
+    private fun isRootNamespace(obj: MDMObject): Boolean {
         val owner = obj.getProperty("owner")
         return owner == null
     }
 
-    private fun findGlobalNamespace(): MofObject {
+    private fun findGlobalNamespace(): MDMObject {
         // TODO: Implement proper global namespace lookup
         // For now, return first root namespace
         return repository.getAll().first { isRootNamespace(it) }
     }
 
-    private fun getOwnedMemberships(namespace: MofObject): List<MofObject> {
+    private fun getOwnedMemberships(namespace: MDMObject): List<MDMObject> {
         val membershipIds = namespace.getProperty("ownedMembership") as? List<*>
             ?: return emptyList()
         return membershipIds.mapNotNull { repository.get(it.toString()) }
     }
 
-    private fun getImports(namespace: MofObject): List<MofObject> {
+    private fun getImports(namespace: MDMObject): List<MDMObject> {
         val importIds = namespace.getProperty("ownedImport") as? List<*>
             ?: return emptyList()
         return importIds.mapNotNull { repository.get(it.toString()) }
     }
 
-    private fun getOwnedSpecializations(type: MofObject): List<MofObject> {
+    private fun getOwnedSpecializations(type: MDMObject): List<MDMObject> {
         val specIds = type.getProperty("ownedSpecialization") as? List<*>
             ?: return emptyList()
         return specIds.mapNotNull { repository.get(it.toString()) }
     }
 
-    private fun getMemberName(membership: MofObject): String? {
+    private fun getMemberName(membership: MDMObject): String? {
         return membership.getProperty("memberName") as? String
     }
 
-    private fun getMemberElement(membership: MofObject): MofObject? {
+    private fun getMemberElement(membership: MDMObject): MDMObject? {
         val elementId = membership.getProperty("memberElement") as? String
             ?: return null
         return repository.get(elementId)
     }
 
-    private fun getGeneral(specialization: MofObject): MofObject? {
+    private fun getGeneral(specialization: MDMObject): MDMObject? {
         val generalId = specialization.getProperty("general") as? String
             ?: return null
         return repository.get(generalId)
     }
 
-    private fun getImportedNamespace(import: MofObject): MofObject? {
+    private fun getImportedNamespace(import: MDMObject): MDMObject? {
         val namespaceId = import.getProperty("importedNamespace") as? String
             ?: return null
         return repository.get(namespaceId)
     }
 
-    private fun getInstanceId(obj: MofObject): String? {
+    private fun getInstanceId(obj: MDMObject): String? {
         // Find instance ID by searching repository
         return repository.getAllIds().firstOrNull { repository.get(it) == obj }
     }

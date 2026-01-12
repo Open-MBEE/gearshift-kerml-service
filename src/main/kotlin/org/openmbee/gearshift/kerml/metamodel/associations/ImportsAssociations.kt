@@ -22,5 +22,12 @@ import org.openmbee.gearshift.metamodel.MetaAssociation
  * Defines associations for Import, NamespaceImport, and MembershipImport.
  */
 fun createImportAssociations(): List<MetaAssociation> {
+
+    val membershipImportImportedElementAssociation = MetaAssociation()
+    val importOwningNamespaceOwnedImportAssociation = MetaAssociation()
+    val importImportedNamespaceAssociation = MetaAssociation()
+    val importImportedMembershipAssociation = MetaAssociation()
+    val membershipMemberElementAssociation = MetaAssociation()
+
     return emptyList()
 }

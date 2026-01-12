@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.query
 
-import org.openmbee.gearshift.engine.MofObject
+import org.openmbee.gearshift.engine.MDMObject
 import org.openmbee.gearshift.repository.ModelRepository
 
 /**
@@ -46,7 +46,7 @@ class Query(
     private val repository: ModelRepository,
     private val className: String?
 ) {
-    private val filters = mutableListOf<(MofObject) -> Boolean>()
+    private val filters = mutableListOf<(MDMObject) -> Boolean>()
 
     /**
      * Filter by a property value.
@@ -61,7 +61,7 @@ class Query(
     /**
      * Filter by a custom predicate.
      */
-    fun filter(predicate: (MofObject) -> Boolean): Query {
+    fun filter(predicate: (MDMObject) -> Boolean): Query {
         filters.add(predicate)
         return this
     }
@@ -69,7 +69,7 @@ class Query(
     /**
      * Execute the query and return results.
      */
-    fun execute(): List<MofObject> {
+    fun execute(): List<MDMObject> {
         val baseResults = if (className != null) {
             repository.getByType(className)
         } else {
@@ -84,7 +84,7 @@ class Query(
     /**
      * Execute the query and return a single result.
      */
-    fun single(): MofObject? = execute().firstOrNull()
+    fun single(): MDMObject? = execute().firstOrNull()
 
     /**
      * Execute the query and count results.

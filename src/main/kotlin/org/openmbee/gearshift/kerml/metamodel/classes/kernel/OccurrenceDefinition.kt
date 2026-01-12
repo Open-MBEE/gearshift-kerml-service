@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML OccurrenceDefinition metaclass.
@@ -31,7 +31,6 @@ fun createOccurrenceDefinitionMetaClass() = MetaClass(
         MetaProperty(
             name = "isIndividual",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this defines an individual occurrence"
         )
     ),

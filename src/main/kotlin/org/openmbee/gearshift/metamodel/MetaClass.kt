@@ -30,7 +30,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  *         MetaProperty(
  *             name = "name",
  *             type = "String",
- *             multiplicity = "0..1"
+ *             lowerBound = 0
  *         ),
  *         MetaProperty(
  *             name = "qualifiedName",

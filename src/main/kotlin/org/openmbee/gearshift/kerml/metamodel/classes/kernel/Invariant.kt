@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Invariant metaclass.
@@ -31,7 +31,6 @@ fun createInvariantMetaClass() = MetaClass(
         MetaProperty(
             name = "isNegated",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this invariant is negated"
         )
     ),

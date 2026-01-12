@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralBoolean metaclass.
@@ -31,7 +31,6 @@ fun createLiteralBooleanMetaClass() = MetaClass(
         MetaProperty(
             name = "value",
             type = "Boolean",
-            multiplicity = "1",
             description = "The boolean value"
         )
     ),

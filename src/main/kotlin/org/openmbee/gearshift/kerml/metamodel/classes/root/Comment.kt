@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Comment metaclass.
@@ -31,13 +31,12 @@ fun createCommentMetaClass() = MetaClass(
         MetaProperty(
             name = "body",
             type = "String",
-            multiplicity = "1",
             description = "The text of the comment"
         ),
         MetaProperty(
             name = "locale",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             description = "The locale of the comment text"
         )
     ),

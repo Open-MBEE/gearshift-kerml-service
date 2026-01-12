@@ -1,6 +1,7 @@
 # GearShift KerML Service
 
-A metadata-driven KerML metamodel implementation using the **Gearshift Framework** - a next-generation MOF (Meta-Object Facility) combined with model data management.
+A metadata-driven KerML metamodel implementation using the **Gearshift Framework** - a next-generation MOF (Meta-Object
+Facility) combined with model data management.
 
 ## Architecture
 
@@ -9,27 +10,27 @@ A metadata-driven KerML metamodel implementation using the **Gearshift Framework
 The core framework (`org.openmbee.gearshift`) provides:
 
 - **Metamodel Layer** (`org.openmbee.gearshift.metamodel`)
-  - `MetaClass` - Define types with attributes, operations, and constraints
-  - `MetaProperty` - Define properties with multiplicity, aggregation, etc.
-  - `MetaAssociation` - Define relationships between types
-  - `MetaConstraint` - OCL or custom constraint expressions
-  - `MetaOperation` - Define operations/methods
+    - `MetaClass` - Define types with attributes, operations, and constraints
+    - `MetaProperty` - Define properties with multiplicity, aggregation, etc.
+    - `MetaAssociation` - Define relationships between types
+    - `MetaConstraint` - OCL or custom constraint expressions
+    - `MetaOperation` - Define operations/methods
 
 - **Engine Layer** (`org.openmbee.gearshift.engine`)
-  - `MetamodelRegistry` - Register and manage metaclasses
-  - `MofEngine` - Create instances, validate constraints, handle derived properties
-  - `MofObject` - Runtime instances of metaclasses
-  - `NameResolver` - KerML 8.2.3.5 compliant name resolution engine
+    - `MetamodelRegistry` - Register and manage metaclasses
+    - `MDMEngine` - Create instances, validate constraints, handle derived properties
+    - `MDMObject` - Runtime instances of metaclasses
+    - `NameResolver` - KerML 8.2.3.5 compliant name resolution engine
 
 - **Repository Layer** (`org.openmbee.gearshift.repository`)
-  - `ModelRepository` - CRUD operations with indexing
-  - Type-based and property-based indexing for fast queries
+    - `ModelRepository` - CRUD operations with indexing
+    - Type-based and property-based indexing for fast queries
 
 - **Query Layer** (`org.openmbee.gearshift.query`)
-  - `QueryEngine` - Fluent API for querying model instances
+    - `QueryEngine` - Fluent API for querying model instances
 
 - **Unified API** (`GearshiftEngine`)
-  - Single entry point combining all capabilities
+    - Single entry point combining all capabilities
 
 ### KerML Metamodel
 
@@ -191,8 +192,8 @@ src/main/kotlin/org/openmbee/gearshift/
 │   └── MetamodelLoader.kt      # JSON serialization
 ├── engine/                      # MOF engine
 │   ├── MetamodelRegistry.kt
-│   ├── MofEngine.kt
-│   ├── MofObject.kt
+│   ├── MDMEngine.kt
+│   ├── MDMObject.kt
 │   └── NameResolver.kt         # KerML 8.2.3.5 name resolution
 ├── repository/                  # Model storage
 │   └── ModelRepository.kt
@@ -223,6 +224,7 @@ src/main/kotlin/org/openmbee/gearshift/
 ## Design Philosophy
 
 **Gearshift** combines the power of:
+
 - **MOF** - Metamodel-driven architecture
 - **Model Data Management** - Efficient storage and querying
 - **Modern Kotlin** - Expressive syntax with named parameters

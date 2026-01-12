@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.parser
 
 import org.openmbee.gearshift.GearshiftEngine
-import org.openmbee.gearshift.kerml.KerMLMetamodel
+import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 
 /**
  * Example demonstrating how to use the KerML parser visitors.
@@ -30,7 +30,7 @@ object KerMLParserExample {
     fun parseKerMLFile(filePath: String): KerMLParseCoordinator {
         // Initialize engine and metamodel
         val engine = GearshiftEngine()
-        KerMLMetamodel.initialize(engine)
+        KerMLMetamodelLoader.initialize(engine)
 
         // Create coordinator
         val coordinator = KerMLParseCoordinator(engine)
@@ -75,7 +75,7 @@ object KerMLParserExample {
      */
     fun manualParseExample() {
         val engine = GearshiftEngine()
-        KerMLMetamodel.initialize(engine)
+        KerMLMetamodelLoader.initialize(engine)
 
         println("=== Manual Parse Example ===")
         println()
@@ -117,8 +117,9 @@ object KerMLParserExample {
         // Show repository statistics
         val stats = engine.getStatistics()
         println("Repository statistics:")
-        println("  Total instances: ${stats.totalObjects}")
-        println("  By type: ${stats.typeDistribution}")
+        println("  Total instances: ${stats.objects.totalObjects}")
+        println("  By type: ${stats.objects.typeDistribution}")
+        println("  Total links: ${stats.links.totalLinks}")
     }
 
     /**

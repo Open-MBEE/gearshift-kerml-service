@@ -165,7 +165,7 @@ class KerMLParseCoordinator(
         return ParseStatistics(
             totalElements = parsedElements.size,
             unresolvedReferences = unresolvedReferences.size,
-            elementsByType = engine.getStatistics().typeDistribution
+            elementsByType = engine.getStatistics().objects.typeDistribution
         )
     }
 

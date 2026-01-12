@@ -16,26 +16,26 @@
 package org.openmbee.gearshift.repository
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.engine.MofObject
-import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.engine.MDMObject
 import java.util.concurrent.ConcurrentHashMap
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * Repository for managing model instances (MofObjects).
+ * Repository for managing model instances (MDMObjects).
  * Provides CRUD operations, indexing, and querying capabilities.
  */
 class ModelRepository {
-    private val objects = ConcurrentHashMap<String, MofObject>()
+    private val objects = ConcurrentHashMap<String, MDMObject>()
     private val typeIndex = ConcurrentHashMap<String, MutableSet<String>>()
     private val propertyIndex = ConcurrentHashMap<String, MutableMap<Any?, MutableSet<String>>>()
 
     /**
      * Store an object in the repository.
      */
-    fun store(id: String, obj: MofObject) {
+    fun store(id: String, obj: MDMObject) {
         objects[id] = obj
+        obj.id = id  // Set the ID on the object for reverse lookup
 
         // Update type index
         typeIndex.getOrPut(obj.className) { ConcurrentHashMap.newKeySet() }.add(id)
@@ -56,7 +56,7 @@ class ModelRepository {
     /**
      * Retrieve an object by ID.
      */
-    fun get(id: String): MofObject? = objects[id]
+    fun get(id: String): MDMObject? = objects[id]
 
     /**
      * Delete an object by ID.
@@ -81,7 +81,7 @@ class ModelRepository {
     /**
      * Get all objects of a specific type.
      */
-    fun getByType(className: String): List<MofObject> {
+    fun getByType(className: String): List<MDMObject> {
         val ids = typeIndex[className] ?: return emptyList()
         return ids.mapNotNull { objects[it] }
     }
@@ -89,7 +89,7 @@ class ModelRepository {
     /**
      * Get all objects where a property has a specific value.
      */
-    fun getByProperty(propertyName: String, value: Any): List<MofObject> {
+    fun getByProperty(propertyName: String, value: Any): List<MDMObject> {
         val ids = propertyIndex[propertyName]?.get(value) ?: return emptyList()
         return ids.mapNotNull { objects[it] }
     }
@@ -102,7 +102,7 @@ class ModelRepository {
     /**
      * Get all objects.
      */
-    fun getAll(): List<MofObject> = objects.values.toList()
+    fun getAll(): List<MDMObject> = objects.values.toList()
 
     /**
      * Count objects of a specific type.

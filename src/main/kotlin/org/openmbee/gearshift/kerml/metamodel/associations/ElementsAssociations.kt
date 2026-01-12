@@ -15,12 +15,143 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 4: Elements
  * Defines associations for the Element metaclass and related relationships.
  */
 fun createElementAssociations(): List<MetaAssociation> {
-    return emptyList()
+    val ownedElementOwnerAssociation = MetaAssociation(
+        name = "ownedElementOwnerAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "ownedElement",
+            type = "Element",
+            isDerived = true,
+            isOrdered = true,
+            lowerBound = 0,
+            upperBound = -1
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "owner",
+            type = "Element",
+            isDerived = true,
+            lowerBound = 0,
+            upperBound = 1
+        )
+    )
+
+    val relationshipRelatedElementAssociation = MetaAssociation(
+        name = "relationshipRelatedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "relationship",
+            type = "Relationship",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isUnion = true,
+            isUnique = false,
+            isDerived = true,
+            derivationConstraint = "deriveRelationshipRelationship",
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "relatedElement",
+            type = "Element",
+            lowerBound = 0,
+            upperBound = -1,
+            isOrdered = true,
+            isUnique = false,
+            isDerived = true,
+            derivationConstraint = "deriveElementRelatedElement"
+        )
+    )
+
+    val targetRelationshipTargetAssociation = MetaAssociation(
+        name = "targetRelationshipTargetAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "targetRelationship",
+            type = "Relationship",
+            isNavigable = false,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("relationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "target",
+            type = "Element",
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("relatedElement")
+        )
+    )
+
+    val sourceRelationshipSourceAssociation = MetaAssociation(
+        name = "sourceRelationshipSourceAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "sourceRelationship",
+            type = "Relationship",
+            isNavigable = false,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("relationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "source",
+            type = "Element",
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("relatedElement")
+        )
+    )
+
+    val owningRelationshipOwnedRelatedElementAssociation = MetaAssociation(
+        name = "owningRelationshipOwnedRelatedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningRelationship",
+            type = "Relationship",
+            lowerBound = 0,
+            upperBound = 1,
+            subsets = listOf("relationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedRelatedElement",
+            type = "Element",
+            lowerBound = 0,
+            upperBound = -1,
+            isOrdered = true,
+            aggregation = AggregationKind.COMPOSITE,
+            subsets = listOf("relatedElement")
+        )
+    )
+
+    val owningRelatedElementOwnedRelationship = MetaAssociation(
+        name = "owningRelationshipOwnedRelatedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningRelatedElement",
+            "Element",
+            lowerBound = 0,
+            upperBound = 1,
+            subsets = listOf("relatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedRelationship",
+            type = "Relationship",
+            lowerBound = 0,
+            upperBound = -1,
+            isOrdered = true,
+            aggregation = AggregationKind.COMPOSITE,
+            subsets = listOf("relationship")
+        )
+    )
+
+    return listOf(
+        ownedElementOwnerAssociation,
+        relationshipRelatedElementAssociation,
+        targetRelationshipTargetAssociation,
+        sourceRelationshipSourceAssociation,
+        owningRelationshipOwnedRelatedElementAssociation,
+        owningRelatedElementOwnedRelationship
+    )
 }

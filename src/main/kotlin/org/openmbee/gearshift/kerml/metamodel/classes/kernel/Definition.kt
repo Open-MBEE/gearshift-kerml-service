@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Definition metaclass.
@@ -31,7 +31,6 @@ fun createDefinitionMetaClass() = MetaClass(
         MetaProperty(
             name = "isVariation",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this is a variation definition"
         )
     ),

@@ -25,7 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * val nameProperty = MetaProperty(
  *     name = "name",
  *     type = "String",
- *     multiplicity = "0..1"
+ *     lowerBound = 0,
+ *     upperBound = 1
  * )
  * ```
  */
@@ -64,11 +65,34 @@ data class MetaProperty(
     val derivationConstraint: String? = null,
 
     @JsonProperty
-    val multiplicity: String = "1",
+    val lowerBound: Int = 1,
+
+    @JsonProperty
+    val upperBound: Int = 1,
 
     @JsonProperty
     val isReadOnly: Boolean = false,
 
     @JsonProperty
-    val defaultValue: String? = null
-)
+    val defaultValue: String? = null,
+
+    @JsonProperty
+    val description: String? = null
+) {
+    /** True if lowerBound >= 1 (at least one value required) */
+    val isRequired: Boolean get() = lowerBound >= 1
+
+    /** True if upperBound is -1 (unbounded) */
+    val isUnbounded: Boolean get() = upperBound == -1
+
+    /** True if upperBound == 1 (single-valued) */
+    val isSingleValued: Boolean get() = upperBound == 1
+
+    /** True if upperBound > 1 or unbounded (multi-valued) */
+    val isMultiValued: Boolean get() = upperBound == -1 || upperBound > 1
+
+    companion object {
+        /** Constant for unbounded upper multiplicity */
+        const val UNBOUNDED = -1
+    }
+}

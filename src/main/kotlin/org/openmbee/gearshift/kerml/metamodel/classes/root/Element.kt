@@ -15,10 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.openmbee.gearshift.metamodel.MetaClass
-import org.openmbee.gearshift.metamodel.MetaProperty
 import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Element (Root.Element)
@@ -32,59 +31,57 @@ fun createElementMetaClass() = MetaClass(
         MetaProperty(
             name = "elementId",
             type = "String",
-            multiplicity = "1",
             description = "Unique identifier for this element"
         ),
         MetaProperty(
             name = "aliasIds",
             type = "String",
-            multiplicity = "0..*",
+            lowerBound = 0,
+            upperBound = -1,
             isOrdered = true,
             description = "Alias identifiers for this element"
         ),
         MetaProperty(
             name = "declaredShortName",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             description = "Declared short name"
         ),
         MetaProperty(
             name = "declaredName",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             description = "Declared name"
         ),
         MetaProperty(
             name = "isImpliedIncluded",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this element is implied included"
         ),
         MetaProperty(
             name = "shortName",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             isDerived = true,
             description = "Effective short name (derived)"
         ),
         MetaProperty(
             name = "name",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             isDerived = true,
             description = "Effective name (derived)"
         ),
         MetaProperty(
             name = "qualifiedName",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             isDerived = true,
             description = "Fully qualified name (derived)"
         ),
         MetaProperty(
             name = "isLibraryElement",
             type = "Boolean",
-            multiplicity = "1",
             isDerived = true,
             description = "Whether this is a library element (derived)"
         )

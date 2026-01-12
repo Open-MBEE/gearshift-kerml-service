@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Membership metaclass.
@@ -31,13 +31,12 @@ fun createMembershipMetaClass() = MetaClass(
         MetaProperty(
             name = "memberName",
             type = "String",
-            multiplicity = "0..1",
+            lowerBound = 0,
             description = "The name of the member element"
         ),
         MetaProperty(
             name = "visibility",
             type = "VisibilityKind",
-            multiplicity = "1",
             description = "The visibility of the member"
         )
     ),

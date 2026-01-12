@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
 import org.openmbee.gearshift.metamodel.MetaClass
-import MetaProperty
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML Type metaclass.
@@ -31,13 +31,11 @@ fun createTypeMetaClass() = MetaClass(
         MetaProperty(
             name = "isAbstract",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this type is abstract"
         ),
         MetaProperty(
             name = "isSufficient",
             type = "Boolean",
-            multiplicity = "1",
             description = "Whether this type is sufficient"
         )
     ),

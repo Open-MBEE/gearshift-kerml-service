@@ -15,9 +15,11 @@
  */
 package org.openmbee.gearshift.kerml.examples
 
-import org.openmbee.gearshift.kerml.metamodel.*
-import org.openmbee.gearshift.kerml.mof.MetamodelRegistry
-import org.openmbee.gearshift.kerml.mof.MofEngine
+import org.openmbee.gearshift.engine.MDMEngine
+import org.openmbee.gearshift.engine.MetamodelRegistry
+import org.openmbee.gearshift.metamodel.*
+import org.openmbee.gearshift.repository.LinkRepository
+import org.openmbee.gearshift.repository.ModelRepository
 
 /**
  * Example demonstrating how to define KerML metamodel elements using Kotlin's
@@ -33,7 +35,7 @@ fun main() {
     jsonExample()
 
     // Example 3: Using MOF Engine
-    mofEngineExample()
+    MDMEngineExample()
 }
 
 /**
@@ -52,12 +54,12 @@ private fun kotlinExample() {
             MetaProperty(
                 name = "name",
                 type = "String",
-                multiplicity = "0..1"
+                lowerBound = 0
             ),
             MetaProperty(
                 name = "qualifiedName",
                 type = "String",
-                multiplicity = "0..1",
+                lowerBound = 0,
                 isDerived = true,
                 isReadOnly = true
             )
@@ -74,13 +76,13 @@ private fun kotlinExample() {
             MetaProperty(
                 name = "source",
                 type = "Element",
-                multiplicity = "1..*",
+                upperBound = -1,
                 aggregation = AggregationKind.COMPOSITE
             ),
             MetaProperty(
                 name = "target",
                 type = "Element",
-                multiplicity = "1..*"
+                upperBound = -1
             )
         )
     )
@@ -113,7 +115,8 @@ private fun jsonExample() {
             MetaProperty(
                 name = "ownedFeatures",
                 type = "Feature",
-                multiplicity = "0..*",
+                lowerBound = 0,
+                upperBound = -1,
                 aggregation = AggregationKind.COMPOSITE,
                 isOrdered = true
             )
@@ -145,7 +148,7 @@ private fun jsonExample() {
 /**
  * Example using the MOF Engine to create instances.
  */
-private fun mofEngineExample() {
+private fun MDMEngineExample() {
     println("--- MOF Engine Example ---")
 
     // Create registry and register metaclasses
@@ -157,15 +160,15 @@ private fun mofEngineExample() {
             MetaProperty(
                 name = "name",
                 type = "String",
-                multiplicity = "0..1"
+                lowerBound = 0
             )
         )
     )
 
     registry.registerClass(element)
 
-    // Create MOF engine
-    val engine = MofEngine(registry)
+    // Create MDM engine with repositories
+    val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
 
     // Create an instance
     val elementInstance = engine.createInstance("Element")

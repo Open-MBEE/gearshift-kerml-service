@@ -16,11 +16,53 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 5: Dependencies
  * Defines associations for Dependency relationships.
  */
 fun createDependencyAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    val clientDependencyClientAssociation = MetaAssociation(
+        name = "clientDependencyclientAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "clientDependency",
+            type = "Dependency",
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("sourceRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "client",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = -1,
+            isOrdered = true,
+            redefines = listOf("source"),
+
+            )
+    )
+
+    val supplierDependencySupplier = MetaAssociation(
+        name = "supplierDependencySupplier",
+        sourceEnd = MetaAssociationEnd(
+            name = "supplierDependency",
+            type = "Dependency",
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "supplier",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = -1,
+            isOrdered = true,
+            redefines = listOf("target"),
+
+            )
+    )
+
+    return listOf(clientDependencyClientAssociation, supplierDependencySupplier)
 }

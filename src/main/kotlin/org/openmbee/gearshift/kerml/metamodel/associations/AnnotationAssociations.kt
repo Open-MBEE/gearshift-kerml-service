@@ -15,12 +15,184 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 6: Annotation
  * Defines associations for Annotation and AnnotatingElement.
  */
 fun createAnnotationAssociations(): List<MetaAssociation> {
-    return emptyList()
+    val representedElementTextualRepresentationAssociation = MetaAssociation(
+        name = "representedElementTextualRepresentationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "representedElement",
+            type = "Element",
+            upperBound = 1,
+            lowerBound = 1,
+            isDerived = true,
+            subsets = listOf("owner"),
+            redefines = listOf("annotatedElement"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "textualRepresentation",
+            type = "TextualRepresentation",
+            upperBound = -1,
+            lowerBound = 0,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("annotatingElement", "ownedElement"),
+        ),
+    )
+    val owningAnnotatedElementOwnedAnnotationAssociation = MetaAssociation(
+        name = "owningAnnotatedElementOwnedAnnotationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningAnnotatedElement",
+            type = "Element",
+            upperBound = 1,
+            lowerBound = 0,
+            isDerived = true,
+            subsets = listOf("annotatedElement", "owningRelatedElement"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedAnnotation",
+            type = "Annotation",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("annotation", "ownedRelationship"),
+        ),
+    )
+    val annotationAnnotatedElementAssociation = MetaAssociation(
+        name = "annotationAnnotatedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "annotation",
+            type = "Annotation",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "annotatedElement",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target"),
+        ),
+    )
+
+    val annotatingElementAnnotationAssociation = MetaAssociation(
+        name = "annotatingElementAnnotationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "annotatingElement",
+            type = "AnnotatingElement",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("source"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "annotation",
+            type = "Annotation",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("sourceRelationship"),
+        ),
+    )
+    val owningAnnotatingRelationshipOwnedAnnotatingElementAssociation = MetaAssociation(
+        name = "owningAnnotatingRelationshipOwnedAnnotatingElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningAnnotatingRelationship",
+            type = "Annotation",
+            lowerBound = 0,
+            upperBound = 1,
+            subsets = listOf("annotation", "owningRelationship"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedAnnotatingElement",
+            type = "AnnotatingElement",
+            lowerBound = 0,
+            upperBound = 1,
+            aggregation = AggregationKind.COMPOSITE,
+            subsets = listOf("annotatingElement", "ownedRelatedElement"),
+        )
+    )
+    val owningAnnotatingElementOwnedAnnotatingRelationshipAssociation = MetaAssociation(
+        name = "owningAnnotatingElementOwnedAnnotatingRelationshipAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningAnnotatingElement",
+            type = "AnnotatingElement",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("annotatingElement", "owningRelatedElement"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedAnnotatingRelationship",
+            type = "Annotation",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("annotation", "ownedRelationship"),
+        )
+    )
+    val documentedElementDocumentationAssociation = MetaAssociation(
+        name = "documentedElementDocumentationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "documentedElement",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("owner"),
+            redefines = listOf("annotatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "documentation",
+            type = "Documentation",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("annotatingElement", "ownedElement"),
+
+            )
+    )
+    val annotatingElementAnnotatedElementAssociation = MetaAssociation(
+        name = "annotatingElementAnnotatedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "annotatingElement",
+            type = "AnnotatingElement",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            isNavigable = false,
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "annotatedElement",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true
+        ),
+    )
+    return listOf(
+        representedElementTextualRepresentationAssociation,
+        owningAnnotatedElementOwnedAnnotationAssociation,
+        annotationAnnotatedElementAssociation,
+        annotatingElementAnnotationAssociation,
+        owningAnnotatingRelationshipOwnedAnnotatingElementAssociation,
+        owningAnnotatingElementOwnedAnnotatingRelationshipAssociation,
+        documentedElementDocumentationAssociation,
+        annotatingElementAnnotatedElementAssociation,
+    )
 }

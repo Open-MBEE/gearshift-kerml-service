@@ -28,7 +28,10 @@ data class MetaAssociationEnd(
     val type: String,
 
     @JsonProperty
-    val multiplicity: String = "1",
+    val lowerBound: Int = 1,
+
+    @JsonProperty
+    val upperBound: Int = 1,
 
     @JsonProperty
     val isNavigable: Boolean = true,
@@ -40,5 +43,20 @@ data class MetaAssociationEnd(
     val isOrdered: Boolean = false,
 
     @JsonProperty
-    val isUnique: Boolean = true
+    val isUnique: Boolean = true,
+
+    @JsonProperty
+    val isDerived: Boolean = false,
+
+    @JsonProperty
+    val isUnion: Boolean = false,
+
+    @JsonProperty
+    val subsets: List<String> = emptyList(),
+
+    @JsonProperty
+    val redefines: List<String> = emptyList(),
+
+    @JsonProperty
+    val derivationConstraint: String? = null,
 )
