@@ -15,11 +15,13 @@ This document provides complete implementation notes for KerML 8.2.3.5 Name Reso
 ### Qualified Names
 
 A qualified name consists of:
+
 - One or more **segment names** (simple NAMEs)
 - Optional **qualification part** (all segments except the last)
 - Optional **global scope qualifier** (`$` prefix)
 
 Examples:
+
 ```
 A           -> segments: [A]
 A::B::C     -> segments: [A, B, C], qualification: A::B
@@ -28,7 +30,8 @@ $::A::B::C  -> global scope, segments: [A, B, C]
 
 ### Resolution Result
 
-Name resolution returns a **Membership**, but in most cases the required Element is the `memberElement` of that Membership.
+Name resolution returns a **Membership**, but in most cases the required Element is the `memberElement` of that
+Membership.
 
 **Exception**: For `importedMembership` of a `MembershipImport`, the required Element is the Membership itself.
 
@@ -71,6 +74,7 @@ Name resolution returns a **Membership**, but in most cases the required Element
 **✅ Implemented in `resolveInRedefinitionContext()`**
 
 For `redefinedFeature` of a `Redefinition` with an `owningFeature` that has an `owningType`:
+
 - Repeat basic resolution with each general Type's `ownedSpecialization`
 - Use general Type as localNamespace
 - Continue until resolution found
@@ -80,14 +84,14 @@ For `redefinedFeature` of a `Redefinition` with an `owningFeature` that has an `
 Per specification notes:
 
 1. **Incremental Resolution**: ✅ Implemented
-   - Resolution stack prevents infinite loops
-   - Can resolve to Membership without immediately resolving memberElement
-   - Handles circular dependencies
+    - Resolution stack prevents infinite loops
+    - Can resolve to Membership without immediately resolving memberElement
+    - Handles circular dependencies
 
 2. **Circularity Handling**: ✅ Implemented
-   - Visited sets when traversing Imports/Specializations
-   - Thread-local resolution stack
-   - Graceful handling of cycles
+    - Visited sets when traversing Imports/Specializations
+    - Thread-local resolution stack
+    - Graceful handling of cycles
 
 ## Local and Global Namespaces (8.2.3.5.2)
 
@@ -100,12 +104,14 @@ A root Namespace has an implicit containing Namespace called its **globalNamespa
 ### Global Namespace Contents
 
 The globalNamespace includes:
+
 - All **visible Memberships** of all **available** root Namespaces
 - At minimum: all root Namespaces from KerML Model Libraries (Clause 9)
 - If tool imports a model interchange project: all root Namespaces from used projects
 - Tool may provide additional means for making Namespaces available
 
 **Implementation Status**: ⏳ Partial
+
 - `findGlobalNamespace()` placeholder exists
 - Full model library loading not yet implemented
 - Project import mechanism not yet implemented
@@ -127,12 +133,14 @@ localNamespace = import.importOwningNamespace
 **Status**: ⏳ Requires Expression metamodel
 
 Complex rules for:
+
 - FeatureReferenceExpression (use non-invocation Namespace)
 - InstantiationExpression (use non-invocation Namespace)
 - FeatureChainExpression (use result parameter)
 - Otherwise: membershipOwningNamespace
 
 **Non-invocation Namespace**: Nearest containing Namespace that is NOT:
+
 - FeatureReferenceExpression
 - InstantiationExpression
 - ownedFeature of InstantiationExpression
@@ -187,10 +195,12 @@ if (isFirstOwnedFeatureChaining) {
 A Namespace defines a mapping from names to its memberships.
 
 Each Membership is the local resolution for:
+
 - `memberShortName` (if non-null)
 - `memberName` (if non-null)
 
 Includes:
+
 - Owned Memberships
 - Imported Memberships
 - Inherited Memberships (if Namespace is a Type)
@@ -202,12 +212,13 @@ Includes:
 **✅ Implemented in `visibleResolution()`**
 
 Visible Memberships comprise:
+
 1. All `ownedMembership` with `visibility = public`
 2. All `importedMembership` derived from Imports with `visibility = public`
 3. If Namespace is a Type: all `inheritedMembership` with `visibility = public`
 
 ```kotlin
-fun visibleResolution(name: String, namespace: MofObject): ResolutionResult? {
+fun visibleResolution(name: String, namespace: MDMObject): ResolutionResult? {
     // Search owned memberships with visibility = public
     resolveInOwnedMemberships(name, namespace)?.let {
         if (isPublicVisibility(it.membership)) return it
@@ -236,6 +247,7 @@ fun visibleResolution(name: String, namespace: MofObject): ResolutionResult? {
 **✅ Implemented in `fullResolution()`**
 
 Full resolution considers Memberships in:
+
 - The target Namespace
 - All directly or indirectly containing Namespaces
 - Up to the globalNamespace
@@ -263,10 +275,12 @@ For Namespace other than globalNamespace:
 ### Global Namespace Resolution
 
 Resolution in globalNamespace returns the Membership whose:
+
 - `shortMemberName` equals the simple name, OR
 - `memberName` equals the simple name
 
-**Non-deterministic note**: If multiple Memberships resolve the name, one is chosen but which one is implementation-defined.
+**Non-deterministic note**: If multiple Memberships resolve the name, one is chosen but which one is
+implementation-defined.
 
 ```kotlin
 fun resolveInGlobalNamespace(name: String): ResolutionResult? {
@@ -298,56 +312,56 @@ fun resolveInGlobalNamespace(name: String): ResolutionResult? {
 ### ✅ Fully Implemented
 
 1. **Basic Resolution Process (8.2.3.5.1)**
-   - Single segment resolution
-   - Multi-segment resolution
-   - Global scope qualifier
-   - Redefinition context
-   - Circularity prevention
+    - Single segment resolution
+    - Multi-segment resolution
+    - Global scope qualifier
+    - Redefinition context
+    - Circularity prevention
 
 2. **Visible Resolution (8.2.3.5.3)**
-   - Owned memberships
-   - Imported memberships
-   - Inherited memberships (for Types)
+    - Owned memberships
+    - Imported memberships
+    - Inherited memberships (for Types)
 
 3. **Full Resolution (8.2.3.5.4)**
-   - Local resolution
-   - Recursive upward search
-   - Global namespace resolution (basic)
+    - Local resolution
+    - Recursive upward search
+    - Global namespace resolution (basic)
 
 ### ⏳ Partially Implemented
 
 1. **Global Namespace (8.2.3.5.2)**
-   - ✅ Concept and structure
-   - ⏳ KerML Model Libraries loading
-   - ⏳ Project import mechanism
-   - ⏳ Tool-specific namespace availability
+    - ✅ Concept and structure
+    - ⏳ KerML Model Libraries loading
+    - ⏳ Project import mechanism
+    - ⏳ Tool-specific namespace availability
 
 2. **Visibility Enforcement (8.2.3.5.3)**
-   - ✅ Metamodel has visibility property
-   - ⏳ Enforcement in resolution (currently treats all as public)
+    - ✅ Metamodel has visibility property
+    - ⏳ Enforcement in resolution (currently treats all as public)
 
 3. **Local Namespace Determination (8.2.3.5.2)**
-   - ✅ Basic Import case
-   - ⏳ Expression contexts (FeatureReferenceExpression, etc.)
-   - ⏳ Specialization edge cases
-   - ⏳ FeatureChaining
+    - ✅ Basic Import case
+    - ⏳ Expression contexts (FeatureReferenceExpression, etc.)
+    - ⏳ Specialization edge cases
+    - ⏳ FeatureChaining
 
 ### ❌ Not Yet Implemented
 
 1. **Expression Metamodel**
-   - FeatureReferenceExpression
-   - InstantiationExpression
-   - FeatureChainExpression
-   - ConstructorExpression
+    - FeatureReferenceExpression
+    - InstantiationExpression
+    - FeatureChainExpression
+    - ConstructorExpression
 
 2. **Advanced Relationships**
-   - ReferenceSubsetting
-   - Conjugation
-   - FeatureChaining
+    - ReferenceSubsetting
+    - Conjugation
+    - FeatureChaining
 
 3. **memberShortName Support**
-   - Currently only checks memberName
-   - Need to add memberShortName to Membership metamodel
+    - Currently only checks memberName
+    - Need to add memberShortName to Membership metamodel
 
 ## Future Enhancements
 

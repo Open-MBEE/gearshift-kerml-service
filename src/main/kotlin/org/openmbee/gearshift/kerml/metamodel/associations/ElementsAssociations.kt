@@ -30,6 +30,7 @@ fun createElementAssociations(): List<MetaAssociation> {
             name = "ownedElement",
             type = "Element",
             isDerived = true,
+            derivationConstraint = "deriveElementOwnedElement",
             isOrdered = true,
             lowerBound = 0,
             upperBound = -1
@@ -38,6 +39,7 @@ fun createElementAssociations(): List<MetaAssociation> {
             name = "owner",
             type = "Element",
             isDerived = true,
+            derivationConstraint = "deriveElementOwner",
             lowerBound = 0,
             upperBound = 1
         )

@@ -15,12 +15,80 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 10: Specialization
  * Defines associations for Specialization relationships.
  */
 fun createSpecializationAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Specialization references the general Type (target)
+    val generalizationGeneralAssociation = MetaAssociation(
+        name = "generalizationGeneralAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "generalization",
+            type = "Specialization",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            redefines = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "general",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Specialization references the specific Type (source)
+    val specializationSpecificAssociation = MetaAssociation(
+        name = "specializationSpecificAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "specialization",
+            type = "Specialization",
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("sourceRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "specific",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("source")
+        )
+    )
+
+    // Type owns its Specialization relationships (composite)
+    val owningTypeOwnedSpecializationAssociation = MetaAssociation(
+        name = "owningTypeOwnedSpecializationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("specific", "owningRelatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedSpecialization",
+            type = "Specialization",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("specialization", "ownedRelationship")
+        )
+    )
+
+    return listOf(
+        generalizationGeneralAssociation,
+        specializationSpecificAssociation,
+        owningTypeOwnedSpecializationAssociation
+    )
 }

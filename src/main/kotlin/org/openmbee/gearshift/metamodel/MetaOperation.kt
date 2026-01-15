@@ -18,6 +18,23 @@ package org.openmbee.gearshift.metamodel
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
+ * Language used to express operation bodies and constraint expressions.
+ */
+enum class BodyLanguage {
+    /** Simple property reference (e.g., "declaredName") */
+    PROPERTY_REF,
+
+    /** Object Constraint Language - standard for UML/MOF */
+    OCL,
+
+    /** Graph Query Language - for graph-based queries */
+    GQL,
+
+    /** Kotlin DSL - type-safe Kotlin expressions (future) */
+    KOTLIN_DSL
+}
+
+/**
  * Represents an operation (method) in the metamodel.
  */
 data class MetaOperation(
@@ -34,8 +51,14 @@ data class MetaOperation(
     val body: String? = null,
 
     @JsonProperty
+    val bodyLanguage: BodyLanguage = BodyLanguage.OCL,
+
+    @JsonProperty
     val description: String? = null,
 
     @JsonProperty
-    val isQuery: Boolean = false
+    val isQuery: Boolean = false,
+
+    @JsonProperty
+    val redefines: String? = null
 )

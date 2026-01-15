@@ -2,13 +2,16 @@
 
 ## Overview
 
-The Gearshift KerML Service is a metadata-driven implementation of the KerML (Kernel Modeling Language) metamodel, built on the **Gearshift Framework** - a next-generation MOF (Meta-Object Facility) combined with modern model data management capabilities.
+The Gearshift KerML Service is a metadata-driven implementation of the KerML (Kernel Modeling Language) metamodel, built
+on the **Gearshift Framework** - a next-generation MOF (Meta-Object Facility) combined with modern model data management
+capabilities.
 
 ## Design Philosophy
 
 **"Metadata that feels like JSON"**
 
 The system combines:
+
 - **Declarative Metamodeling**: Define types using Kotlin's named parameters or JSON
 - **MOF Power**: Full metamodel-driven architecture with validation and constraints
 - **Modern Data Management**: Indexed repository, query engine, and efficient lookups
@@ -51,22 +54,22 @@ The system combines:
 Defines the structure for describing types:
 
 - **MetaClass**: Represents a type/class
-  - Properties: name, superclasses, attributes, constraints, operations
-  - Supports abstract classes, inheritance
+    - Properties: name, superclasses, attributes, constraints, operations
+    - Supports abstract classes, inheritance
 
 - **MetaProperty**: Defines properties/attributes
-  - Type, multiplicity, aggregation (composite, shared, none)
-  - Derived properties, redefinition, subsetting
-  - Union properties, ordering, uniqueness
+    - Type, multiplicity, aggregation (composite, shared, none)
+    - Derived properties, redefinition, subsetting
+    - Union properties, ordering, uniqueness
 
 - **MetaAssociation**: Relationships between types
-  - Binary associations with source/target ends
+    - Binary associations with source/target ends
 
 - **MetaConstraint**: Validation rules
-  - OCL or custom language expressions
+    - OCL or custom language expressions
 
 - **MetaOperation**: Methods/operations
-  - Parameters, return type, body
+    - Parameters, return type, body
 
 **Key Feature**: Uses Jackson for JSON serialization - no Kotlin Serialization dependency.
 
@@ -75,37 +78,37 @@ Defines the structure for describing types:
 Runtime metamodel execution:
 
 - **MetamodelRegistry**:
-  - Stores and manages MetaClasses and MetaAssociations
-  - Validates metamodel consistency
-  - Tracks inheritance hierarchies
+    - Stores and manages MetaClasses and MetaAssociations
+    - Validates metamodel consistency
+    - Tracks inheritance hierarchies
 
-- **MofEngine**:
-  - Creates instances from MetaClasses
-  - Validates instances against constraints
-  - Handles property get/set with validation
-  - Placeholder for derived property evaluation
+- **MDMEngine**:
+    - Creates instances from MetaClasses
+    - Validates instances against constraints
+    - Handles property get/set with validation
+    - Placeholder for derived property evaluation
 
-- **MofObject**:
-  - Runtime instance of a MetaClass
-  - Stores property values
-  - Links back to MetaClass definition
+- **MDMObject**:
+    - Runtime instance of a MetaClass
+    - Stores property values
+    - Links back to MetaClass definition
 
 - **NameResolver**: ⭐ NEW
-  - Implements KerML 8.2.3.5 Name Resolution
-  - Resolves qualified names (A::B::C)
-  - Handles global scope ($::)
-  - Supports redefinition context
-  - Prevents circular resolution
+    - Implements KerML 8.2.3.5 Name Resolution
+    - Resolves qualified names (A::B::C)
+    - Handles global scope ($::)
+    - Supports redefinition context
+    - Prevents circular resolution
 
 ### 3. Repository Layer (`org.openmbee.gearshift.repository`)
 
 Efficient model storage:
 
 - **ModelRepository**:
-  - CRUD operations for MofObjects
-  - Type-based indexing (fast lookup by class)
-  - Property-based indexing (fast lookup by property value)
-  - Statistics and monitoring
+    - CRUD operations for MDMObjects
+    - Type-based indexing (fast lookup by class)
+    - Property-based indexing (fast lookup by property value)
+    - Statistics and monitoring
 
 ### 4. Query Layer (`org.openmbee.gearshift.query`)
 
@@ -163,27 +166,34 @@ Element (abstract root)
 ### Key Metaclasses
 
 **Element**: Root of KerML hierarchy
+
 - Properties: elementId, name, qualifiedName, ownedElement, owner
 
 **Namespace**: Container for Elements
+
 - Properties: ownedMembership, member, ownedImport, importedMembership
 - Supports name resolution
 
 **Membership**: Links Elements to Namespaces
+
 - Properties: memberElement, memberName, visibility
 - Result of name resolution
 
 **Import**: Brings external elements into scope
+
 - MembershipImport: Import specific membership
 - NamespaceImport: Import all visible members
 
 **Specialization**: Type inheritance
+
 - Properties: specific (subtype), general (supertype), owningType
 
 **Feature**: KerML feature
+
 - Properties: isAbstract, isComposite, ownedFeature
 
 **Type**: KerML type
+
 - Properties: isSufficient, ownedFeatureMembership
 - Inherits from Feature
 
@@ -270,9 +280,9 @@ val result = engine.resolveName("A::B", namespaceId)
 ```
 1. Request instance creation
    ↓
-2. MofEngine validates metaclass exists
+2. MDMEngine validates metaclass exists
    ↓
-3. Create MofObject with link to MetaClass
+3. Create MDMObject with link to MetaClass
    ↓
 4. Store in ModelRepository with indexing
    ↓
@@ -301,8 +311,8 @@ val result = engine.resolveName("A::B", namespaceId)
 Currently placeholder - integrate OCL evaluator:
 
 ```kotlin
-// TODO in MofEngine
-private fun evaluateConstraint(instance: MofObject, constraint: MetaConstraint): Boolean {
+// TODO in MDMEngine
+private fun evaluateConstraint(instance: MDMObject, constraint: MetaConstraint): Boolean {
     // Integrate OCL or custom evaluator
 }
 ```
@@ -312,8 +322,8 @@ private fun evaluateConstraint(instance: MofObject, constraint: MetaConstraint):
 Currently placeholder - evaluate derivation expressions:
 
 ```kotlin
-// TODO in MofEngine
-private fun evaluateDerivedProperty(instance: MofObject, property: MetaProperty): Any? {
+// TODO in MDMEngine
+private fun evaluateDerivedProperty(instance: MDMObject, property: MetaProperty): Any? {
     // Evaluate derivationConstraint
 }
 ```
@@ -360,6 +370,7 @@ class JdbcModelRepository : ModelRepository {
 ## Compliance
 
 Implements KerML v1.0 specification:
+
 - ✅ 8.2.3.5 Name Resolution (full implementation)
 - ✅ 8.2.3.4 Membership and Visibility (partial - metamodel defined)
 - ⏳ 8.4.2 Implied Relationships (planned)
@@ -378,6 +389,9 @@ Implements KerML v1.0 specification:
 
 ## Summary
 
-The Gearshift KerML Service provides a modern, metadata-driven foundation for KerML implementation. By combining MOF-style metamodeling with contemporary software patterns (Kotlin DSLs, JSON interop, indexed repositories), it creates a framework that is both specification-compliant and developer-friendly.
+The Gearshift KerML Service provides a modern, metadata-driven foundation for KerML implementation. By combining
+MOF-style metamodeling with contemporary software patterns (Kotlin DSLs, JSON interop, indexed repositories), it creates
+a framework that is both specification-compliant and developer-friendly.
 
-The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor and power of formal metamodeling approaches.
+The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor and power
+of formal metamodeling approaches.

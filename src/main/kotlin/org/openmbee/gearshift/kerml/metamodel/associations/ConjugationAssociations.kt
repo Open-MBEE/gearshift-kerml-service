@@ -15,12 +15,81 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 11: Conjugation
  * Defines associations for Conjugation relationships.
  */
 fun createConjugationAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Conjugation references the originalType Type (target)
+    val conjugationOriginalTypeAssociation = MetaAssociation(
+        name = "conjugationOriginalTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "conjugation",
+            type = "Conjugation",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "originalType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Conjugator references the conjugatedType (source)
+    val conjugatorConjugatedTypeAssociation = MetaAssociation(
+        name = "conjugatorConjugatedTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "conjugator",
+            type = "Conjugation",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("sourceRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "conjugatedType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("source")
+        )
+    )
+
+    // Type owns its Conjugator relationships (composite)
+    val owningTypeOwnedConjugatorAssociation = MetaAssociation(
+        name = "ownedConjugatorOwningTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("conjugatedType", "owningRelatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedConjugator",
+            type = "Conjugation",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            subsets = listOf("conjugator", "ownedRelationship")
+        )
+    )
+
+    return listOf(
+        conjugationOriginalTypeAssociation,
+        conjugatorConjugatedTypeAssociation,
+        owningTypeOwnedConjugatorAssociation
+    )
 }

@@ -17,10 +17,7 @@ package org.openmbee.gearshift.kerml
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.GearshiftEngine
-import org.openmbee.gearshift.kerml.metamodel.associations.createAnnotationAssociations
-import org.openmbee.gearshift.kerml.metamodel.associations.createDependencyAssociations
-import org.openmbee.gearshift.kerml.metamodel.associations.createElementAssociations
-import org.openmbee.gearshift.kerml.metamodel.associations.createNamespaceAssociations
+import org.openmbee.gearshift.kerml.metamodel.associations.*
 import org.openmbee.gearshift.kerml.metamodel.classes.core.*
 import org.openmbee.gearshift.kerml.metamodel.classes.kernel.*
 import org.openmbee.gearshift.kerml.metamodel.classes.root.*
@@ -107,6 +104,9 @@ object KerMLMetamodelLoader {
         engine.registerMetaClass(createSpecializationMetaClass())
         engine.registerMetaClass(createConjugationMetaClass())
         engine.registerMetaClass(createDisjoiningMetaClass())
+        engine.registerMetaClass(createDifferencingMetaClass())
+        engine.registerMetaClass(createIntersectingMetaClass())
+        engine.registerMetaClass(createUnioningMetaClass())
 
         // Features
         engine.registerMetaClass(createFeatureMetaClass())
@@ -269,11 +269,14 @@ object KerMLMetamodelLoader {
         createDependencyAssociations().forEach { engine.registerMetaAssociation(it) }
         createAnnotationAssociations().forEach { engine.registerMetaAssociation(it) }
         createNamespaceAssociations().forEach { engine.registerMetaAssociation(it) }
-        // TODO: Add more association groups as they are created
-        // createRelationshipAssociations().forEach { engine.registerMetaAssociation(it) }
-        // createNamespaceAssociations().forEach { engine.registerMetaAssociation(it) }
-        // createFeatureAssociations().forEach { engine.registerMetaAssociation(it) }
-        // createTypeAssociations().forEach { engine.registerMetaAssociation(it) }
+        createImportAssociations().forEach { engine.registerMetaAssociation(it) }
+        createTypeAssociations().forEach { engine.registerMetaAssociation(it) }
+        createSpecializationAssociations().forEach { engine.registerMetaAssociation(it) }
+        createConjugationAssociations().forEach { engine.registerMetaAssociation(it) }
+        createDisjoiningAssociations().forEach { engine.registerMetaAssociation(it) }
+        createUnioningAssociations().forEach { engine.registerMetaAssociation(it) }
+        createIntersectingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createDifferencingAssociations().forEach { engine.registerMetaAssociation(it) }
 
         logger.debug { "Associations registered" }
     }
@@ -303,7 +306,7 @@ object KerMLMetamodelLoader {
     )
 
     private fun getCorePackageClasses() = setOf(
-        "Specialization", "Conjugation", "Disjoining",
+        "Specialization", "Conjugation", "Disjoining", "Differencing", "Intersecting", "Unioning",
         "Feature", "FeatureMembership", "FeatureTyping", "FeatureInverting",
         "Subsetting", "Redefinition",
         "Type", "Classifier", "Featuring", "TypeFeaturing",

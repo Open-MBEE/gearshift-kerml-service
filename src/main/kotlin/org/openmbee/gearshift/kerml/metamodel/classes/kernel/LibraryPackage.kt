@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaOperation
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
@@ -32,6 +33,16 @@ fun createLibraryPackageMetaClass() = MetaClass(
             name = "isStandard",
             type = "Boolean",
             description = "Whether this is a standard library package"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "libraryNamespace",
+            returnType = "Namespace",
+            description = "Return self since a LibraryPackage is itself a library Namespace.",
+            body = "self",
+            isQuery = true,
+            redefines = "Element::libraryNamespace"
         )
     ),
     description = "A package that contains library elements"

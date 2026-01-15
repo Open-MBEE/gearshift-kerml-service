@@ -20,12 +20,9 @@ import org.openmbee.gearshift.constraints.ConstraintEngine
 import org.openmbee.gearshift.constraints.ConstraintRegistry
 import org.openmbee.gearshift.constraints.EngineAccessor
 import org.openmbee.gearshift.constraints.ValidationResults
-import org.openmbee.gearshift.metamodel.AggregationKind
-import org.openmbee.gearshift.metamodel.MetaAssociation
-import org.openmbee.gearshift.metamodel.MetaClass
-import org.openmbee.gearshift.metamodel.MetaConstraint
-import org.openmbee.gearshift.metamodel.MetaOperation
-import org.openmbee.gearshift.metamodel.MetaProperty
+import org.openmbee.gearshift.constraints.parsers.ocl.OclExecutor
+import org.openmbee.gearshift.constraints.parsers.ocl.OclParser
+import org.openmbee.gearshift.metamodel.*
 import org.openmbee.gearshift.repository.LinkRepository
 import org.openmbee.gearshift.repository.ModelRepository
 import java.util.*
@@ -276,9 +273,11 @@ class MDMEngine(
      */
     fun validateWithConstraints(instanceId: String): ValidationResults {
         val instance = objectRepository.get(instanceId)
-            ?: return ValidationResults.fromResults(listOf(
-                org.openmbee.gearshift.constraints.ValidationResult.invalid("Instance not found: $instanceId")
-            ))
+            ?: return ValidationResults.fromResults(
+                listOf(
+                    org.openmbee.gearshift.constraints.ValidationResult.invalid("Instance not found: $instanceId")
+                )
+            )
 
         return constraintEngine.validateInstance(instance, instanceId)
     }
@@ -367,17 +366,40 @@ class MDMEngine(
     ): Any? {
         val body = operation.body ?: return null
 
-        // For simple cases where body is just a property name, return that property's value
-        if (operation.parameters.isEmpty() && body.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
-            return instance.getProperty(body)
-        }
+        return when (operation.bodyLanguage) {
+            BodyLanguage.PROPERTY_REF -> {
+                // Simple property reference - just return the property value
+                instance.getProperty(body)
+            }
 
-        // TODO: Integrate with OCL or expression evaluator for complex bodies
-        logger.warn {
-            "Complex operation body evaluation not yet implemented: ${operation.name}. " +
-                    "Body: $body"
+            BodyLanguage.OCL -> {
+                // Parse and evaluate OCL expression using ANTLR parser
+                try {
+                    val ast = OclParser.parse(body)
+                    val instanceId = instance.id
+                        ?: throw IllegalStateException("Instance must have an ID for OCL evaluation")
+                    val executor = OclExecutor(engineAccessor, instance, instanceId)
+
+                    // Add operation arguments to the executor's variable scope
+                    executor.evaluateWith(ast, arguments)
+                } catch (e: Exception) {
+                    logger.error(e) { "OCL evaluation failed for operation: ${operation.name}" }
+                    null
+                }
+            }
+
+            BodyLanguage.GQL -> {
+                // TODO: Integrate GQL evaluator
+                logger.warn { "GQL evaluation not yet implemented for operation: ${operation.name}" }
+                null
+            }
+
+            BodyLanguage.KOTLIN_DSL -> {
+                // TODO: Integrate Kotlin DSL evaluator
+                logger.warn { "Kotlin DSL evaluation not yet implemented for operation: ${operation.name}" }
+                null
+            }
         }
-        return null
     }
 
     // ===== Link (Edge) Management =====
@@ -576,7 +598,7 @@ class MDMEngine(
         if (!sourceTypeValid) {
             throw IllegalArgumentException(
                 "Source instance type '${source.className}' is not compatible with " +
-                "association source end type '${association.sourceEnd.type}'"
+                        "association source end type '${association.sourceEnd.type}'"
             )
         }
 
@@ -584,7 +606,7 @@ class MDMEngine(
         if (!targetTypeValid) {
             throw IllegalArgumentException(
                 "Target instance type '${target.className}' is not compatible with " +
-                "association target end type '${association.targetEnd.type}'"
+                        "association target end type '${association.targetEnd.type}'"
             )
         }
     }
@@ -594,7 +616,7 @@ class MDMEngine(
      */
     private fun isInstanceOfType(instance: MDMObject, typeName: String): Boolean {
         return instance.className == typeName ||
-               registry.isSubclassOf(instance.className, typeName)
+                registry.isSubclassOf(instance.className, typeName)
     }
 
     /**
@@ -614,7 +636,7 @@ class MDMEngine(
             if (currentSourceCount >= sourceEnd.upperBound) {
                 throw IllegalStateException(
                     "Cannot create link: target '$targetId' already has maximum " +
-                    "${sourceEnd.upperBound} sources via '${association.name}'"
+                            "${sourceEnd.upperBound} sources via '${association.name}'"
                 )
             }
         }
@@ -628,7 +650,7 @@ class MDMEngine(
             if (currentTargetCount >= targetEnd.upperBound) {
                 throw IllegalStateException(
                     "Cannot create link: source '$sourceId' already has maximum " +
-                    "${targetEnd.upperBound} targets via '${association.name}'"
+                            "${targetEnd.upperBound} targets via '${association.name}'"
                 )
             }
         }
@@ -653,7 +675,7 @@ class MDMEngine(
                 if (targetCount < association.targetEnd.lowerBound) {
                     errors.add(
                         "Instance '$instanceId' requires at least ${association.targetEnd.lowerBound} " +
-                        "target(s) via '${association.name}', but has $targetCount"
+                                "target(s) via '${association.name}', but has $targetCount"
                     )
                 }
             }
@@ -665,7 +687,7 @@ class MDMEngine(
                 if (sourceCount < association.sourceEnd.lowerBound) {
                     errors.add(
                         "Instance '$instanceId' requires at least ${association.sourceEnd.lowerBound} " +
-                        "source(s) via '${association.name}', but has $sourceCount"
+                                "source(s) via '${association.name}', but has $sourceCount"
                     )
                 }
             }

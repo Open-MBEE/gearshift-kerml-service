@@ -15,12 +15,81 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 12: Disjoining
  * Defines associations for Disjoining relationships.
  */
 fun createDisjoiningAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Conjugation references the originalType Type (target)
+    val disjoiningTypeDisjoiningTypeDisjoinedAssociation = MetaAssociation(
+        name = "disjoiningTypeDisjoiningTypeDisjoinedAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "disjoiningTypeDisjoining",
+            type = "Disjoining",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("sourceRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "typeDisjoined",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("source")
+        )
+    )
+
+    // Conjugator references the conjugatedType (source)
+    val disjoinedTypeDisjoiningDisjoiningTypeAssociation = MetaAssociation(
+        name = "disjoinedTypeDisjoiningDisjoiningTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "disjoinedTypeDisjoining",
+            type = "Disjoining",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "disjoiningType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Type owns its Conjugator relationships (composite)
+    val owningTypeOwnedDisjoiningAssociation = MetaAssociation(
+        name = "owningTypeOwnedDisjoiningAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("typeDisjoined", "owningRelatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedDisjoining",
+            type = "Disjoining",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            subsets = listOf("disjoiningTypeDisjoining", "ownedRelationship")
+        )
+    )
+
+    return listOf(
+        disjoiningTypeDisjoiningTypeDisjoinedAssociation,
+        disjoinedTypeDisjoiningDisjoiningTypeAssociation,
+        owningTypeOwnedDisjoiningAssociation
+    )
 }

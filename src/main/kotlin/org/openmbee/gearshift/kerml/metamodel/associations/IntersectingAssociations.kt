@@ -15,12 +15,82 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 14: Intersecting
  * Defines associations for Intersecting relationships.
  */
 fun createIntersectingAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Conjugator references the conjugatedType (source)
+    val intersectedIntersectingIntersectingTypeAssociation = MetaAssociation(
+        name = "intersectedIntersectingIntersectingTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "intersectedIntersecting",
+            type = "Intersecting",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "intersectingType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Type owns its Conjugator relationships (composite)
+    val typeIntersectedOwnedIntersectingAssociation = MetaAssociation(
+        name = "typeIntersectedOwnedIntersectingAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typeIntersected",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("owningRelatedElement"),
+            redefines = listOf("source")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedIntersecting",
+            type = "Intersecting",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("sourceRelationship", "ownedRelationship")
+        )
+    )
+
+    val intersectedTypeIntersectingTypeAssociation = MetaAssociation(
+        name = "intersectedTypeIntersectingTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "intersectedType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "intersectingType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+        )
+    )
+
+    return listOf(
+        intersectedIntersectingIntersectingTypeAssociation,
+        typeIntersectedOwnedIntersectingAssociation,
+        intersectedTypeIntersectingTypeAssociation
+    )
 }

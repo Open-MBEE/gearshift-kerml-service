@@ -15,12 +15,62 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 13: Unioning
  * Defines associations for Unioning relationships.
  */
 fun createUnioningAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Conjugator references the conjugatedType (source)
+    val unionedUnioningUnioningTypeAssociation = MetaAssociation(
+        name = "unionedUnioningUnioningTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "unionedUnioning",
+            type = "Unioning",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "unioningType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Type owns its Conjugator relationships (composite)
+    val typeUnionedOwnedUnioningAssociation = MetaAssociation(
+        name = "typeUnionedOwnedUnioningAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typeUnioned",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("owningRelatedElement"),
+            redefines = listOf("source")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedUnioning",
+            type = "Unioning",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("sourceRelationship", "ownedRelationship")
+        )
+    )
+
+    return listOf(
+        unionedUnioningUnioningTypeAssociation,
+        typeUnionedOwnedUnioningAssociation
+    )
 }

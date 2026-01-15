@@ -15,12 +15,82 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 15: Differencing
  * Defines associations for Differencing relationships.
  */
 fun createDifferencingAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Conjugator references the conjugatedType (source)
+    val differencedDifferencingDifferencingTypeAssociation = MetaAssociation(
+        name = "differencedDifferencingDifferencingTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "differencedDifferencing",
+            type = "Differencing",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "differencingType",
+            type = "Type",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // Type owns its Conjugator relationships (composite)
+    val typeDifferencedOwnedDifferencingAssociation = MetaAssociation(
+        name = "typeDifferencedOwnedDifferencingAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typeDifferenced",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("owningRelatedElement"),
+            redefines = listOf("source")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedDifferencing",
+            type = "Differencing",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("sourceRelationship", "ownedRelationship")
+        )
+    )
+
+    val differencedTypeDifferencingTypeAssociation = MetaAssociation(
+        name = "differencedTypeDifferencingTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "differencedType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "differencingType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+        )
+    )
+
+    return listOf(
+        differencedDifferencingDifferencingTypeAssociation,
+        typeDifferencedOwnedDifferencingAssociation,
+        differencedTypeDifferencingTypeAssociation
+    )
 }

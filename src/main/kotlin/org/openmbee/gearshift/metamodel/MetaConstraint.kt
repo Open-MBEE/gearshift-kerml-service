@@ -18,12 +18,29 @@ package org.openmbee.gearshift.metamodel
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
+ * The type of constraint.
+ */
+enum class ConstraintType {
+    /** Derivation constraint for computing derived property values */
+    DERIVATION,
+
+    /** Verification constraint for validating invariants */
+    VERIFICATION,
+
+    /** Constraint for calculating non-navigable association ends */
+    NON_NAVIGABLE_END
+}
+
+/**
  * Represents a constraint in the metamodel.
  * Can be expressed using OCL or other constraint languages.
  */
 data class MetaConstraint(
     @JsonProperty(required = true)
     val name: String,
+
+    @JsonProperty
+    val type: ConstraintType = ConstraintType.DERIVATION,
 
     @JsonProperty
     val language: String = "OCL",

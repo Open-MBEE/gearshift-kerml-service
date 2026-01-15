@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 8: Imports
@@ -23,11 +25,115 @@ import org.openmbee.gearshift.metamodel.MetaAssociation
  */
 fun createImportAssociations(): List<MetaAssociation> {
 
-    val membershipImportImportedElementAssociation = MetaAssociation()
-    val importOwningNamespaceOwnedImportAssociation = MetaAssociation()
-    val importImportedNamespaceAssociation = MetaAssociation()
-    val importImportedMembershipAssociation = MetaAssociation()
-    val membershipMemberElementAssociation = MetaAssociation()
+    // Import is owned by importing Namespace (composite ownership)
+    val importOwningNamespaceOwnedImportAssociation = MetaAssociation(
+        name = "importOwningNamespaceOwnedImportAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "importOwningNamespace",
+            type = "Namespace",
+            lowerBound = 1,
+            upperBound = 1,
+            subsets = listOf("owningRelatedElement"),
+            redefines = listOf("source")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedImport",
+            type = "Import",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isOrdered = true,
+            subsets = listOf("ownedRelationship", "sourceRelationship")
+        )
+    )
 
-    return emptyList()
+    // NamespaceImport references the imported Namespace
+    val importImportedNamespaceAssociation = MetaAssociation(
+        name = "importImportedNamespaceAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "import",
+            type = "NamespaceImport",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "importedNamespace",
+            type = "Namespace",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // MembershipImport references the imported Membership
+    val importImportedMembershipAssociation = MetaAssociation(
+        name = "importImportedMembershipAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "import",
+            type = "MembershipImport",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            redefines = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "importedMembership",
+            type = "Membership",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    // MembershipImport has derived importedElement (via importedMembership.memberElement)
+    val membershipImportImportedElementAssociation = MetaAssociation(
+        name = "membershipImportImportedElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "membershipImport",
+            type = "MembershipImport",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "importedElement",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true
+        )
+    )
+
+
+    val membershipMemberElementAssociation = MetaAssociation(
+        name = "membershipMemberElementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "membership",
+            type = "Membership",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false, subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "memberElement",
+            type = "Element",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            isOrdered = true,
+            redefines = listOf("target")
+        )
+    )
+
+    return listOf(
+        importOwningNamespaceOwnedImportAssociation,
+        importImportedNamespaceAssociation,
+        importImportedMembershipAssociation,
+        membershipImportImportedElementAssociation,
+        membershipMemberElementAssociation
+    )
 }

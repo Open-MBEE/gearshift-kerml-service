@@ -4,7 +4,9 @@ This document describes the implementation of KerML Name Resolution (Section 8.2
 
 ## Overview
 
-Name resolution is the process of determining which **Element** is identified by a qualified name. The result is actually a **Membership** relationship, but in most cases the required Element is the `memberElement` of that Membership.
+Name resolution is the process of determining which **Element** is identified by a qualified name. The result is
+actually a **Membership** relationship, but in most cases the required Element is the `memberElement` of that
+Membership.
 
 ## Qualified Names
 
@@ -18,7 +20,7 @@ A qualified name consists of one or more **segment names** separated by `::`:
 
 - **Segment Name**: A simple name (lexical NAME token)
 - **Qualification Part**: For multi-segment names, all segments except the last
-  - Example: `A::B::C` has qualification part `A::B`
+    - Example: `A::B::C` has qualification part `A::B`
 - **Global Scope Qualifier**: The `$` prefix indicating global scope
 
 ## Name Resolution Process
@@ -34,26 +36,27 @@ fun resolve(qualifiedName: String, localNamespaceId: String): ResolutionResult?
 The basic process:
 
 1. **Single segment with global scope** (`$::Name`)
-   - Resolve relative to the global Namespace
+    - Resolve relative to the global Namespace
 
 2. **Single segment without global scope** (`Name`)
-   - If localNamespace is a root namespace, resolve relative to global namespace
-   - Otherwise, perform full resolution relative to localNamespace
+    - If localNamespace is a root namespace, resolve relative to global namespace
+    - Otherwise, perform full resolution relative to localNamespace
 
 3. **Multi-segment qualified name** (`A::B::C`)
-   - Resolve the qualification part (`A::B`) relative to localNamespace
-   - Result must be a Namespace
-   - Perform visible resolution of the last segment (`C`) relative to that Namespace
+    - Resolve the qualification part (`A::B`) relative to localNamespace
+    - Result must be a Namespace
+    - Perform visible resolution of the last segment (`C`) relative to that Namespace
 
 ### Full Resolution (KerML 8.2.3.5.4)
 
 Full resolution searches all memberships including imported ones:
 
 ```kotlin
-private fun fullResolution(name: String, namespace: MofObject): ResolutionResult?
+private fun fullResolution(name: String, namespace: MDMObject): ResolutionResult?
 ```
 
 Process:
+
 1. Try visible resolution first
 2. If that fails and namespace is a Type, search inherited memberships
 
@@ -62,10 +65,11 @@ Process:
 Visible resolution searches only directly visible memberships:
 
 ```kotlin
-private fun visibleResolution(name: String, namespace: MofObject): ResolutionResult?
+private fun visibleResolution(name: String, namespace: MDMObject): ResolutionResult?
 ```
 
 Searches:
+
 1. Owned memberships
 2. Imported memberships
 
@@ -82,6 +86,7 @@ fun resolve(
 ```
 
 When `isRedefinitionContext` is true:
+
 - Repeat basic resolution with each general Type of the owning Type's specializations
 - Continue until a resolution is found
 
@@ -89,7 +94,8 @@ When `isRedefinitionContext` is true:
 
 ### Required Metaclasses
 
-The following metaclasses support name resolution (defined in [KerMLMetamodel.kt](../src/main/kotlin/org/openmbee/gearshift/kerml/KerMLMetamodel.kt)):
+The following metaclasses support name resolution (defined
+in [KerMLMetamodel.kt](../src/main/kotlin/org/openmbee/gearshift/kerml/KerMLMetamodel.kt)):
 
 #### Membership
 
@@ -136,6 +142,7 @@ MetaClass(
 ```
 
 Concrete subtypes:
+
 - **MembershipImport**: Imports a specific Membership
 - **NamespaceImport**: Imports all visible members from a Namespace
 
@@ -250,6 +257,7 @@ Per KerML specification 8.2.3.5.1 Note:
 - Must handle cases where Memberships are resolved before their memberElements
 
 The implementation handles this through:
+
 1. Resolution stack to detect cycles
 2. Lazy resolution - can resolve to Membership without immediately resolving memberElement
 3. Visited sets when traversing relationship graphs
