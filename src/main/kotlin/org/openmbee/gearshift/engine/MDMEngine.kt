@@ -74,12 +74,22 @@ class MDMEngine(
 
         override fun isSubclassOf(subclass: String, superclass: String): Boolean =
             registry.isSubclassOf(subclass, superclass)
+
+        override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? {
+            val instance = objectRepository.get(instanceId) ?: return null
+            return this@MDMEngine.invokeOperation(instance, operationName, arguments)
+        }
     }
 
     /**
      * Constraint engine for evaluating derived properties and validation constraints.
      */
     val constraintEngine = ConstraintEngine(constraintRegistry, registry, engineAccessor)
+
+    /**
+     * Kotlin script executor for operations with inline Kotlin implementation.
+     */
+    private val kotlinScriptExecutor by lazy { KotlinScriptExecutor(engineAccessor) }
 
     /**
      * Create a new instance of a metaclass.
@@ -94,6 +104,7 @@ class MDMEngine(
 
         val instance = MDMObject(className, metaClass)
         val instanceId = UUID.randomUUID().toString()
+        instance.id = instanceId
         instances[instanceId] = instance
 
         logger.debug { "Created instance of $className: $instanceId" }
@@ -226,21 +237,46 @@ class MDMEngine(
 
     /**
      * Evaluate a derived property using its OCL derivation constraint expression.
-     * This is a placeholder for OCL expression parsing/evaluation.
+     * Looks up the named constraint and evaluates its OCL expression.
      */
     private fun evaluateDerivedPropertyExpression(instance: MDMObject, property: MetaProperty): Any? {
-        val expression = property.derivationConstraint ?: return null
+        val constraintName = property.derivationConstraint ?: return null
+        val instanceId = instance.id ?: return null
 
-        // For simple expressions, try to parse and evaluate
-        // TODO: Integrate with full OCL parser/evaluator
-        logger.debug { "Evaluating derived property expression: ${property.name} = $expression" }
+        logger.debug { "Evaluating derived property '${property.name}' via constraint '$constraintName'" }
 
-        // Handle simple property reference expressions
-        if (expression.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
-            return instance.getProperty(expression)
+        // Look up the named constraint from the metaclass (including inherited constraints)
+        val constraint = findConstraint(instance.metaClass, constraintName)
+        if (constraint == null) {
+            logger.warn { "Constraint '$constraintName' not found for derived property '${property.name}'" }
+            return null
         }
 
-        logger.warn { "Complex OCL expression evaluation not yet implemented: $expression" }
+        // Parse and evaluate the OCL expression
+        return try {
+            val ast = OclParser.parse(constraint.expression)
+            val executor = OclExecutor(engineAccessor, instance, instanceId)
+            executor.evaluate(ast)
+        } catch (e: Exception) {
+            logger.error(e) { "Error evaluating constraint '$constraintName': ${constraint.expression}" }
+            null
+        }
+    }
+
+    /**
+     * Find a constraint by name in a metaclass or its superclasses.
+     */
+    private fun findConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
+        // Check direct constraints
+        metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
+
+        // Check inherited constraints
+        metaClass.superclasses.forEach { superclassName ->
+            registry.getClass(superclassName)?.let { superclass ->
+                findConstraint(superclass, constraintName)?.let { return it }
+            }
+        }
+
         return null
     }
 
@@ -395,9 +431,13 @@ class MDMEngine(
             }
 
             BodyLanguage.KOTLIN_DSL -> {
-                // TODO: Integrate Kotlin DSL evaluator
-                logger.warn { "Kotlin DSL evaluation not yet implemented for operation: ${operation.name}" }
-                null
+                // Execute Kotlin DSL body using the script executor
+                try {
+                    kotlinScriptExecutor.execute(body, instance, arguments)
+                } catch (e: Exception) {
+                    logger.error(e) { "Kotlin DSL execution failed for operation: ${operation.name}" }
+                    throw e
+                }
             }
         }
     }

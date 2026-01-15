@@ -79,6 +79,24 @@ class ModelRepository {
     }
 
     /**
+     * Update the property index when a property value changes.
+     */
+    fun updatePropertyIndex(id: String, propertyName: String, oldValue: Any?, newValue: Any?) {
+        // Remove old value from index
+        if (oldValue != null) {
+            propertyIndex[propertyName]?.get(oldValue)?.remove(id)
+        }
+
+        // Add new value to index
+        if (newValue != null) {
+            propertyIndex
+                .getOrPut(propertyName) { ConcurrentHashMap() }
+                .getOrPut(newValue) { ConcurrentHashMap.newKeySet() }
+                .add(id)
+        }
+    }
+
+    /**
      * Get all objects of a specific type.
      */
     fun getByType(className: String): List<MDMObject> {

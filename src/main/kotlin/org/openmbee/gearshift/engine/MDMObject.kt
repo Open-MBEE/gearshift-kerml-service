@@ -69,6 +69,15 @@ class MDMObject(
     }
 
     override fun toString(): String {
-        return "MDMObject(className='$className', properties=$properties)"
+        val safeProperties = properties.mapValues { (_, value) ->
+            when (value) {
+                is MDMObject -> "MDMObject(id=${value.id}, className=${value.className})"
+                is Collection<*> -> value.map { item ->
+                    if (item is MDMObject) "MDMObject(id=${item.id}, className=${item.className})" else item
+                }
+                else -> value
+            }
+        }
+        return "MDMObject(id=$id, className='$className', properties=$safeProperties)"
     }
 }

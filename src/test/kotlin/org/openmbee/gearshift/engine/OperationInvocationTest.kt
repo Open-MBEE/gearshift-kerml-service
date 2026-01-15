@@ -19,6 +19,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import org.openmbee.gearshift.metamodel.BodyLanguage
 import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaOperation
 import org.openmbee.gearshift.metamodel.MetaParameter
@@ -369,6 +370,118 @@ class OperationInvocationTest : DescribeSpec({
                 val result = engine.invokeOperation(instance, "getName")
 
                 result shouldBe "Test"
+            }
+        }
+
+        context("Kotlin DSL operations") {
+
+            it("should execute simple Kotlin expression") {
+                val registry = MetamodelRegistry()
+                val metaClass = MetaClass(
+                    name = "Calculator",
+                    operations = listOf(
+                        MetaOperation(
+                            name = "getAnswer",
+                            returnType = "Int",
+                            body = MetaOperation.kotlinBody("42"),
+                            bodyLanguage = BodyLanguage.KOTLIN_DSL
+                        )
+                    )
+                )
+                registry.registerClass(metaClass)
+
+                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val instance = engine.createInstance("Calculator")
+
+                val result = engine.invokeOperation(instance, "getAnswer")
+
+                result shouldBe 42
+            }
+
+            it("should access self properties from Kotlin DSL") {
+                val registry = MetamodelRegistry()
+                val metaClass = MetaClass(
+                    name = "Element",
+                    attributes = listOf(
+                        MetaProperty(name = "value", type = "Int", lowerBound = 0)
+                    ),
+                    operations = listOf(
+                        MetaOperation(
+                            name = "doubled",
+                            returnType = "Int",
+                            body = MetaOperation.kotlinBody("""
+                                val v = self.getProperty("value") as? Long ?: 0L
+                                v * 2
+                            """.trimIndent()),
+                            bodyLanguage = BodyLanguage.KOTLIN_DSL
+                        )
+                    )
+                )
+                registry.registerClass(metaClass)
+
+                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val instance = engine.createInstance("Element")
+                engine.setProperty(instance, "value", 21L)
+
+                val result = engine.invokeOperation(instance, "doubled")
+
+                result shouldBe 42L
+            }
+
+            it("should access operation arguments from Kotlin DSL") {
+                val registry = MetamodelRegistry()
+                val metaClass = MetaClass(
+                    name = "Calculator",
+                    operations = listOf(
+                        MetaOperation(
+                            name = "add",
+                            returnType = "Int",
+                            parameters = listOf(
+                                MetaParameter(name = "a", type = "Int"),
+                                MetaParameter(name = "b", type = "Int")
+                            ),
+                            body = MetaOperation.kotlinBody("""
+                                val a = args["a"] as Int
+                                val b = args["b"] as Int
+                                a + b
+                            """.trimIndent()),
+                            bodyLanguage = BodyLanguage.KOTLIN_DSL
+                        )
+                    )
+                )
+                registry.registerClass(metaClass)
+
+                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val instance = engine.createInstance("Calculator")
+
+                val result = engine.invokeOperation(instance, "add", mapOf("a" to 17, "b" to 25))
+
+                result shouldBe 42
+            }
+
+            it("should return collections from Kotlin DSL") {
+                val registry = MetamodelRegistry()
+                val metaClass = MetaClass(
+                    name = "ListMaker",
+                    operations = listOf(
+                        MetaOperation(
+                            name = "makeList",
+                            returnType = "String",
+                            body = MetaOperation.kotlinBody("""
+                                listOf("a", "b", "c")
+                            """.trimIndent()),
+                            bodyLanguage = BodyLanguage.KOTLIN_DSL
+                        )
+                    )
+                )
+                registry.registerClass(metaClass)
+
+                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val instance = engine.createInstance("ListMaker")
+
+                val result = engine.invokeOperation(instance, "makeList")
+
+                result shouldBe listOf("a", "b", "c")
             }
         }
     }

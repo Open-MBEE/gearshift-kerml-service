@@ -33,6 +33,7 @@ class OclStringOperationsTest : DescribeSpec({
         override fun getLinkedSources(associationName: String, targetId: String): List<MDMObject> = emptyList()
         override fun getProperty(instanceId: String, propertyName: String): Any? = null
         override fun isSubclassOf(subclass: String, superclass: String): Boolean = false
+        override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? = null
     }
 
     fun createExecutor(): OclExecutor {

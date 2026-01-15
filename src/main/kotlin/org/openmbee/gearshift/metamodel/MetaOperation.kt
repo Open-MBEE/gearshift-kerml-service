@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.metamodel
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.intellij.lang.annotations.Language
 
 /**
  * Language used to express operation bodies and constraint expressions.
@@ -61,4 +62,12 @@ data class MetaOperation(
 
     @JsonProperty
     val redefines: String? = null
-)
+) {
+    companion object {
+        /** Helper for Kotlin DSL bodies with IDE language support */
+        fun kotlinBody(@Language("kotlin") code: String): String = code
+
+        /** Helper for OCL bodies (for consistency) */
+        fun oclBody(code: String): String = code
+    }
+}

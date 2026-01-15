@@ -15,8 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.metamodel.MetaClass
-import org.openmbee.gearshift.metamodel.MetaProperty
+import org.openmbee.gearshift.metamodel.*
 
 /**
  * KerML Import metaclass.
@@ -29,9 +28,9 @@ fun createImportMetaClass() = MetaClass(
     superclasses = listOf("Relationship"),
     attributes = listOf(
         MetaProperty(
-            name = "visibility",
-            type = "VisibilityKind",
-            description = "The visibility of the imported elements"
+            name = "isImportAll",
+            type = "Boolean",
+            description = "Whether all elements are imported"
         ),
         MetaProperty(
             name = "isRecursive",
@@ -39,9 +38,36 @@ fun createImportMetaClass() = MetaClass(
             description = "Whether the import is recursive"
         ),
         MetaProperty(
-            name = "isImportAll",
-            type = "Boolean",
-            description = "Whether all elements are imported"
+            name = "visibility",
+            type = "VisibilityKind",
+            description = "The visibility of the imported elements"
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateImportTopLevelVisibility",
+            type = ConstraintType.VERIFICATION,
+            expression = "importOwningNamespace.owner = null implies visibility = VisibilityKind::private",
+            description = "A top-level Import (owned by a root Namespace) must have visibility of private"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "importedMemberships",
+            returnType = "Membership",
+            parameters = listOf(
+                MetaParameter(
+                    name = "excluded",
+                    type = "Element"
+                )
+            ),
+            body = MetaOperation.kotlinBody("""
+                // Abstract - to be redefined by MembershipImport and NamespaceImport
+                emptyList<Any>()
+            """.trimIndent()),
+            bodyLanguage = BodyLanguage.KOTLIN_DSL,
+            isQuery = true,
+            description = "Return the Memberships that are imported by this Import, excluding those in the given set"
         )
     ),
     description = "An abstract relationship that imports elements into a namespace"

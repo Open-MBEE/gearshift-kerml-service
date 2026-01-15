@@ -125,7 +125,9 @@ class GearshiftEngine {
     fun setProperty(instanceId: String, propertyName: String, value: Any?) {
         val instance = objectRepository.get(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
+        val oldValue = instance.getProperty(propertyName)
         mdmEngine.setProperty(instance, propertyName, value)
+        objectRepository.updatePropertyIndex(instanceId, propertyName, oldValue, value)
     }
 
     /**

@@ -74,6 +74,11 @@ interface EngineAccessor {
      * Check if a class is a subclass of another.
      */
     fun isSubclassOf(subclass: String, superclass: String): Boolean
+
+    /**
+     * Invoke an operation on an instance.
+     */
+    fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?> = emptyMap()): Any?
 }
 
 /**

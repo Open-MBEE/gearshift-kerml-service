@@ -554,6 +554,25 @@ class OclExecutor(
             }
         }
 
+        // Try invoking user-defined operation on MDMObject
+        val targetObject = when (source) {
+            null -> contextObject  // Operation on self
+            is MDMObject -> source
+            else -> null
+        }
+
+        if (targetObject != null) {
+            val targetId = findObjectId(targetObject)
+            if (targetId != null) {
+                val namedArgs = if (args.isEmpty()) emptyMap() else mapOf("arg" to args.first())
+                try {
+                    return engineAccessor.invokeOperation(targetId, opName, namedArgs)
+                } catch (_: Exception) {
+                    // Operation not found or failed, fall through to error
+                }
+            }
+        }
+
         throw OclEvaluationException("Cannot invoke operation '$opName' on ${source?.javaClass?.simpleName ?: "null"}")
     }
 

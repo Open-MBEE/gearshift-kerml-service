@@ -111,13 +111,13 @@ fun createElementMetaClass() = MetaClass(
         MetaConstraint(
             name = "deriveElementIsLibraryElement",
             type = ConstraintType.DERIVATION,
-            expression = "libraryNamespace() <> null",
+            expression = "self.libraryNamespace() <> null",
             description = "Derivation for Element::isLibraryElement"
         ),
         MetaConstraint(
             name = "deriveElementName",
             type = ConstraintType.DERIVATION,
-            expression = "effectiveName()",
+            expression = "self.effectiveName()",
             description = "Derivation for Element::name"
         ),
         MetaConstraint(
@@ -151,9 +151,9 @@ fun createElementMetaClass() = MetaClass(
                 if owningNamespace = null then null
                 else if name <> null and
                     owningNamespace.ownedMember->select(m | m.name = name)->indexOf(self) <> 1 then null
-                else if owningNamespace.owner = null then escapedName()
-                else if owningNamespace.qualifiedName = null or escapedName() = null then null
-                else owningNamespace.qualifiedName + '::' + escapedName()
+                else if owningNamespace.owner = null then self.escapedName()
+                else if owningNamespace.qualifiedName = null or self.escapedName() = null then null
+                else owningNamespace.qualifiedName + '::' + self.escapedName()
                 endif endif endif endif
             """.trimIndent(),
             description = "Derivation for Element::qualifiedName"
@@ -161,7 +161,7 @@ fun createElementMetaClass() = MetaClass(
         MetaConstraint(
             name = "deriveElementShortName",
             type = ConstraintType.DERIVATION,
-            expression = "effectiveShortName()",
+            expression = "self.effectiveShortName()",
             description = "Derivation for Element::shortName"
         ),
         MetaConstraint(
