@@ -62,4 +62,24 @@ class OclParserTest : DescribeSpec({
             ast.shouldBeInstanceOf<LetExp>()
         }
     }
+
+    describe("enum literals") {
+
+        it("should parse enum literal with Type::value syntax") {
+            val ast = OclParser.parse("VisibilityKind::private")
+            ast.shouldBeInstanceOf<VariableExp>()
+            (ast as VariableExp).name shouldBe "VisibilityKind::private"
+        }
+
+        it("should parse enum comparison") {
+            val ast = OclParser.parse("visibility = VisibilityKind::private")
+            ast.shouldBeInstanceOf<InfixExp>()
+        }
+
+        it("should parse enum in implies expression") {
+            val ast = OclParser.parse("owner = null implies visibility = VisibilityKind::private")
+            ast.shouldBeInstanceOf<InfixExp>()
+            (ast as InfixExp).operator shouldBe "implies"
+        }
+    }
 })

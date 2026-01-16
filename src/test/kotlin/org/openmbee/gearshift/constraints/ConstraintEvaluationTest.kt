@@ -347,4 +347,83 @@ class ConstraintEvaluationTest : DescribeSpec({
             (result as List<*>) shouldHaveSize 1
         }
     }
+
+    describe("OCL enum literal evaluation") {
+
+        it("should resolve enum literal to lowercase value") {
+            val registry = MetamodelRegistry()
+            registry.registerClass(MetaClass(
+                name = "Import",
+                attributes = listOf(
+                    MetaProperty(name = "visibility", type = "VisibilityKind", lowerBound = 0)
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "checkVisibilityIsPrivate",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.VERIFICATION,
+                        expression = "visibility = VisibilityKind::private"
+                    )
+                )
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+            val importInstance = engine.createInstance("Import")
+            engine.setProperty(importInstance, "visibility", "private")
+
+            val errors = engine.validate(importInstance)
+            errors.shouldBeEmpty()
+        }
+
+        it("should evaluate implies with enum comparison") {
+            val registry = MetamodelRegistry()
+            registry.registerClass(MetaClass(
+                name = "TestElement",
+                attributes = listOf(
+                    MetaProperty(name = "owner", type = "Element", lowerBound = 0),
+                    MetaProperty(name = "visibility", type = "VisibilityKind", lowerBound = 0)
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "checkTopLevelVisibility",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.VERIFICATION,
+                        expression = "owner = null implies visibility = VisibilityKind::private"
+                    )
+                )
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+            val elem = engine.createInstance("TestElement")
+            // owner is null, visibility is private - constraint should pass
+            engine.setProperty(elem, "visibility", "private")
+
+            val errors = engine.validate(elem)
+            errors.shouldBeEmpty()
+        }
+
+        it("should fail when enum comparison does not match") {
+            val registry = MetamodelRegistry()
+            registry.registerClass(MetaClass(
+                name = "TestElement",
+                attributes = listOf(
+                    MetaProperty(name = "owner", type = "Element", lowerBound = 0),
+                    MetaProperty(name = "visibility", type = "VisibilityKind", lowerBound = 0)
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "checkTopLevelVisibility",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.VERIFICATION,
+                        expression = "owner = null implies visibility = VisibilityKind::private"
+                    )
+                )
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+            val elem = engine.createInstance("TestElement")
+            // owner is null, but visibility is public - constraint should fail
+            engine.setProperty(elem, "visibility", "public")
+
+            val errors = engine.validate(elem)
+            errors shouldHaveSize 1
+        }
+    }
 })

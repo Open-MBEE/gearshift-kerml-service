@@ -56,6 +56,11 @@ class MDMEngine(
     val constraintRegistry = ConstraintRegistry()
 
     /**
+     * Name resolver for qualified name lookups.
+     */
+    val nameResolver = NameResolver(objectRepository, registry)
+
+    /**
      * Engine accessor for constraint evaluation.
      */
     private val engineAccessor = object : EngineAccessor {
@@ -78,6 +83,16 @@ class MDMEngine(
         override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? {
             val instance = objectRepository.get(instanceId) ?: return null
             return this@MDMEngine.invokeOperation(instance, operationName, arguments)
+        }
+
+        override fun resolveGlobal(qualifiedName: String): MDMObject? {
+            // Find a root namespace to resolve from
+            val rootNamespace = objectRepository.getAll().firstOrNull { obj ->
+                obj.getProperty("owner") == null && registry.isSubclassOf(obj.className, "Namespace")
+            } ?: return null
+
+            val rootId = rootNamespace.id ?: return null
+            return nameResolver.resolve(qualifiedName, rootId)?.memberElement
         }
     }
 
@@ -294,11 +309,19 @@ class MDMEngine(
             }
         }
 
-        // Fall back to OCL expression evaluation (placeholder)
-        logger.debug { "Evaluating constraint expression: ${constraint.name} = ${constraint.expression}" }
-        // TODO: Integrate with full OCL parser/evaluator
-        logger.warn { "OCL constraint evaluation not yet implemented: ${constraint.name}" }
-        return true // Assume valid for now
+        // Fall back to OCL expression evaluation
+        val expression = constraint.expression ?: return true
+        logger.debug { "Evaluating constraint expression: ${constraint.name} = $expression" }
+
+        return try {
+            val ast = OclParser.parse(expression)
+            val executor = OclExecutor(engineAccessor, instance, instanceId ?: "")
+            val result = executor.evaluate(ast)
+            result == true
+        } catch (e: Exception) {
+            logger.error(e) { "OCL constraint evaluation failed: ${constraint.name}" }
+            false
+        }
     }
 
     /**

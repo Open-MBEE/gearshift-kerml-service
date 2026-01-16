@@ -81,6 +81,11 @@ class OclExecutor(
     // ===== Variables and Properties =====
 
     override fun visitVariable(exp: VariableExp): Any? {
+        // Check for enum literal (Type::value syntax)
+        if (exp.name.contains("::")) {
+            return resolveEnumLiteral(exp.name)
+        }
+
         // First check for explicit variable bindings
         if (variables.containsKey(exp.name)) {
             return variables[exp.name]
@@ -116,6 +121,19 @@ class OclExecutor(
         // Variable/property/navigation not found - return null rather than throwing
         // This allows null checks like "name <> null" to work
         return null
+    }
+
+    /**
+     * Resolve an OCL enum literal (e.g., "VisibilityKind::private") to its value.
+     * Returns the lowercase value name, which matches how KerML enums are stored via @JsonValue.
+     */
+    private fun resolveEnumLiteral(literal: String): String {
+        val parts = literal.split("::")
+        if (parts.size != 2) {
+            throw OclEvaluationException("Invalid enum literal syntax: $literal")
+        }
+        // Return the value part in lowercase (matches @JsonValue convention)
+        return parts[1].lowercase()
     }
 
     override fun visitPropertyCall(exp: PropertyCallExp): Any? {
@@ -471,6 +489,17 @@ class OclExecutor(
     }
 
     private fun evaluateOperation(source: Any?, opName: String, args: List<Any?>): Any? {
+        // Global functions (no source)
+        if (source == null) {
+            when (opName) {
+                "resolveGlobal" -> {
+                    val qualifiedName = args.firstOrNull()?.toString()
+                        ?: throw OclEvaluationException("resolveGlobal requires a qualified name argument")
+                    return engineAccessor.resolveGlobal(qualifiedName)
+                }
+            }
+        }
+
         // Object operations
         when (opName) {
             "oclIsUndefined" -> return source == null
