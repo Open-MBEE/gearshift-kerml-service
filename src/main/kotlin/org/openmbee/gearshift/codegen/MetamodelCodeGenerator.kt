@@ -125,7 +125,10 @@ class MetamodelCodeGenerator(
         val modifier = if (property.isDerived || property.isReadOnly) "val" else "var"
         val kotlinType = TypeMapper.mapPropertyType(property)
 
-        sb.appendLine("    $modifier ${property.name}: $kotlinType")
+        // Add override modifier if this redefines a parent property
+        val overrideModifier = if (property.redefines.isNotEmpty()) "override " else ""
+
+        sb.appendLine("    $overrideModifier$modifier ${property.name}: $kotlinType")
 
         return sb.toString()
     }
@@ -143,12 +146,17 @@ class MetamodelCodeGenerator(
             sb.appendLine("     */")
         }
 
+        // Use the new type mapping that respects lowerBound/upperBound for parameters
         val params = operation.parameters.joinToString(", ") { param ->
-            "${param.name}: ${TypeMapper.mapToKotlinType(param.type)}"
+            "${param.name}: ${TypeMapper.mapParameterType(param)}"
         }
-        val returnType = operation.returnType?.let { TypeMapper.mapToKotlinType(it) } ?: "Unit"
+        // Use the new type mapping that respects returnLowerBound/returnUpperBound
+        val returnType = TypeMapper.mapOperationReturnType(operation)
 
-        sb.appendLine("    fun ${operation.name}($params): $returnType")
+        // Add override modifier if this redefines a parent operation
+        val overrideModifier = if (operation.redefines != null) "override " else ""
+
+        sb.appendLine("    ${overrideModifier}fun ${operation.name}($params): $returnType")
 
         return sb.toString()
     }
@@ -170,11 +178,11 @@ class MetamodelCodeGenerator(
         // Imports
         sb.appendLine("import org.openmbee.gearshift.GearshiftEngine")
         sb.appendLine("import org.openmbee.gearshift.engine.MDMObject")
-        sb.appendLine("import ${config.interfacePackage}.${metaClass.name}")
-
-        // Import superclass if needed
-        if (metaClass.superclasses.isNotEmpty()) {
-            // Superclass impl is in the same package, no import needed
+        sb.appendLine("import ${config.interfacePackage}.*")
+        sb.appendLine("import ${config.utilPackage}.Wrappers")
+        // Add explicit import for classes that conflict with Kotlin stdlib
+        if (metaClass.name == "Function" || metaClass.superclasses.contains("Function")) {
+            sb.appendLine("import ${config.interfacePackage}.Function as KerMLFunction")
         }
         sb.appendLine()
 
@@ -194,21 +202,48 @@ class MetamodelCodeGenerator(
             "BaseModelElementImpl(wrapped, engine)"
         }
 
+        // Use alias for classes that conflict with Kotlin stdlib
+        val interfaceName = if (metaClass.name == "Function") "KerMLFunction" else metaClass.name
+
         sb.appendLine("$openModifier class ${metaClass.name}Impl(")
         sb.appendLine("    wrapped: MDMObject,")
         sb.appendLine("    engine: GearshiftEngine")
-        sb.appendLine(") : $superclass, ${metaClass.name} {")
+        sb.appendLine(") : $superclass, $interfaceName {")
 
-        // Properties
+        // Collect own properties
         val ownProperties = metaClass.attributes.sortedBy { it.name }
+
+        // Collect inherited properties from secondary superclasses (not covered by primary impl chain)
+        val primaryChainProperties = collectPrimaryChainPropertyNames(metaClass, registry)
+        val secondaryInheritedProperties = collectSecondaryInheritedProperties(metaClass, registry, primaryChainProperties)
+
+        // Generate own properties
         for (property in ownProperties) {
             sb.appendLine()
             sb.append(generateImplProperty(property))
         }
 
-        // Operations
+        // Generate inherited properties from secondary superclasses
+        for (property in secondaryInheritedProperties.sortedBy { it.name }) {
+            sb.appendLine()
+            sb.append(generateImplProperty(property))
+        }
+
+        // Collect own operations
         val ownOperations = metaClass.operations.sortedBy { it.name }
+
+        // Collect inherited operations from secondary superclasses
+        val primaryChainOperations = collectPrimaryChainOperationNames(metaClass, registry)
+        val secondaryInheritedOperations = collectSecondaryInheritedOperations(metaClass, registry, primaryChainOperations)
+
+        // Generate own operations
         for (operation in ownOperations) {
+            sb.appendLine()
+            sb.append(generateImplOperation(operation))
+        }
+
+        // Generate inherited operations from secondary superclasses
+        for (operation in secondaryInheritedOperations.sortedBy { it.name }) {
             sb.appendLine()
             sb.append(generateImplOperation(operation))
         }
@@ -256,25 +291,40 @@ class MetamodelCodeGenerator(
     private fun generateDerivedPropertyGetter(property: MetaProperty, isReference: Boolean): String {
         val sb = StringBuilder()
         val kotlinType = TypeMapper.mapPropertyType(property)
+        val isNullable = !property.isRequired || property.isMultiValued
+        val baseType = kotlinType.removeSuffix("?")
+        val isSet = property.isUnique && !property.isOrdered
 
         sb.appendLine("        get() {")
         sb.appendLine("            val rawValue = engine.getProperty(wrapped.id!!, \"${property.name}\")")
 
         if (property.isMultiValued) {
+            val emptyCollection = if (isSet) "emptySet()" else "emptyList()"
+            val toCollection = if (isSet) "?.toSet()" else ""
             if (isReference) {
                 sb.appendLine("            return (rawValue as? List<*>)")
                 sb.appendLine("                ?.filterIsInstance<MDMObject>()")
-                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }")
-                sb.appendLine("                ?: emptyList()")
+                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }$toCollection")
+                sb.appendLine("                ?: $emptyCollection")
             } else {
                 sb.appendLine("            @Suppress(\"UNCHECKED_CAST\")")
-                sb.appendLine("            return (rawValue as? $kotlinType) ?: emptyList()")
+                sb.appendLine("            return (rawValue as? $kotlinType) ?: $emptyCollection")
             }
         } else {
             if (isReference) {
-                sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                if (isNullable) {
+                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                } else {
+                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as ${property.type} }")
+                }
             } else {
-                sb.appendLine("            return rawValue as? ${kotlinType.removeSuffix("?")}")
+                if (isNullable) {
+                    sb.appendLine("            return rawValue as? $baseType")
+                } else {
+                    // Non-nullable primitive - provide default value
+                    val defaultValue = getRequiredDefaultValue(property.type)
+                    sb.appendLine("            return (rawValue as? $baseType) ?: $defaultValue")
+                }
             }
         }
 
@@ -289,25 +339,40 @@ class MetamodelCodeGenerator(
     private fun generateRegularPropertyGetter(property: MetaProperty, isReference: Boolean): String {
         val sb = StringBuilder()
         val kotlinType = TypeMapper.mapPropertyType(property)
+        val isNullable = !property.isRequired || property.isMultiValued
+        val baseType = kotlinType.removeSuffix("?")
+        val isSet = property.isUnique && !property.isOrdered
 
         sb.appendLine("        get() {")
         sb.appendLine("            val rawValue = wrapped.getProperty(\"${property.name}\")")
 
         if (property.isMultiValued) {
+            val emptyCollection = if (isSet) "emptySet()" else "emptyList()"
+            val toCollection = if (isSet) "?.toSet()" else ""
             if (isReference) {
                 sb.appendLine("            return (rawValue as? List<*>)")
                 sb.appendLine("                ?.filterIsInstance<MDMObject>()")
-                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }")
-                sb.appendLine("                ?: emptyList()")
+                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }$toCollection")
+                sb.appendLine("                ?: $emptyCollection")
             } else {
                 sb.appendLine("            @Suppress(\"UNCHECKED_CAST\")")
-                sb.appendLine("            return (rawValue as? $kotlinType) ?: emptyList()")
+                sb.appendLine("            return (rawValue as? $kotlinType) ?: $emptyCollection")
             }
         } else {
             if (isReference) {
-                sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                if (isNullable) {
+                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                } else {
+                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as ${property.type} }")
+                }
             } else {
-                sb.appendLine("            return rawValue as? ${kotlinType.removeSuffix("?")}")
+                if (isNullable) {
+                    sb.appendLine("            return rawValue as? $baseType")
+                } else {
+                    // Non-nullable primitive - provide default value
+                    val defaultValue = getRequiredDefaultValue(property.type)
+                    sb.appendLine("            return (rawValue as? $baseType) ?: $defaultValue")
+                }
             }
         }
 
@@ -347,15 +412,30 @@ class MetamodelCodeGenerator(
 
     /**
      * Generate implementation operation that delegates to engine.invokeOperation().
+     *
+     * Handles:
+     * - Abstract operations (no body, marked abstract)
+     * - Multi-valued return types (List<T>)
+     * - Nullable vs non-nullable return types
      */
     private fun generateImplOperation(operation: MetaOperation): String {
         val sb = StringBuilder()
 
+        // Use the new type mapping that respects lowerBound/upperBound for parameters
         val params = operation.parameters.joinToString(", ") { param ->
-            "${param.name}: ${TypeMapper.mapToKotlinType(param.type)}"
+            "${param.name}: ${TypeMapper.mapParameterType(param)}"
         }
-        val returnType = operation.returnType?.let { TypeMapper.mapToKotlinType(it) } ?: "Unit"
+        // Use the new type mapping that respects returnLowerBound/returnUpperBound
+        val returnType = TypeMapper.mapOperationReturnType(operation)
         val isReference = operation.returnType?.let { TypeMapper.isModelElementType(it) } ?: false
+        val isMultiValued = operation.returnUpperBound == -1 || operation.returnUpperBound > 1
+        val isNullable = operation.returnLowerBound == 0 && !isMultiValued
+
+        // Abstract operations have no body
+        if (operation.isAbstract) {
+            sb.appendLine("    abstract override fun ${operation.name}($params): $returnType")
+            return sb.toString()
+        }
 
         sb.appendLine("    override fun ${operation.name}($params): $returnType {")
 
@@ -370,11 +450,34 @@ class MetamodelCodeGenerator(
         // Return conversion
         if (returnType == "Unit") {
             // No return value
+        } else if (isMultiValued) {
+            // Multi-valued return type
+            val elementType = operation.returnType!!
+            if (isReference) {
+                sb.appendLine("        return (result as? List<*>)")
+                sb.appendLine("            ?.filterIsInstance<MDMObject>()")
+                sb.appendLine("            ?.map { Wrappers.wrap(it, engine) as $elementType }")
+                sb.appendLine("            ?: emptyList()")
+            } else {
+                sb.appendLine("        @Suppress(\"UNCHECKED_CAST\")")
+                sb.appendLine("        return (result as? $returnType) ?: emptyList()")
+            }
         } else if (isReference) {
-            sb.appendLine("        return (result as? MDMObject)?.let { Wrappers.wrap(it, engine) as $returnType }")
+            // Single reference type
+            if (isNullable) {
+                sb.appendLine("        return (result as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${operation.returnType} }")
+            } else {
+                sb.appendLine("        return (result as MDMObject).let { Wrappers.wrap(it, engine) as ${operation.returnType} }")
+            }
         } else {
-            sb.appendLine("        @Suppress(\"UNCHECKED_CAST\")")
-            sb.appendLine("        return result as $returnType")
+            // Single primitive type
+            if (isNullable) {
+                val baseType = returnType.removeSuffix("?")
+                sb.appendLine("        return result as? $baseType")
+            } else {
+                val defaultValue = getRequiredDefaultValue(operation.returnType ?: "Any")
+                sb.appendLine("        return (result as? $returnType) ?: $defaultValue")
+            }
         }
 
         sb.appendLine("    }")
@@ -385,7 +488,7 @@ class MetamodelCodeGenerator(
     /**
      * Generate the Wrappers factory object.
      */
-    fun generateWrappers(classes: List<MetaClass>): String {
+    fun generateWrappers(classes: Collection<MetaClass>): String {
         val sb = StringBuilder()
 
         // File header
@@ -399,6 +502,7 @@ class MetamodelCodeGenerator(
         // Imports
         sb.appendLine("import org.openmbee.gearshift.GearshiftEngine")
         sb.appendLine("import org.openmbee.gearshift.engine.MDMObject")
+        sb.appendLine("import ${config.interfacePackage}.ModelElement")
         sb.appendLine("import ${config.implPackage}.*")
         sb.appendLine()
 
@@ -499,6 +603,183 @@ class MetamodelCodeGenerator(
         }
 
         return interfaceCode to implCode
+    }
+
+    /**
+     * Get default value for required (non-nullable) primitive types.
+     */
+    private fun getRequiredDefaultValue(type: String): String {
+        return when (type) {
+            "String" -> "\"\""
+            "Boolean" -> "false"
+            "Int", "Integer" -> "0"
+            "Long" -> "0L"
+            "Double", "Real" -> "0.0"
+            "Float" -> "0.0f"
+            // Enum types mapped to String
+            "VisibilityKind", "FeatureDirectionKind", "PortionKind",
+            "RequirementConstraintKind", "StateSubactionKind",
+            "TransitionFeatureKind", "TriggerKind" -> "\"\""
+            else -> "null" // Fallback for unknown types
+        }
+    }
+
+    // ===== Inheritance Helper Methods =====
+
+    /**
+     * Collect all property names from the primary superclass chain.
+     * The primary chain is followed by taking the first superclass at each level.
+     */
+    private fun collectPrimaryChainPropertyNames(metaClass: MetaClass, registry: MetamodelRegistry): Set<String> {
+        val names = mutableSetOf<String>()
+        // Add own properties
+        names.addAll(metaClass.attributes.map { it.name })
+
+        // Walk up the primary superclass chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuperclassName = current.superclasses.first()
+            val primarySuperclass = registry.getClass(primarySuperclassName)
+            if (primarySuperclass != null) {
+                names.addAll(primarySuperclass.attributes.map { it.name })
+                current = primarySuperclass
+            } else {
+                break
+            }
+        }
+        return names
+    }
+
+    /**
+     * Collect all operation names from the primary superclass chain.
+     */
+    private fun collectPrimaryChainOperationNames(metaClass: MetaClass, registry: MetamodelRegistry): Set<String> {
+        val names = mutableSetOf<String>()
+        // Add own operations
+        names.addAll(metaClass.operations.map { it.name })
+
+        // Walk up the primary superclass chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuperclassName = current.superclasses.first()
+            val primarySuperclass = registry.getClass(primarySuperclassName)
+            if (primarySuperclass != null) {
+                names.addAll(primarySuperclass.operations.map { it.name })
+                current = primarySuperclass
+            } else {
+                break
+            }
+        }
+        return names
+    }
+
+    /**
+     * Collect properties from secondary superclasses (all except the first) that aren't
+     * already in the primary chain.
+     */
+    private fun collectSecondaryInheritedProperties(
+        metaClass: MetaClass,
+        registry: MetamodelRegistry,
+        primaryChainNames: Set<String>
+    ): List<MetaProperty> {
+        val result = mutableListOf<MetaProperty>()
+        val seen = mutableSetOf<String>()
+        seen.addAll(primaryChainNames)
+
+        // BFS through all superclasses to find secondary chain properties
+        val queue = ArrayDeque<String>()
+
+        // Start with secondary superclasses (skip the first)
+        if (metaClass.superclasses.size > 1) {
+            queue.addAll(metaClass.superclasses.drop(1))
+        }
+
+        // Also check secondary superclasses of ancestors in the primary chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuper = registry.getClass(current.superclasses.first())
+            if (primarySuper != null && primarySuper.superclasses.size > 1) {
+                queue.addAll(primarySuper.superclasses.drop(1))
+            }
+            current = primarySuper
+        }
+
+        // Process all secondary superclasses
+        val visitedClasses = mutableSetOf<String>()
+        while (queue.isNotEmpty()) {
+            val className = queue.removeFirst()
+            if (className in visitedClasses) continue
+            visitedClasses.add(className)
+
+            val clazz = registry.getClass(className) ?: continue
+
+            // Add properties not yet seen
+            for (prop in clazz.attributes) {
+                if (prop.name !in seen) {
+                    result.add(prop)
+                    seen.add(prop.name)
+                }
+            }
+
+            // Queue this class's superclasses
+            queue.addAll(clazz.superclasses)
+        }
+
+        return result
+    }
+
+    /**
+     * Collect operations from secondary superclasses that aren't already in the primary chain.
+     */
+    private fun collectSecondaryInheritedOperations(
+        metaClass: MetaClass,
+        registry: MetamodelRegistry,
+        primaryChainNames: Set<String>
+    ): List<MetaOperation> {
+        val result = mutableListOf<MetaOperation>()
+        val seen = mutableSetOf<String>()
+        seen.addAll(primaryChainNames)
+
+        // BFS through all superclasses to find secondary chain operations
+        val queue = ArrayDeque<String>()
+
+        // Start with secondary superclasses (skip the first)
+        if (metaClass.superclasses.size > 1) {
+            queue.addAll(metaClass.superclasses.drop(1))
+        }
+
+        // Also check secondary superclasses of ancestors in the primary chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuper = registry.getClass(current.superclasses.first())
+            if (primarySuper != null && primarySuper.superclasses.size > 1) {
+                queue.addAll(primarySuper.superclasses.drop(1))
+            }
+            current = primarySuper
+        }
+
+        // Process all secondary superclasses
+        val visitedClasses = mutableSetOf<String>()
+        while (queue.isNotEmpty()) {
+            val className = queue.removeFirst()
+            if (className in visitedClasses) continue
+            visitedClasses.add(className)
+
+            val clazz = registry.getClass(className) ?: continue
+
+            // Add operations not yet seen
+            for (op in clazz.operations) {
+                if (op.name !in seen) {
+                    result.add(op)
+                    seen.add(op.name)
+                }
+            }
+
+            // Queue this class's superclasses
+            queue.addAll(clazz.superclasses)
+        }
+
+        return result
     }
 
     companion object {

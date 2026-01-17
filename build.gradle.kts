@@ -86,6 +86,22 @@ sourceSets {
     }
 }
 
+// Metamodel Code Generation Task
+// Generates typed Kotlin interfaces and implementations from KerML metamodel
+tasks.register<JavaExec>("generateMetamodelCode") {
+    description = "Generate typed Kotlin code from KerML metamodel definitions"
+    group = "build"
+
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.openmbee.gearshift.codegen.CodeGeneratorRunner")
+
+    // Default output directory (base src path - package structure is added by generator)
+    args = listOf("${project.projectDir}/src/main/kotlin")
+
+    // Ensure main sources are compiled first
+    dependsOn("compileKotlin")
+}
+
 // License header configuration
 license {
     header = file("LICENSE-HEADER.txt")

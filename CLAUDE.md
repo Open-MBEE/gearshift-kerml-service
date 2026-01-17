@@ -2,6 +2,13 @@
 
 Constraints, Properties, and Operations should always be added in alphabetical order
 
+## Properties vs Association Ends
+
+**All properties typed by a non-primitive are association ends.** Only primitive-typed properties (String, Boolean, Integer, etc.) belong in the `attributes` list. Properties referencing other metaclasses (Element, Membership, Namespace, etc.) are association ends and should be defined in the associations files, not as attributes.
+
+- Primitives → `attributes` list in MetaClass
+- Non-primitives → `MetaAssociationEnd` in associations file
+
 ## Constraint Types
 
 Constraints have a `type` field using `ConstraintType`:

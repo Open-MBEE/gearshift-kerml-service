@@ -15,12 +15,64 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 40: Packages
  * Defines associations for Packages.
  */
 fun createPackageAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Package has filterCondition : Expression [0..*] {derived}
+    val conditionedPackageFilterConditionAssociation = MetaAssociation(
+        name = "conditionedPackageFilterConditionAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "conditionedPackage",
+            type = "Package",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("owningNamespace"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "filterCondition",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("ownedMember"),
+            derivationConstraint = "derivePackageFilterCondition"
+        )
+    )
+
+    // ElementFilterMembership has condition : Expression [1..1] {redefines ownedMemberElement}
+    val owningFilterConditionAssociation = MetaAssociation(
+        name = "owningFilterConditionAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningFilter",
+            type = "ElementFilterMembership",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("owningMembership"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "condition",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 1,
+            aggregation = AggregationKind.COMPOSITE,
+            redefines = listOf("ownedMemberElement"),
+        )
+    )
+
+    return listOf(
+        conditionedPackageFilterConditionAssociation,
+        owningFilterConditionAssociation,
+    )
 }

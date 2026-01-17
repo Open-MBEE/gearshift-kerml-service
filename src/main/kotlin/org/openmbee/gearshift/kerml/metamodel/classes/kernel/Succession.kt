@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Succession metaclass.
@@ -27,5 +29,14 @@ fun createSuccessionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Connector"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkSuccessionSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Occurrences::happensBeforeLinks')",
+            libraryTypeName = "Occurrences::happensBeforeLinks",
+            description = "A Succession must directly or indirectly specialize the Feature Occurrences::happensBeforeLinks from the Kernel Semantic Library."
+        )
+    ),
     description = "A connector that represents succession between steps"
 )

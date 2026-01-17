@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Subsetting metaclass.
@@ -27,5 +29,25 @@ fun createSubsettingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Specialization"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateSubsettingConstantConformance",
+            type = ConstraintType.VERIFICATION,
+            expression = "subsettedFeature.isConstant and subsettingFeature.isVariable implies subsettingFeature.isConstant",
+            description = "If the subsettedFeature of a Subsetting has isConstant = true and the subsettingFeature has isVariable = true, then the subsettingFeature must have isConstant = true."
+        ),
+        MetaConstraint(
+            name = "validateSubsettingFeaturingTypes",
+            type = ConstraintType.VERIFICATION,
+            expression = "subsettingFeature.canAccess(subsettedFeature)",
+            description = "The subsettedFeature must be accessible by the subsettingFeature."
+        ),
+        MetaConstraint(
+            name = "validateSubsettingUniquenessConformance",
+            type = ConstraintType.VERIFICATION,
+            expression = "subsettedFeature.isUnique implies subsettingFeature.isUnique",
+            description = "If the subsettedFeature of a Subsetting has isUnique = true, then the subsettingFeature must have isUnique = true."
+        )
+    ),
     description = "A specialization where one feature subsets another"
 )

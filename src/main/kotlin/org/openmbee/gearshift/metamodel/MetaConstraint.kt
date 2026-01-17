@@ -21,14 +21,26 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * The type of constraint.
  */
 enum class ConstraintType {
+    /**
+     * Conditional implicit specialization - evaluated reactively.
+     * If expression evaluates to true, creates specialization to libraryTypeName.
+     */
+    CONDITIONAL_IMPLICIT_SPECIALIZATION,
+
     /** Derivation constraint for computing derived property values */
     DERIVATION,
 
-    /** Verification constraint for validating invariants */
-    VERIFICATION,
+    /**
+     * Implicit specialization constraint - creates specialization to libraryTypeName.
+     * Expression is used for verification that the specialization exists.
+     */
+    IMPLICIT_SPECIALIZATION,
 
     /** Constraint for calculating non-navigable association ends */
-    NON_NAVIGABLE_END
+    NON_NAVIGABLE_END,
+
+    /** Verification constraint for validating invariants */
+    VERIFICATION
 }
 
 /**
@@ -47,6 +59,16 @@ data class MetaConstraint(
 
     @JsonProperty(required = true)
     val expression: String,
+
+    /**
+     * For CONDITIONAL_IMPLICIT_SPECIALIZATION: the qualified library type name to specialize.
+     * For IMPLICIT_SPECIALIZATION: not used (expression contains the library type).
+     */
+    @JsonProperty
+    val libraryTypeName: String? = null,
+
+    @JsonProperty
+    val redefines: String? = null,
 
     @JsonProperty
     val description: String? = null

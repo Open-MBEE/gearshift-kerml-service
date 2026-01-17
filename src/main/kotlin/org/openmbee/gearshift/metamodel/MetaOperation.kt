@@ -46,6 +46,12 @@ data class MetaOperation(
     val returnType: String? = null,
 
     @JsonProperty
+    val returnLowerBound: Int = 0,
+
+    @JsonProperty
+    val returnUpperBound: Int = 1,
+
+    @JsonProperty
     val parameters: List<MetaParameter> = emptyList(),
 
     @JsonProperty
@@ -56,6 +62,9 @@ data class MetaOperation(
 
     @JsonProperty
     val description: String? = null,
+
+    @JsonProperty
+    val isAbstract: Boolean = false,
 
     @JsonProperty
     val isQuery: Boolean = false,

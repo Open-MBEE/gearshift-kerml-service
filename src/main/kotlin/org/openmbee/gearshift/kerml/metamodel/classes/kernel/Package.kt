@@ -15,17 +15,69 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 
 /**
  * KerML Package metaclass.
  * Specializes: Namespace
- * A namespace that groups related elements.
+ * A Namespace used to group Elements, without any instance-level semantics. It may have one or
+ * more model-level evaluable filterCondition Expressions used to filter its importedMemberships.
+ * Any imported member must meet all of the filterConditions.
  */
 fun createPackageMetaClass() = MetaClass(
     name = "Package",
     isAbstract = false,
     superclasses = listOf("Namespace"),
     attributes = emptyList(),
-    description = "A namespace that groups related elements"
+    operations = listOf(
+        MetaOperation(
+            name = "importedMemberships",
+            returnType = "Membership",
+            parameters = listOf(
+                MetaParameter(
+                    name = "excluded",
+                    type = "Namespace",
+                    lowerBound = 0,
+                    upperBound = -1
+                )
+            ),
+            description = "Exclude Elements that do not meet all the filterConditions.",
+            body = "self.oclAsType(Namespace).importedMemberships(excluded)->select(m | self.includeAsMember(m.memberElement))",
+            isQuery = true,
+            redefines = "importedMemberships"
+        ),
+        MetaOperation(
+            name = "includeAsMember",
+            returnType = "Boolean",
+            parameters = listOf(
+                MetaParameter(
+                    name = "element",
+                    type = "Element",
+                    lowerBound = 1,
+                    upperBound = 1
+                )
+            ),
+            description = "Determine whether the given element meets all the filterConditions.",
+            body = """
+                let metadataFeatures: Sequence(AnnotatingElement) =
+                    element.ownedAnnotation.annotatingElement->selectByKind(MetadataFeature) in
+                self.filterCondition->forAll(cond |
+                    metadataFeatures->exists(elem | cond.checkCondition(elem)))
+            """.trimIndent(),
+            isQuery = true
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "derivePackageFilterCondition",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedMembership->selectByKind(ElementFilterMembership).condition",
+            description = "The filterConditions of a Package are the conditions of its owned ElementFilterMemberships."
+        )
+    ),
+    description = "A Namespace used to group Elements, without any instance-level semantics"
 )

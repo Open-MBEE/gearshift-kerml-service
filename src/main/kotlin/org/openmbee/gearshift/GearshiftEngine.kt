@@ -86,11 +86,15 @@ class GearshiftEngine {
     /**
      * Create a new instance of a metaclass and store it in the repository.
      * Returns the instance ID and the created object.
+     * Note: The instance is stored by MDMEngine, so we don't store again here.
+     *
+     * @param className The name of the metaclass to instantiate
+     * @param id Optional custom ID for the instance. If not provided, a UUID will be generated.
      */
     fun createInstance(className: String, id: String? = null): Pair<String, MDMObject> {
-        val instance = mdmEngine.createInstance(className)
-        val instanceId = id ?: UUID.randomUUID().toString()
-        objectRepository.store(instanceId, instance)
+        val instance = mdmEngine.createInstance(className, skipImplicitSpecializations = false, id = id)
+        // MDMEngine already stored the instance and assigned an ID
+        val instanceId = instance.id ?: throw IllegalStateException("Instance ID not set by MDMEngine")
         return instanceId to instance
     }
 

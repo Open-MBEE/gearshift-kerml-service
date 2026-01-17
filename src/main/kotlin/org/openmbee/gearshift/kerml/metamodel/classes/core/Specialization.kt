@@ -15,17 +15,32 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Specialization metaclass.
  * Specializes: Relationship
  * A relationship that makes one type a specialization of another.
+ *
+ * Association ends (defined in SpecializationAssociations.kt):
+ * - general : Type [1] {redefines target}
+ * - specific : Type [1] {redefines source}
+ * - owningType : Type [0..1] {subsets specific, redefines owningRelatedElement}
  */
 fun createSpecializationMetaClass() = MetaClass(
     name = "Specialization",
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateSpecializationSpecificNotConjugated",
+            type = ConstraintType.VERIFICATION,
+            expression = "not specific.isConjugated",
+            description = "The specificType of a Specialization cannot be a conjugatedType"
+        )
+    ),
     description = "A relationship that makes one type a specialization of another"
 )

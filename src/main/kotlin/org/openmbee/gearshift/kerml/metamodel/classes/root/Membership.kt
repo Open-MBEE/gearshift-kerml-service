@@ -15,7 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.gearshift.metamodel.BodyLanguage
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
@@ -29,15 +34,66 @@ fun createMembershipMetaClass() = MetaClass(
     superclasses = listOf("Relationship"),
     attributes = listOf(
         MetaProperty(
+            name = "memberElementId",
+            type = "String",
+            lowerBound = 0,
+            isDerived = true,
+            derivationConstraint = "deriveMembershipMemberElementId",
+            description = "The elementId of the memberElement"
+        ),
+        MetaProperty(
             name = "memberName",
             type = "String",
             lowerBound = 0,
-            description = "The name of the member element"
+            description = "The name of the memberElement in the membershipOwningNamespace"
+        ),
+        MetaProperty(
+            name = "memberShortName",
+            type = "String",
+            lowerBound = 0,
+            description = "The short name of the memberElement in the membershipOwningNamespace"
         ),
         MetaProperty(
             name = "visibility",
             type = "VisibilityKind",
             description = "The visibility of the member"
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveMembershipMemberElementId",
+            type = ConstraintType.DERIVATION,
+            expression = "memberElement.elementId",
+            description = "The memberElementId of a Membership is the elementId of its memberElement"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "isDistinguishableFrom",
+            returnType = "Boolean",
+            returnLowerBound = 1,
+            returnUpperBound = 1,
+            parameters = listOf(
+                MetaParameter(name = "other", type = "Membership")
+            ),
+            body = """
+                not (memberElement.oclIsKindOf(other.memberElement.oclType()) or
+                     other.memberElement.oclIsKindOf(memberElement.oclType())) or
+                (memberShortName = null or
+                 (memberShortName <> other.memberShortName and
+                  memberShortName <> other.memberName)) and
+                (memberName = null or
+                 (memberName <> other.memberShortName and
+                  memberName <> other.memberName))
+            """.trimIndent(),
+            bodyLanguage = BodyLanguage.OCL,
+            description = """
+                Whether this Membership is distinguishable from a given other Membership.
+                By default, this is true if this Membership has no memberShortName or memberName;
+                or each of the memberShortName and memberName are different than both of those
+                of the other Membership; or neither of the metaclasses of the memberElement of this
+                Membership and the memberElement of the other Membership conform to the other.
+            """.trimIndent()
         )
     ),
     description = "A relationship that makes an element a member of a namespace"

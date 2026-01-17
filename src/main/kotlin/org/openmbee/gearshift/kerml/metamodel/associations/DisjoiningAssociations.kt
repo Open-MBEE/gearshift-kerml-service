@@ -83,7 +83,8 @@ fun createDisjoiningAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             aggregation = AggregationKind.COMPOSITE,
-            subsets = listOf("disjoiningTypeDisjoining", "ownedRelationship")
+            subsets = listOf("disjoiningTypeDisjoining", "ownedRelationship"),
+            derivationConstraint = "deriveTypeOwnedDisjoining"
         )
     )
 

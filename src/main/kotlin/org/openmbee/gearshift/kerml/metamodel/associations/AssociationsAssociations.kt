@@ -16,11 +16,114 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 26: Associations
- * Defines associations for Associations.
+ * Defines associations for Association and Connector metaclasses.
  */
 fun createAssociationAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Association has relatedType : Type [0..*] {ordered, nonunique, derived, redefines relatedElement}
+    val associationRelatedTypeAssociation = MetaAssociation(
+        name = "associationRelatedTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "association",
+            type = "Association",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("relationship"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "relatedType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            isUnique = false,
+            redefines = listOf("relatedElement"),
+            derivationConstraint = "deriveAssociationRelatedType"
+        )
+    )
+
+    // Association has sourceType : Type [0..1] {derived, subsets relatedType, redefines source}
+    val sourceAssociationSourceTypeAssociation = MetaAssociation(
+        name = "sourceAssociationSourceTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "sourceAssociation",
+            type = "Association",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("association", "sourceRelationship"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "sourceType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveAssociationSourceType",
+            subsets = listOf("relatedType"),
+            redefines = listOf("source"),
+        )
+    )
+
+    // Association has targetType : Type [0..*] {derived, subsets relatedType, redefines target}
+    val targetAssociationTargetTypeAssociation = MetaAssociation(
+        name = "targetAssociationTargetTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "targetAssociation",
+            type = "Association",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("relationship"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "targetType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            subsets = listOf("relatedType"),
+            redefines = listOf("target"),
+            derivationConstraint = "deriveAssociationTargetType"
+        )
+    )
+
+    // Association has associationEnd : Feature [0..*] {derived, redefines endFeature}
+    val associationWithEndAssociationEnd = MetaAssociation(
+        name = "associationWithEndAssociationEnd",
+        sourceEnd = MetaAssociationEnd(
+            name = "associationWithEnd",
+            type = "Association",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typeWithEndFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "associationEnd",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            redefines = listOf("endFeature"),
+            derivationConstraint = "deriveAssociationAssociationEnd"
+        )
+    )
+
+    return listOf(
+        associationRelatedTypeAssociation,
+        sourceAssociationSourceTypeAssociation,
+        targetAssociationTargetTypeAssociation,
+        associationWithEndAssociationEnd
+    )
 }

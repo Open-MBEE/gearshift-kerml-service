@@ -84,16 +84,6 @@ class MDMEngine(
             val instance = objectRepository.get(instanceId) ?: return null
             return this@MDMEngine.invokeOperation(instance, operationName, arguments)
         }
-
-        override fun resolveGlobal(qualifiedName: String): MDMObject? {
-            // Find a root namespace to resolve from
-            val rootNamespace = objectRepository.getAll().firstOrNull { obj ->
-                obj.getProperty("owner") == null && registry.isSubclassOf(obj.className, "Namespace")
-            } ?: return null
-
-            val rootId = rootNamespace.id ?: return null
-            return nameResolver.resolve(qualifiedName, rootId)?.memberElement
-        }
     }
 
     /**
@@ -108,8 +98,16 @@ class MDMEngine(
 
     /**
      * Create a new instance of a metaclass.
+     *
+     * @param className The name of the metaclass to instantiate
+     * @param skipImplicitSpecializations If true, skip creating implicit specializations (used internally to avoid recursion)
+     * @param id Optional custom ID for the instance. If not provided, a UUID will be generated.
      */
-    fun createInstance(className: String): MDMObject {
+    fun createInstance(
+        className: String,
+        skipImplicitSpecializations: Boolean = false,
+        id: String? = null
+    ): MDMObject {
         val metaClass = registry.getClass(className)
             ?: throw IllegalArgumentException("Unknown class: $className")
 
@@ -118,12 +116,425 @@ class MDMEngine(
         }
 
         val instance = MDMObject(className, metaClass)
-        val instanceId = UUID.randomUUID().toString()
+        val instanceId = id ?: UUID.randomUUID().toString()
         instance.id = instanceId
         instances[instanceId] = instance
+        objectRepository.store(instanceId, instance)
 
         logger.debug { "Created instance of $className: $instanceId" }
+
+        // Create implicit specializations based on constraints
+        if (!skipImplicitSpecializations) {
+            processImplicitSpecializationConstraints(instance, metaClass)
+        }
+
         return instance
+    }
+
+    /**
+     * Process implicit specialization constraints for an instance.
+     * Handles both IMPLICIT_SPECIALIZATION and CONDITIONAL_IMPLICIT_SPECIALIZATION constraints.
+     *
+     * CONDITIONAL_IMPLICIT_SPECIALIZATION constraints are processed first, allowing them
+     * to take precedence over unconditional ones.
+     */
+    private fun processImplicitSpecializationConstraints(instance: MDMObject, metaClass: MetaClass) {
+        val allConstraints = getAllConstraints(metaClass)
+
+        // Separate constraint types
+        val conditionalConstraints = allConstraints.filter {
+            it.type == ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION
+        }
+        val unconditionalConstraints = allConstraints.filter {
+            it.type == ConstraintType.IMPLICIT_SPECIALIZATION
+        }
+
+        // Track which library types we've already processed
+        val processedLibraryTypes = mutableSetOf<String>()
+
+        // Process conditional constraints first
+        for (constraint in conditionalConstraints) {
+            val libraryTypeName = constraint.libraryTypeName ?: continue
+
+            // Evaluate the condition
+            if (evaluateCondition(instance, constraint.expression)) {
+                processImplicitSpecialization(instance, libraryTypeName, processedLibraryTypes)
+            }
+        }
+
+        // Process unconditional (IMPLICIT_SPECIALIZATION) constraints
+        for (constraint in unconditionalConstraints) {
+            val libraryTypeName = constraint.libraryTypeName ?: continue
+            processImplicitSpecialization(instance, libraryTypeName, processedLibraryTypes)
+        }
+    }
+
+    /**
+     * Process a single implicit specialization to a library type.
+     */
+    private fun processImplicitSpecialization(
+        instance: MDMObject,
+        libraryTypeName: String,
+        processedLibraryTypes: MutableSet<String>
+    ) {
+        // Skip if already processed
+        if (libraryTypeName in processedLibraryTypes) {
+            return
+        }
+        processedLibraryTypes.add(libraryTypeName)
+
+        // Check if a specialization to this library element already exists
+        if (hasSpecializationTo(instance, libraryTypeName)) {
+            logger.debug { "Instance ${instance.id} already specializes $libraryTypeName" }
+            return
+        }
+
+        // Resolve the library element using global scope resolution
+        val resolutionResult = resolveLibraryElement(libraryTypeName)
+        if (resolutionResult == null) {
+            logger.warn { "Library element not found for implicit specialization: $libraryTypeName" }
+            return
+        }
+
+        // Create the Specialization relationship
+        createSpecializationRelationship(instance, resolutionResult.memberElement, libraryTypeName)
+    }
+
+    /**
+     * Re-evaluate conditional implicit specializations for an instance.
+     * Called reactively when links or properties change that might affect conditions.
+     */
+    fun reevaluateConditionalImplicitSpecializations(instanceId: String) {
+        val instance = objectRepository.get(instanceId) ?: return
+        val metaClass = instance.metaClass
+
+        val conditionalConstraints = getAllConstraints(metaClass).filter {
+            it.type == ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION
+        }
+
+        for (constraint in conditionalConstraints) {
+            val libraryTypeName = constraint.libraryTypeName ?: continue
+            val conditionMet = evaluateCondition(instance, constraint.expression)
+            val hasSpecialization = hasSpecializationTo(instance, libraryTypeName)
+
+            if (conditionMet && !hasSpecialization) {
+                // Condition is now true but we don't have the specialization - create it
+                val resolutionResult = resolveLibraryElement(libraryTypeName)
+                if (resolutionResult != null) {
+                    createSpecializationRelationship(instance, resolutionResult.memberElement, libraryTypeName)
+                }
+            }
+            // Note: We don't remove specializations when conditions become false,
+            // as they may have been added explicitly
+        }
+    }
+
+    /**
+     * Evaluate a condition expression against an instance.
+     */
+    private fun evaluateCondition(instance: MDMObject, expression: String): Boolean {
+        return try {
+            val ast = OclParser.parse(expression)
+            val executor = OclExecutor(engineAccessor, instance, instance.id ?: "")
+            val result = executor.evaluate(ast)
+            result == true
+        } catch (e: Exception) {
+            logger.warn { "Failed to evaluate condition '$expression': ${e.message}" }
+            false
+        }
+    }
+
+    /**
+     * Get all constraints from a metaclass including inherited ones.
+     */
+    private fun getAllConstraints(metaClass: MetaClass): List<MetaConstraint> {
+        val allConstraints = metaClass.constraints.toMutableList()
+
+        for (superclassName in metaClass.superclasses) {
+            registry.getClass(superclassName)?.let { superclass ->
+                allConstraints.addAll(getAllConstraints(superclass))
+            }
+        }
+
+        return allConstraints
+    }
+
+    /**
+     * Resolve a library element by qualified name using global scope resolution.
+     */
+    private fun resolveLibraryElement(qualifiedName: String): NameResolver.ResolutionResult? {
+        // Find a root namespace to use as context for global resolution
+        val rootNamespaces = objectRepository.getAll().filter { obj ->
+            val isNamespace = obj.className == "Namespace" || registry.isSubclassOf(obj.className, "Namespace")
+            val owner = obj.getProperty("owner")
+            isNamespace && owner == null
+        }
+
+        val rootNamespace = rootNamespaces.firstOrNull()
+        if (rootNamespace == null) {
+            logger.warn { "No root namespace found for library element resolution" }
+            return null
+        }
+
+        val rootId = rootNamespace.id ?: return null
+
+        // Use global scope prefix to ensure global resolution
+        val globalName = if (qualifiedName.startsWith("$::")) qualifiedName else "\$::$qualifiedName"
+        return nameResolver.resolve(globalName, rootId)
+    }
+
+    /**
+     * Check if an instance already has a specialization to a library element.
+     */
+    private fun hasSpecializationTo(instance: MDMObject, libraryQualifiedName: String): Boolean {
+        val instanceId = instance.id ?: return false
+
+        // Get all specializations where this instance is the specific type
+        val specializations = linkRepository.getByAssociationAndTarget("specializationSpecificAssociation", instanceId)
+
+        for (link in specializations) {
+            val specializationId = link.sourceId
+            // Get the general type of this specialization
+            val generalLinks = linkRepository.getByAssociationAndSource("generalizationGeneralAssociation", specializationId)
+            for (generalLink in generalLinks) {
+                val generalType = objectRepository.get(generalLink.targetId)
+                if (generalType != null) {
+                    // Check if this is the library element we're looking for
+                    val qualifiedName = getQualifiedName(generalType)
+                    if (qualifiedName == libraryQualifiedName) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Get the qualified name of an element.
+     */
+    private fun getQualifiedName(element: MDMObject): String? {
+        return element.getProperty("qualifiedName") as? String
+    }
+
+    /**
+     * Create a Specialization (or Subclassification) relationship between a specific type and a general type.
+     *
+     * If both types are Classifiers, creates a Subclassification.
+     * Otherwise, creates a plain Specialization.
+     *
+     * @param specificType The specific (subtype) instance
+     * @param generalType The general (supertype) instance
+     * @param generalQualifiedName The qualified name of the general type (for logging)
+     */
+    private fun createSpecializationRelationship(
+        specificType: MDMObject,
+        generalType: MDMObject,
+        generalQualifiedName: String
+    ) {
+        val specificId = specificType.id ?: throw IllegalStateException("Specific type must have an ID")
+        val generalId = generalType.id ?: throw IllegalStateException("General type must have an ID")
+
+        // Determine if both types are Classifiers - if so, use Subclassification
+        val bothClassifiers = isClassifier(specificType) && isClassifier(generalType)
+
+        if (bothClassifiers) {
+            // Create a Subclassification for Classifier-to-Classifier relationships
+            val subclassification = createInstance("Subclassification", skipImplicitSpecializations = true)
+            val subclassificationId = subclassification.id!!
+
+            // Set isImplied = true to mark this as an implicit specialization
+            subclassification.setProperty("isImplied", true)
+
+            // Link the Subclassification to its subclassifier (specific)
+            createLink("subclassificationSubclassifierAssociation", subclassificationId, specificId)
+
+            // Link the Subclassification to its superclassifier (general)
+            createLink("superclassificationSuperclassifierAssociation", subclassificationId, generalId)
+
+            // Link the specific type to own this Subclassification (ownedRelationship)
+            createLink("owningRelatedElementOwnedRelationshipAssociation", specificId, subclassificationId)
+
+            logger.debug {
+                "Created implicit subclassification: ${specificType.className}($specificId) -> $generalQualifiedName"
+            }
+        } else {
+            // Create a plain Specialization for other relationships
+            val specialization = createInstance("Specialization", skipImplicitSpecializations = true)
+            val specializationId = specialization.id!!
+
+            // Set isImplied = true to mark this as an implicit specialization
+            specialization.setProperty("isImplied", true)
+
+            // Link the Specialization to its specific type
+            createLink("specializationSpecificAssociation", specializationId, specificId)
+
+            // Link the Specialization to its general type
+            createLink("generalizationGeneralAssociation", specializationId, generalId)
+
+            // Link the specific type to own this Specialization (ownedRelationship)
+            createLink("owningRelatedElementOwnedRelationshipAssociation", specificId, specializationId)
+
+            logger.debug {
+                "Created implicit specialization: ${specificType.className}($specificId) -> $generalQualifiedName"
+            }
+        }
+    }
+
+    /**
+     * Check if an MDMObject is a Classifier (or subclass of Classifier).
+     */
+    private fun isClassifier(obj: MDMObject): Boolean {
+        return obj.className == "Classifier" || registry.isSubclassOf(obj.className, "Classifier")
+    }
+
+    /**
+     * Clean up redundant implicit specializations after an explicit specialization is added.
+     *
+     * Called after a new specialization link is created. Checks if the specific type
+     * has any implicit specializations that are now transitively covered by explicit ones.
+     *
+     * @param specificTypeId The ID of the type that received a new specialization
+     */
+    private fun cleanupRedundantImplicitSpecializations(specificTypeId: String) {
+        val specificType = objectRepository.get(specificTypeId) ?: return
+        val metaClass = specificType.metaClass
+
+        // Only check if this metaclass has implicit specialization constraints defined
+        val hasImplicitSpecConstraints = getAllConstraints(metaClass).any {
+            it.type == ConstraintType.IMPLICIT_SPECIALIZATION ||
+            it.type == ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION
+        }
+        if (!hasImplicitSpecConstraints) return
+
+        // Get all specializations where this type is the specific type
+        val allSpecializations = getSpecializationsForType(specificTypeId)
+
+        // Find implicit specializations (isImplied = true)
+        val implicitSpecs = allSpecializations.filter { spec ->
+            spec.getProperty("isImplied") == true
+        }
+
+        if (implicitSpecs.isEmpty()) return
+
+        // Find explicit specializations (isImplied = false or null)
+        val explicitSpecs = allSpecializations.filter { spec ->
+            spec.getProperty("isImplied") != true
+        }
+
+        if (explicitSpecs.isEmpty()) return
+
+        // For each implicit specialization, check if it's now covered by an explicit one
+        for (implicitSpec in implicitSpecs) {
+            val implicitGeneralId = getGeneralTypeId(implicitSpec) ?: continue
+            val implicitGeneral = objectRepository.get(implicitGeneralId) ?: continue
+
+            // Check if any explicit specialization transitively covers this implicit one
+            for (explicitSpec in explicitSpecs) {
+                val explicitGeneralId = getGeneralTypeId(explicitSpec) ?: continue
+                val explicitGeneral = objectRepository.get(explicitGeneralId) ?: continue
+
+                // Check if explicitGeneral transitively specializes implicitGeneral
+                if (typeSpecializes(explicitGeneral, implicitGeneral)) {
+                    // The implicit specialization is now redundant - remove it
+                    logger.debug {
+                        "Removing redundant implicit specialization: ${specificType.className} -> ${getQualifiedName(implicitGeneral)}"
+                    }
+                    deleteSpecialization(implicitSpec)
+                    break
+                }
+            }
+        }
+    }
+
+    /**
+     * Get all Specialization/Subclassification instances where the given type is the specific/subclassifier.
+     */
+    private fun getSpecializationsForType(typeId: String): List<MDMObject> {
+        val result = mutableListOf<MDMObject>()
+
+        // Check via specializationSpecificAssociation
+        val specLinks = linkRepository.getByAssociationAndTarget("specializationSpecificAssociation", typeId)
+        for (link in specLinks) {
+            objectRepository.get(link.sourceId)?.let { result.add(it) }
+        }
+
+        // Check via subclassificationSubclassifierAssociation
+        val subclassLinks = linkRepository.getByAssociationAndTarget("subclassificationSubclassifierAssociation", typeId)
+        for (link in subclassLinks) {
+            objectRepository.get(link.sourceId)?.let { result.add(it) }
+        }
+
+        return result
+    }
+
+    /**
+     * Get the general/superclassifier type ID from a Specialization/Subclassification.
+     */
+    private fun getGeneralTypeId(specialization: MDMObject): String? {
+        val specId = specialization.id ?: return null
+
+        // Try generalizationGeneralAssociation first (for Specialization)
+        val generalLinks = linkRepository.getByAssociationAndSource("generalizationGeneralAssociation", specId)
+        if (generalLinks.isNotEmpty()) {
+            return generalLinks.first().targetId
+        }
+
+        // Try superclassificationSuperclassifierAssociation (for Subclassification)
+        val superLinks = linkRepository.getByAssociationAndSource("superclassificationSuperclassifierAssociation", specId)
+        if (superLinks.isNotEmpty()) {
+            return superLinks.first().targetId
+        }
+
+        return null
+    }
+
+    /**
+     * Check if sourceType transitively specializes targetType.
+     */
+    private fun typeSpecializes(sourceType: MDMObject, targetType: MDMObject): Boolean {
+        val sourceId = sourceType.id ?: return false
+        val targetId = targetType.id ?: return false
+
+        if (sourceId == targetId) return true
+
+        // BFS to find transitive specialization
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<String>()
+        queue.add(sourceId)
+
+        while (queue.isNotEmpty()) {
+            val currentId = queue.removeFirst()
+            if (currentId in visited) continue
+            visited.add(currentId)
+
+            if (currentId == targetId) return true
+
+            // Get all general types of current
+            val specs = getSpecializationsForType(currentId)
+            for (spec in specs) {
+                val generalId = getGeneralTypeId(spec)
+                if (generalId != null && generalId !in visited) {
+                    queue.add(generalId)
+                }
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Delete a Specialization/Subclassification and its links.
+     */
+    private fun deleteSpecialization(specialization: MDMObject) {
+        val specId = specialization.id ?: return
+
+        // Remove all links involving this specialization
+        removeAllLinks(specId)
+
+        // Delete the specialization instance
+        objectRepository.delete(specId)
+        instances.remove(specId)
     }
 
     /**
@@ -147,30 +558,112 @@ class MDMEngine(
 
     /**
      * Get a property value from an instance.
+     * Checks both attributes and association ends.
      */
     fun getProperty(instance: MDMObject, propertyName: String): Any? {
+        // First try to find as a property (attribute)
         val property = findProperty(instance.metaClass, propertyName)
-            ?: throw IllegalArgumentException(
-                "Property '$propertyName' not found in class: ${instance.className}"
-            )
 
-        var value = instance.getProperty(propertyName)
+        if (property != null) {
+            var value = instance.getProperty(propertyName)
 
-        // Handle derived properties - check if we have a registered evaluator or a derivation constraint
-        if (property.isDerived && value == null) {
-            val instanceId = instance.id
-            if (instanceId != null) {
-                // Try registered evaluator first
-                if (constraintEngine.hasDerivedPropertyEvaluator(instance.className, propertyName)) {
-                    value = constraintEngine.evaluateDerivedProperty(instance, instanceId, property)
-                } else if (property.derivationConstraint != null) {
-                    // Fall back to OCL expression evaluation (placeholder)
-                    value = evaluateDerivedPropertyExpression(instance, property)
+            // Handle derived properties - check if we have a registered evaluator or a derivation constraint
+            if (property.isDerived && value == null) {
+                val instanceId = instance.id
+                if (instanceId != null) {
+                    // Try registered evaluator first
+                    if (constraintEngine.hasDerivedPropertyEvaluator(instance.className, propertyName)) {
+                        value = constraintEngine.evaluateDerivedProperty(instance, instanceId, property)
+                    } else if (property.derivationConstraint != null) {
+                        // Fall back to OCL expression evaluation (placeholder)
+                        value = evaluateDerivedPropertyExpression(instance, property)
+                    }
+                }
+            }
+
+            return value
+        }
+
+        // If not found as property, check for association end
+        val associationEnd = findAssociationEnd(instance.metaClass, propertyName)
+        if (associationEnd != null) {
+            val (association, end, isTargetEnd) = associationEnd
+
+            // Handle derived association ends
+            if (end.isDerived && end.derivationConstraint != null) {
+                return evaluateDerivedAssociationEnd(instance, end)
+            }
+
+            // Non-derived association end - traverse the links
+            val instanceId = instance.id ?: return null
+            return if (isTargetEnd) {
+                getLinkedTargets(association.name, instanceId)
+            } else {
+                getLinkedSources(association.name, instanceId)
+            }
+        }
+
+        throw IllegalArgumentException(
+            "Property or association end '$propertyName' not found in class: ${instance.className}"
+        )
+    }
+
+    /**
+     * Find an association end by name for a metaclass.
+     * Returns a triple of (Association, AssociationEnd, isTargetEnd) or null if not found.
+     */
+    private fun findAssociationEnd(
+        metaClass: MetaClass,
+        endName: String
+    ): Triple<MetaAssociation, MetaAssociationEnd, Boolean>? {
+        val className = metaClass.name
+        val allSuperclasses = registry.getAllSuperclasses(className) + className
+
+        for (association in registry.getAllAssociations()) {
+            // Check if this is the target end and the source type matches our class hierarchy
+            if (association.targetEnd.name == endName) {
+                if (allSuperclasses.contains(association.sourceEnd.type) ||
+                    registry.isSubclassOf(association.sourceEnd.type, className)) {
+                    return Triple(association, association.targetEnd, true)
+                }
+            }
+            // Check if this is the source end and the target type matches our class hierarchy
+            if (association.sourceEnd.name == endName && association.sourceEnd.isNavigable) {
+                if (allSuperclasses.contains(association.targetEnd.type) ||
+                    registry.isSubclassOf(association.targetEnd.type, className)) {
+                    return Triple(association, association.sourceEnd, false)
                 }
             }
         }
 
-        return value
+        return null
+    }
+
+    /**
+     * Evaluate a derived association end using its OCL derivation constraint expression.
+     */
+    private fun evaluateDerivedAssociationEnd(instance: MDMObject, end: MetaAssociationEnd): Any? {
+        val constraintName = end.derivationConstraint ?: return null
+        val instanceId = instance.id ?: return null
+
+        logger.debug { "Evaluating derived association end '${end.name}' via constraint '$constraintName'" }
+
+        // Look up the named constraint from the metaclass (with redefines support)
+        val constraint = findConstraint(instance.metaClass, constraintName)
+        if (constraint == null) {
+            logger.warn { "Constraint '$constraintName' not found for derived association end '${end.name}'" }
+            return null
+        }
+
+        // Parse and evaluate the OCL expression
+        return try {
+            val ast = OclParser.parse(constraint.expression)
+            val executor = OclExecutor(engineAccessor, instance, instanceId)
+            executor.evaluate(ast)
+        } catch (e: Exception) {
+            logger.error(e) { "Error evaluating constraint '$constraintName': ${constraint.expression}" }
+            null
+        }
     }
 
     /**
@@ -190,14 +683,16 @@ class MDMEngine(
             }
         }
 
-        // Evaluate constraints
-        metaClass.constraints.forEach { constraint ->
-            if (!evaluateConstraint(instance, constraint)) {
-                errors.add(
-                    "Constraint '${constraint.name}' violated: ${constraint.description}"
-                )
+        // Evaluate only VERIFICATION constraints (not DERIVATION, IMPLICIT_SPECIALIZATION, etc.)
+        metaClass.constraints
+            .filter { it.type == ConstraintType.VERIFICATION }
+            .forEach { constraint ->
+                if (!evaluateConstraint(instance, constraint)) {
+                    errors.add(
+                        "Constraint '${constraint.name}' violated: ${constraint.description}"
+                    )
+                }
             }
-        }
 
         return errors
     }
@@ -280,15 +775,46 @@ class MDMEngine(
 
     /**
      * Find a constraint by name in a metaclass or its superclasses.
+     * First looks for a constraint that redefines the requested constraint (polymorphic dispatch),
+     * then falls back to finding the constraint by name.
      */
     private fun findConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
+        // First, look for a constraint that redefines the requested constraint
+        // This enables polymorphic constraint dispatch (e.g., MembershipImport redefines Import's constraint)
+        findRedefiningConstraint(metaClass, constraintName)?.let { return it }
+
+        // Fall back to finding constraint by name
+        return findConstraintByName(metaClass, constraintName)
+    }
+
+    /**
+     * Find a constraint that redefines the given constraint name, starting from the most specific class.
+     */
+    private fun findRedefiningConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
+        // Check if this class has a constraint that redefines the target
+        metaClass.constraints.firstOrNull { it.redefines == constraintName }?.let { return it }
+
+        // Check superclasses (in case of multi-level inheritance)
+        metaClass.superclasses.forEach { superclassName ->
+            registry.getClass(superclassName)?.let { superclass ->
+                findRedefiningConstraint(superclass, constraintName)?.let { return it }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Find a constraint by exact name in a metaclass or its superclasses.
+     */
+    private fun findConstraintByName(metaClass: MetaClass, constraintName: String): MetaConstraint? {
         // Check direct constraints
         metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
 
         // Check inherited constraints
         metaClass.superclasses.forEach { superclassName ->
             registry.getClass(superclassName)?.let { superclass ->
-                findConstraint(superclass, constraintName)?.let { return it }
+                findConstraintByName(superclass, constraintName)?.let { return it }
             }
         }
 
@@ -301,12 +827,11 @@ class MDMEngine(
      */
     private fun evaluateConstraint(instance: MDMObject, constraint: MetaConstraint): Boolean {
         val instanceId = instance.id
-        if (instanceId != null) {
-            // Check for registered evaluator
+
+        // Check for registered evaluator first
+        if (instanceId != null && constraintRegistry.hasValidationConstraint(instance.className, constraint.name)) {
             val result = constraintEngine.validateConstraint(instance, instanceId, constraint.name)
-            if (result.constraintName != null) {
-                return result.isValid
-            }
+            return result.isValid
         }
 
         // Fall back to OCL expression evaluation
@@ -510,7 +1035,42 @@ class MDMEngine(
         linkRepository.store(link)
         logger.debug { "Created link: $sourceId --[$associationName]--> $targetId" }
 
+        // Check for redundant implicit specializations when a new specialization link is established
+        // This triggers when the general/superclassifier end is linked (completing the specialization)
+        if (associationName == "generalizationGeneralAssociation" ||
+            associationName == "superclassificationSuperclassifierAssociation") {
+            // sourceId is the Specialization/Subclassification, find the specific type
+            val specificTypeId = getSpecificTypeId(sourceId)
+            if (specificTypeId != null) {
+                cleanupRedundantImplicitSpecializations(specificTypeId)
+            }
+        }
+
+        // Re-evaluate conditional implicit specializations for both source and target
+        // This handles cases like Association's conditionalImplicitBinaryLink which depends on associationEnd count
+        reevaluateConditionalImplicitSpecializations(sourceId)
+        reevaluateConditionalImplicitSpecializations(targetId)
+
         return link
+    }
+
+    /**
+     * Get the specific/subclassifier type ID from a Specialization/Subclassification ID.
+     */
+    private fun getSpecificTypeId(specializationId: String): String? {
+        // Try specializationSpecificAssociation first
+        val specLinks = linkRepository.getByAssociationAndSource("specializationSpecificAssociation", specializationId)
+        if (specLinks.isNotEmpty()) {
+            return specLinks.first().targetId
+        }
+
+        // Try subclassificationSubclassifierAssociation
+        val subclassLinks = linkRepository.getByAssociationAndSource("subclassificationSubclassifierAssociation", specializationId)
+        if (subclassLinks.isNotEmpty()) {
+            return subclassLinks.first().targetId
+        }
+
+        return null
     }
 
     /**

@@ -22,7 +22,8 @@ import org.openmbee.gearshift.metamodel.MetaProperty
 /**
  * KerML LibraryPackage metaclass.
  * Specializes: Package
- * A package that contains library elements.
+ * A Package that is the container for a model library. A LibraryPackage is itself a library
+ * Element as are all Elements that are directly or indirectly contained in it.
  */
 fun createLibraryPackageMetaClass() = MetaClass(
     name = "LibraryPackage",
@@ -32,18 +33,18 @@ fun createLibraryPackageMetaClass() = MetaClass(
         MetaProperty(
             name = "isStandard",
             type = "Boolean",
-            description = "Whether this is a standard library package"
+            description = "Whether this LibraryPackage contains a standard library model. This should only be set to true for LibraryPackages in the standard Kernel Model Libraries or in normative model libraries for a language built on KerML."
         )
     ),
     operations = listOf(
         MetaOperation(
             name = "libraryNamespace",
             returnType = "Namespace",
-            description = "Return self since a LibraryPackage is itself a library Namespace.",
+            description = "The libraryNamespace for a LibraryPackage is itself.",
             body = "self",
             isQuery = true,
-            redefines = "Element::libraryNamespace"
+            redefines = "libraryNamespace"
         )
     ),
-    description = "A package that contains library elements"
+    description = "A Package that is the container for a model library"
 )

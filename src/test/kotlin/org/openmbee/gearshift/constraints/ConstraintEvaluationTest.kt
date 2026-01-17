@@ -348,6 +348,245 @@ class ConstraintEvaluationTest : DescribeSpec({
         }
     }
 
+    describe("Polymorphic constraint resolution (redefines)") {
+
+        it("should use redefining constraint from subclass for derived property") {
+            val registry = MetamodelRegistry()
+
+            // Base class with abstract derived property
+            registry.registerClass(MetaClass(
+                name = "BaseClass",
+                attributes = listOf(
+                    MetaProperty(
+                        name = "derivedValue",
+                        type = "String",
+                        isDerived = true,
+                        derivationConstraint = "deriveBaseClassDerivedValue"
+                    )
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveBaseClassDerivedValue",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "null",
+                        description = "Abstract - redefined by subclasses"
+                    )
+                )
+            ))
+
+            // Subclass with concrete value and redefining constraint
+            registry.registerClass(MetaClass(
+                name = "ConcreteSubclass",
+                superclasses = listOf("BaseClass"),
+                attributes = listOf(
+                    MetaProperty(name = "sourceValue", type = "String")
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveConcreteSubclassDerivedValue",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "sourceValue",
+                        redefines = "deriveBaseClassDerivedValue",
+                        description = "derivedValue = sourceValue"
+                    )
+                )
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+
+            // Create subclass instance and set source value
+            val instance = engine.createInstance("ConcreteSubclass")
+            engine.setProperty(instance, "sourceValue", "Hello from subclass")
+
+            // Get the derived property - should use redefining constraint
+            val derivedValue = engine.getProperty(instance, "derivedValue")
+
+            derivedValue shouldBe "Hello from subclass"
+        }
+
+        it("should fall back to base constraint when no redefining constraint exists") {
+            val registry = MetamodelRegistry()
+
+            // Base class with derived property that has a real value
+            registry.registerClass(MetaClass(
+                name = "BaseClass",
+                attributes = listOf(
+                    MetaProperty(name = "name", type = "String"),
+                    MetaProperty(
+                        name = "displayName",
+                        type = "String",
+                        isDerived = true,
+                        derivationConstraint = "deriveBaseClassDisplayName"
+                    )
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveBaseClassDisplayName",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "name",
+                        description = "displayName = name"
+                    )
+                )
+            ))
+
+            // Subclass that doesn't override the constraint
+            registry.registerClass(MetaClass(
+                name = "SimpleSubclass",
+                superclasses = listOf("BaseClass")
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+
+            // Create subclass instance
+            val instance = engine.createInstance("SimpleSubclass")
+            engine.setProperty(instance, "name", "Test Name")
+
+            // Get the derived property - should use base constraint
+            val displayName = engine.getProperty(instance, "displayName")
+
+            displayName shouldBe "Test Name"
+        }
+
+        it("should support multi-level inheritance with redefines") {
+            val registry = MetamodelRegistry()
+
+            // Root class with abstract derivation
+            registry.registerClass(MetaClass(
+                name = "Root",
+                attributes = listOf(
+                    MetaProperty(
+                        name = "computedValue",
+                        type = "String",
+                        isDerived = true,
+                        derivationConstraint = "deriveRootComputedValue"
+                    )
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveRootComputedValue",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "'default'",
+                        description = "Default value"
+                    )
+                )
+            ))
+
+            // Middle class - does NOT redefine
+            registry.registerClass(MetaClass(
+                name = "Middle",
+                superclasses = listOf("Root")
+            ))
+
+            // Leaf class - redefines the root constraint
+            registry.registerClass(MetaClass(
+                name = "Leaf",
+                superclasses = listOf("Middle"),
+                attributes = listOf(
+                    MetaProperty(name = "leafValue", type = "String")
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveLeafComputedValue",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "leafValue",
+                        redefines = "deriveRootComputedValue",
+                        description = "computedValue = leafValue for Leaf instances"
+                    )
+                )
+            ))
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+
+            // Test Middle instance - should use Root's constraint
+            val middleInstance = engine.createInstance("Middle")
+            val middleValue = engine.getProperty(middleInstance, "computedValue")
+            middleValue shouldBe "default"
+
+            // Test Leaf instance - should use Leaf's redefining constraint
+            val leafInstance = engine.createInstance("Leaf")
+            engine.setProperty(leafInstance, "leafValue", "leaf-specific")
+            val leafValue = engine.getProperty(leafInstance, "computedValue")
+            leafValue shouldBe "leaf-specific"
+        }
+
+        it("should use redefining constraint for derived association ends") {
+            val registry = MetamodelRegistry()
+
+            // Target element type
+            registry.registerClass(MetaClass(name = "TargetElement"))
+
+            // Base class with abstract derived association end
+            registry.registerClass(MetaClass(
+                name = "BaseImport",
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveBaseImportTarget",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "null",
+                        description = "Abstract - redefined by subclasses"
+                    )
+                )
+            ))
+
+            // Subclass with concrete source property and redefining constraint
+            registry.registerClass(MetaClass(
+                name = "ConcreteImport",
+                superclasses = listOf("BaseImport"),
+                attributes = listOf(
+                    MetaProperty(name = "sourceRef", type = "TargetElement")
+                ),
+                constraints = listOf(
+                    org.openmbee.gearshift.metamodel.MetaConstraint(
+                        name = "deriveConcreteImportTarget",
+                        type = org.openmbee.gearshift.metamodel.ConstraintType.DERIVATION,
+                        expression = "sourceRef",
+                        redefines = "deriveBaseImportTarget",
+                        description = "derivedTarget = sourceRef"
+                    )
+                )
+            ))
+
+            // Association with derived end on base class
+            registry.registerAssociation(
+                MetaAssociation(
+                    name = "importTargetAssociation",
+                    sourceEnd = MetaAssociationEnd(
+                        name = "import",
+                        type = "BaseImport",
+                        lowerBound = 0,
+                        upperBound = -1,
+                        isDerived = true,
+                        isNavigable = false
+                    ),
+                    targetEnd = MetaAssociationEnd(
+                        name = "derivedTarget",
+                        type = "TargetElement",
+                        lowerBound = 1,
+                        upperBound = 1,
+                        isDerived = true,
+                        derivationConstraint = "deriveBaseImportTarget"
+                    )
+                )
+            )
+
+            val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+
+            // Create target element
+            val target = engine.createInstance("TargetElement")
+            engine.objectRepository.store("target-1", target)
+
+            // Create concrete import and set source reference
+            val concreteImport = engine.createInstance("ConcreteImport")
+            engine.objectRepository.store("import-1", concreteImport)
+            concreteImport.setProperty("sourceRef", target)
+
+            // Get derived association end - should use redefining constraint
+            val derivedTarget = engine.getProperty(concreteImport, "derivedTarget")
+
+            derivedTarget shouldBe target
+        }
+    }
+
     describe("OCL enum literal evaluation") {
 
         it("should resolve enum literal to lowercase value") {

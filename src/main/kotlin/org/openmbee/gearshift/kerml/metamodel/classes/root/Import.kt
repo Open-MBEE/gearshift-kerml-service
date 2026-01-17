@@ -45,6 +45,12 @@ fun createImportMetaClass() = MetaClass(
     ),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveImportImportedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "null",
+            description = "Abstract derivation for importedElement - redefined by MembershipImport and NamespaceImport"
+        ),
+        MetaConstraint(
             name = "validateImportTopLevelVisibility",
             type = ConstraintType.VERIFICATION,
             expression = "importOwningNamespace.owner = null implies visibility = VisibilityKind::private",
@@ -55,17 +61,16 @@ fun createImportMetaClass() = MetaClass(
         MetaOperation(
             name = "importedMemberships",
             returnType = "Membership",
+            returnUpperBound = -1,
             parameters = listOf(
                 MetaParameter(
                     name = "excluded",
-                    type = "Element"
+                    type = "Namespace",
+                    lowerBound = 0,
+                    upperBound = -1
                 )
             ),
-            body = MetaOperation.kotlinBody("""
-                // Abstract - to be redefined by MembershipImport and NamespaceImport
-                emptyList<Any>()
-            """.trimIndent()),
-            bodyLanguage = BodyLanguage.KOTLIN_DSL,
+            isAbstract = true,
             isQuery = true,
             description = "Return the Memberships that are imported by this Import, excluding those in the given set"
         )

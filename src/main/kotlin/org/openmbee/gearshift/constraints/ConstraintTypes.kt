@@ -79,12 +79,6 @@ interface EngineAccessor {
      * Invoke an operation on an instance.
      */
     fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?> = emptyMap()): Any?
-
-    /**
-     * Resolve a qualified name to an element (e.g., 'Occurrences::Occurrence').
-     * Uses KerML name resolution from the global namespace.
-     */
-    fun resolveGlobal(qualifiedName: String): MDMObject?
 }
 
 /**

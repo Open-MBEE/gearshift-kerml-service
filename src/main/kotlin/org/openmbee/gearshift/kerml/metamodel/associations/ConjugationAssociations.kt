@@ -80,10 +80,11 @@ fun createConjugationAssociations(): List<MetaAssociation> {
             name = "ownedConjugator",
             type = "Conjugation",
             lowerBound = 0,
-            upperBound = -1,
+            upperBound = 1,
             aggregation = AggregationKind.COMPOSITE,
             isDerived = true,
-            subsets = listOf("conjugator", "ownedRelationship")
+            subsets = listOf("conjugator", "ownedRelationship"),
+            derivationConstraint = "deriveTypeOwnedConjugator"
         )
     )
 

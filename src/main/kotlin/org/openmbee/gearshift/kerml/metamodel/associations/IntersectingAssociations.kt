@@ -65,7 +65,8 @@ fun createIntersectingAssociations(): List<MetaAssociation> {
             isDerived = true,
             aggregation = AggregationKind.COMPOSITE,
             isOrdered = true,
-            subsets = listOf("sourceRelationship", "ownedRelationship")
+            subsets = listOf("sourceRelationship", "ownedRelationship"),
+            derivationConstraint = "deriveTypeOwnedIntersecting"
         )
     )
 
@@ -76,7 +77,7 @@ fun createIntersectingAssociations(): List<MetaAssociation> {
             type = "Type",
             lowerBound = 0,
             upperBound = -1,
-            isDerived = true,
+            isDerived = true
         ),
         targetEnd = MetaAssociationEnd(
             name = "intersectingType",
@@ -85,6 +86,7 @@ fun createIntersectingAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
+            derivationConstraint = "deriveTypeIntersectingType"
         )
     )
 

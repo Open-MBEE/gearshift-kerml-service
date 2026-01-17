@@ -2598,10 +2598,12 @@ QUESTION : '?' ;
 // 8.2.2.1 Line Terminators (defined first as it's referenced by other rules)
 // LINE_TERMINATOR: implementation defined character sequence
 // Order matters: match CRLF before CR or LF alone
+// Sent to HIDDEN channel to be ignored during parsing
 LINE_TERMINATOR
-    : '\r\n'  // Windows-style CRLF (must be first)
-    | '\r'    // Classic Mac-style CR
-    | '\n'    // Unix-style LF
+    : ( '\r\n'  // Windows-style CRLF (must be first)
+      | '\r'    // Classic Mac-style CR
+      | '\n'    // Unix-style LF
+      ) -> channel(HIDDEN)
     ;
 
 // 8.2.2.2 Notes and Comments
@@ -2713,9 +2715,10 @@ fragment STRING_CHARACTER
 
 // 8.2.2.3 Names (continued)
 // BASIC_NAME is defined here, AFTER reserved keywords, to give keywords priority
+// NOTE: BASIC_NAME must be a fragment so that only NAME is emitted as a token
 
 // BASIC_NAME: BASIC_INITIAL_CHARACTER BASIC_NAME_CHARACTER*
-BASIC_NAME
+fragment BASIC_NAME
     : BASIC_INITIAL_CHARACTER BASIC_NAME_CHARACTER*
     ;
 

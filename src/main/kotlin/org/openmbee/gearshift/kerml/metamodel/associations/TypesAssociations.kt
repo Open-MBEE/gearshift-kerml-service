@@ -44,7 +44,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("membership")
+            subsets = listOf("membership"),
+            derivationConstraint = "deriveTypeInheritedMembership"
         )
     )
 
@@ -66,7 +67,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isOrdered = true
+            isOrdered = true,
+            derivationConstraint = "deriveTypeFeatureMembership"
         )
     )
 
@@ -90,7 +92,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             aggregation = AggregationKind.COMPOSITE,
             isOrdered = true,
             isDerived = true,
-            subsets = listOf("featureMembership", "ownedMembership")
+            subsets = listOf("featureMembership", "ownedMembership"),
+            derivationConstraint = "deriveTypeOwnedFeatureMembership"
         )
     )
 
@@ -135,7 +138,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("member")
+            subsets = listOf("member"),
+            derivationConstraint = "deriveTypeFeature"
         )
     )
 
@@ -157,7 +161,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("ownedMember")
+            subsets = listOf("ownedMember"),
+            derivationConstraint = "deriveTypeOwnedFeature"
         )
     )
 
@@ -180,7 +185,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("feature")
+            subsets = listOf("feature"),
+            derivationConstraint = "deriveTypeDirectedFeature"
         )
     )
 
@@ -203,7 +209,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("directedFeature")
+            subsets = listOf("directedFeature"),
+            derivationConstraint = "deriveTypeInput"
         )
     )
 
@@ -226,7 +233,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("directedFeature")
+            subsets = listOf("directedFeature"),
+            derivationConstraint = "deriveTypeOutput"
         )
     )
 
@@ -249,7 +257,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("feature")
+            subsets = listOf("feature"),
+            derivationConstraint = "deriveTypeEndFeature"
         )
     )
 
@@ -271,7 +280,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("endFeature", "ownedFeature")
+            subsets = listOf("endFeature", "ownedFeature"),
+            derivationConstraint = "deriveTypeOwnedEndFeature"
         )
     )
 
@@ -294,7 +304,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("feature")
+            subsets = listOf("feature"),
+            derivationConstraint = "deriveTypeInheritedFeature"
         )
     )
 
@@ -315,7 +326,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("ownedMember")
+            subsets = listOf("ownedMember"),
+            derivationConstraint = "deriveTypeMultiplicity"
         )
     )
 

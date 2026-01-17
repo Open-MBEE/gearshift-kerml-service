@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Redefinition metaclass.
@@ -27,5 +29,50 @@ fun createRedefinitionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Subsetting"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateRedefinitionDirectionConformance",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                let featuringTypes: Sequence(Type) =
+                    if redefiningFeature.isVariable then Sequence{redefiningFeature.owningType}
+                    else redefiningFeature.featuringType
+                    endif in
+                featuringTypes->forAll(t |
+                    let direction: FeatureDirectionKind = t.directionOf(redefinedFeature) in
+                    ((direction = FeatureDirectionKind::_'in' or
+                      direction = FeatureDirectionKind::out) implies
+                        redefiningFeature.direction = direction)
+                    and
+                    (direction = FeatureDirectionKind::inout implies
+                        redefiningFeature.direction <> null))
+            """.trimIndent(),
+            description = "If the redefinedFeature of a Redefinition has a direction of in or out (relative to any featuringType of the redefiningFeature or the owningType, if the redefiningFeature has isVariable = true), then the redefiningFeature must have the same direction. If the redefinedFeature has a direction of inout, then the redefiningFeature must have a non-null direction."
+        ),
+        MetaConstraint(
+            name = "validateRedefinitionEndConformance",
+            type = ConstraintType.VERIFICATION,
+            expression = "redefinedFeature.isEnd implies redefiningFeature.isEnd",
+            description = "If the redefinedFeature of a Redefinition has isEnd = true, then the redefiningFeature must have isEnd = true."
+        ),
+        MetaConstraint(
+            name = "validateRedefinitionFeaturingTypes",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                let anythingType: Type =
+                    redefiningFeature.resolveGlobal('Base::Anything').memberElement.oclAsType(Type) in
+                let redefiningFeaturingTypes: Set(Type) =
+                    if redefiningFeature.isVariable then Set{redefiningFeature.owningType}
+                    else redefiningFeature.featuringType->asSet()->including(anythingType)
+                    endif in
+                let redefinedFeaturingTypes: Set(Type) =
+                    if redefinedFeature.isVariable then Set{redefinedFeature.owningType}
+                    else redefinedFeature.featuringType->asSet()->including(anythingType)
+                    endif in
+                redefiningFeaturingTypes <> redefinedFeaturingTypes
+            """.trimIndent(),
+            description = "The redefiningFeature of a Redefinition must have at least one featuringType that is not also a featuringType of the redefinedFeature."
+        )
+    ),
     description = "A subsetting where one feature redefines another"
 )

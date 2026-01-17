@@ -16,11 +16,113 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 28: Behaviors
  * Defines associations for Behaviors.
  */
 fun createBehaviorAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Behavior has step : Step [0..*] {derived, subsets feature}
+    val featuringBehaviorStepAssociation = MetaAssociation(
+        name = "featuringBehaviorStepAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "featuringBehavior",
+            type = "Behavior",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typeWithFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "step",
+            type = "Step",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            subsets = listOf("feature"),
+            derivationConstraint = "deriveBehaviorStep"
+        )
+    )
+
+    // Behavior has parameter : Feature [0..*] {ordered, derived, redefines directedFeature}
+    val parameteredBehaviorParameterAssociation = MetaAssociation(
+        name = "parameteredBehaviorParameterAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "parameteredBehavior",
+            type = "Behavior",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typeWithFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "parameter",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            redefines = listOf("directedFeature"),
+            derivationConstraint = "deriveBehaviorParameter"
+        )
+    )
+
+    // Step has parameter : Feature [0..*] {ordered, derived, redefines directedFeature}
+    val parameteredStepParameterAssociation = MetaAssociation(
+        name = "parameteredStepParameterAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "parameteredStep",
+            type = "Step",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typeWithFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "parameter",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            redefines = listOf("directedFeature"),
+            derivationConstraint = "deriveStepParameter"
+        )
+    )
+
+    // Step has behavior : Behavior [0..*] {ordered, derived, redefines type}
+    val typedStepBehaviorAssociation = MetaAssociation(
+        name = "typedStepBehaviorAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typedStep",
+            type = "Step",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typedFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "behavior",
+            type = "Behavior",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("type"),
+            derivationConstraint = "deriveStepBehavior"
+        )
+    )
+
+    return listOf(
+        featuringBehaviorStepAssociation,
+        parameteredBehaviorParameterAssociation,
+        parameteredStepParameterAssociation,
+        typedStepBehaviorAssociation,
+    )
 }

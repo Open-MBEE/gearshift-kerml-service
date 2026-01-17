@@ -15,12 +15,82 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 16: Classifiers
- * Defines associations for Classifier metaclass.
+ * Defines associations for Classifier metaclass and Subclassification.
  */
 fun createClassifierAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // Subclassification references the superclassifier Classifier (target)
+    val superclassificationSuperclassifierAssociation = MetaAssociation(
+        name = "superclassificationSuperclassifierAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "superclassification",
+            type = "Subclassification",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("generalization")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "superclassifier",
+            type = "Classifier",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("general")
+        )
+    )
+
+    // Subclassification references the subclassifier Classifier (source)
+    val subclassificationSubclassifierAssociation = MetaAssociation(
+        name = "subclassificationSubclassifierAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "subclassification",
+            type = "Subclassification",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("specialization")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "subclassifier",
+            type = "Classifier",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("specific")
+        )
+    )
+
+    // Classifier owns its Subclassification relationships (composite)
+    val owningClassifierOwnedSubclassificationAssociation = MetaAssociation(
+        name = "owningClassifierOwnedSubclassificationAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningClassifier",
+            type = "Classifier",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("owningType")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedSubclassification",
+            type = "Subclassification",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            subsets = listOf("ownedSpecialization"),
+            derivationConstraint = "deriveClassifierOwnedSubclassification"
+        )
+    )
+
+    return listOf(
+        superclassificationSuperclassifierAssociation,
+        subclassificationSubclassifierAssociation,
+        owningClassifierOwnedSubclassificationAssociation
+    )
 }

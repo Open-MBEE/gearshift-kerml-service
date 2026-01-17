@@ -15,12 +15,35 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 29: Parameter Memberships
  * Defines associations for Parameter Memberships.
  */
 fun createParameterMembershipAssociations(): List<MetaAssociation> {
-    return emptyList()
+    val owningParameterMembershipOwnedMemberParameterAssociation = MetaAssociation(
+        name = "owningParameterMembershipOwnedMemberParameterAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningParameterMembership",
+            type = "ParameterMembership",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("owningFeatureMembership"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedMemberParameter",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            redefines = listOf("ownedMemberFeature"),
+        )
+    )
+    return listOf(owningParameterMembershipOwnedMemberParameterAssociation)
 }

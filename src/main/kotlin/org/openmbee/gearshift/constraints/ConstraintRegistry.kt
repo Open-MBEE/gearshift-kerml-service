@@ -158,6 +158,12 @@ class ConstraintRegistry {
     }
 
     /**
+     * Check if a validation constraint evaluator exists for a class.
+     */
+    fun hasValidationConstraint(className: String, constraintName: String): Boolean =
+        getValidationConstraint(className, constraintName) != null
+
+    /**
      * Get all validation constraints for a class (including inherited).
      */
     fun getValidationConstraints(className: String): List<Pair<String, ValidationConstraintEvaluator>> {

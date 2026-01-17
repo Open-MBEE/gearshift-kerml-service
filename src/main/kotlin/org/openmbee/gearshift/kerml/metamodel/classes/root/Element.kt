@@ -210,6 +210,8 @@ fun createElementMetaClass() = MetaClass(
         MetaOperation(
             name = "path",
             returnType = "String",
+            returnLowerBound = 1,
+            returnUpperBound = 1,
             description = "Return a unique description of the location of this Element in the containment structure " +
                     "rooted in a root Namespace. If the Element has a non-null qualifiedName, return that. " +
                     "Otherwise, if it has an owningRelationship, return the path of the owningRelationship " +

@@ -75,7 +75,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("member")
+            subsets = listOf("member"),
+            derivationConstraint = "deriveNamespaceOwnedMember"
         ),
         targetEnd = MetaAssociationEnd(
             name = "owningNamespace",
@@ -104,7 +105,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isOrdered = true
+            isOrdered = true,
+            derivationConstraint = "deriveNamespaceMembers"
         )
     )
 
@@ -172,7 +174,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
-            subsets = listOf("membership")
+            subsets = listOf("membership"),
+            derivationConstraint = "deriveNamespaceImportedMembership"
         )
     )
 

@@ -189,8 +189,23 @@ class OclExecutor(
 
     override fun visitArrowCall(exp: ArrowCallExp): Any? {
         val source = exp.source.accept(this)
-        val collection = asCollection(source)
 
+        // Handle object-level operations before converting to collection
+        when (exp.operationName) {
+            "oclType" -> {
+                // Return the type (class name) of the object
+                return when (source) {
+                    is MDMObject -> source.className
+                    is Collection<*> -> source.firstOrNull()?.let {
+                        if (it is MDMObject) it.className else it?.javaClass?.simpleName
+                    }
+                    null -> null
+                    else -> source.javaClass.simpleName
+                }
+            }
+        }
+
+        val collection = asCollection(source)
         return evaluateCollectionOperation(collection, exp.operationName, exp.arguments)
     }
 
@@ -261,6 +276,18 @@ class OclExecutor(
                 val typeName = when (val arg = exp.body) {
                     is VariableExp -> arg.name
                     else -> throw OclEvaluationException("selectByKind requires a type name")
+                }
+                collection.filterIsInstance<MDMObject>().filter { obj ->
+                    isKindOf(obj, typeName)
+                }
+            }
+
+            "selectAsKind" -> {
+                // Like selectByKind but conceptually casts results to the type
+                // For MDMObjects, the filtering is the same
+                val typeName = when (val arg = exp.body) {
+                    is VariableExp -> arg.name
+                    else -> throw OclEvaluationException("selectAsKind requires a type name")
                 }
                 collection.filterIsInstance<MDMObject>().filter { obj ->
                     isKindOf(obj, typeName)
@@ -489,22 +516,34 @@ class OclExecutor(
     }
 
     private fun evaluateOperation(source: Any?, opName: String, args: List<Any?>): Any? {
-        // Global functions (no source)
-        if (source == null) {
-            when (opName) {
-                "resolveGlobal" -> {
-                    val qualifiedName = args.firstOrNull()?.toString()
-                        ?: throw OclEvaluationException("resolveGlobal requires a qualified name argument")
-                    return engineAccessor.resolveGlobal(qualifiedName)
-                }
-            }
-        }
-
         // Object operations
         when (opName) {
             "oclIsUndefined" -> return source == null
             "oclIsInvalid" -> return false
             "toString" -> return source?.toString() ?: "null"
+            "oclType" -> return when (source) {
+                is MDMObject -> source.className
+                null -> null
+                else -> source.javaClass.simpleName
+            }
+            "oclIsKindOf" -> {
+                val typeName = args.firstOrNull()?.toString()
+                    ?: throw OclEvaluationException("oclIsKindOf requires a type name argument")
+                return when (source) {
+                    is MDMObject -> isKindOf(source, typeName)
+                    null -> false
+                    else -> false
+                }
+            }
+            "oclIsTypeOf" -> {
+                val typeName = args.firstOrNull()?.toString()
+                    ?: throw OclEvaluationException("oclIsTypeOf requires a type name argument")
+                return when (source) {
+                    is MDMObject -> source.className == typeName
+                    null -> false
+                    else -> source.javaClass.simpleName == typeName
+                }
+            }
         }
 
         // String operations
@@ -637,6 +676,8 @@ class OclExecutor(
             "intersection" -> OclStandardLibrary.intersection(collection, asCollection(args[0]))
             "-" -> OclStandardLibrary.minus(collection, asCollection(args[0]))
             "symmetricDifference" -> OclStandardLibrary.symmetricDifference(collection, asCollection(args[0]))
+            "including" -> collection + args[0]
+            "excluding" -> collection.filter { it != args[0] }
 
             // Sequence operations
             "append" -> collection + args[0]

@@ -87,12 +87,12 @@ fun createImportAssociations(): List<MetaAssociation> {
         )
     )
 
-    // MembershipImport has derived importedElement (via importedMembership.memberElement)
+    // Import has derived importedElement (subclasses provide derivation via constraints)
     val membershipImportImportedElementAssociation = MetaAssociation(
         name = "membershipImportImportedElementAssociation",
         sourceEnd = MetaAssociationEnd(
             name = "membershipImport",
-            type = "MembershipImport",
+            type = "Import",
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
@@ -103,29 +103,8 @@ fun createImportAssociations(): List<MetaAssociation> {
             type = "Element",
             lowerBound = 1,
             upperBound = 1,
-            isDerived = true
-        )
-    )
-
-
-    val membershipMemberElementAssociation = MetaAssociation(
-        name = "membershipMemberElementAssociation",
-        sourceEnd = MetaAssociationEnd(
-            name = "membership",
-            type = "Membership",
-            lowerBound = 0,
-            upperBound = -1,
             isDerived = true,
-            isNavigable = false, subsets = listOf("targetRelationship")
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "memberElement",
-            type = "Element",
-            lowerBound = 1,
-            upperBound = 1,
-            isDerived = true,
-            isOrdered = true,
-            redefines = listOf("target")
+            derivationConstraint = "deriveImportImportedElement"
         )
     )
 
@@ -133,7 +112,6 @@ fun createImportAssociations(): List<MetaAssociation> {
         importOwningNamespaceOwnedImportAssociation,
         importImportedNamespaceAssociation,
         importImportedMembershipAssociation,
-        membershipImportImportedElementAssociation,
-        membershipMemberElementAssociation
+        membershipImportImportedElementAssociation
     )
 }

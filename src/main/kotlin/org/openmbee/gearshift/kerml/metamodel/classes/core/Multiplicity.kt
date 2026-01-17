@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Multiplicity metaclass.
@@ -27,5 +29,25 @@ fun createMultiplicityMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Feature"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkMultiplicitySpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Base::naturals')",
+            description = "A Multiplicity must directly or indirectly specialize the Feature Base::naturals from the Kernel Semantic Library"
+        ),
+        MetaConstraint(
+            name = "checkMultiplicityTypeFeaturing",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                if owningType <> null and owningType.oclIsKindOf(Feature) then
+                    featuringType = owningType.oclAsType(Feature).featuringType
+                else
+                    featuringType->isEmpty()
+                endif
+            """.trimIndent(),
+            description = "If the owningType of a Multiplicity is a Feature, then the Multiplicity must have the same featuringTypes as that Feature. Otherwise, it must have no featuringTypes"
+        )
+    ),
     description = "A feature that specifies the multiplicity of another feature"
 )

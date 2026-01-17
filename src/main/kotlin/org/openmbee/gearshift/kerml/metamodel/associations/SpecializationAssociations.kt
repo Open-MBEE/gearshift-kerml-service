@@ -82,7 +82,9 @@ fun createSpecializationAssociations(): List<MetaAssociation> {
             upperBound = -1,
             aggregation = AggregationKind.COMPOSITE,
             isOrdered = true,
-            subsets = listOf("specialization", "ownedRelationship")
+            isDerived = true,
+            subsets = listOf("specialization", "ownedRelationship"),
+            derivationConstraint = "deriveTypeOwnedSpecialization"
         )
     )
 

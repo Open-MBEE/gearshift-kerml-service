@@ -15,12 +15,109 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 19: Feature Chaining
  * Defines associations for Feature Chaining relationships.
  */
 fun createFeatureChainingAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // FeatureChaining references the featureChained Feature (source)
+    val baseFeatureFeatureTargetAssociation = MetaAssociation(
+        name = "baseFeatureFeatureTargetAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "baseFeature",
+            type = "FeatureChaining",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true,
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "featureTarget",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveFeatureFeatureTarget"
+        )
+    )
+
+    // Feature has chainingFeatures (derived, through FeatureChaining)
+    val chainedFeatureChainingFeatureAssociation = MetaAssociation(
+        name = "chainedFeatureChainingFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "chainedFeature",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "chainingFeature",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            isUnique = false,
+            derivationConstraint = "deriveFeatureChainingFeature"
+        )
+    )
+
+    // Feature owns its FeatureChaining relationships (composite)
+    val featureChainedOwnedFeatureChainingAssociation = MetaAssociation(
+        name = "featureChainedOwnedFeatureChainingAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "featureChained",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("source"),
+            subsets = listOf("owningRelatedElement")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedFeatureChaining",
+            type = "FeatureChaining",
+            lowerBound = 0,
+            upperBound = -1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("ownedRelationship", "sourceRelationship"),
+            derivationConstraint = "deriveFeatureOwnedFeatureChaining"
+        )
+    )
+
+    // FeatureChaining references the chainingFeature Feature (target)
+    val chainedFeatureChainingChainingFeatureAssociation = MetaAssociation(
+        name = "chainedFeatureChainingChainingFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "chainedFeatureChaining",
+            type = "FeatureChaining",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            subsets = listOf("targetRelationship")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "chainingFeature",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("target")
+        )
+    )
+
+    return listOf(
+        baseFeatureFeatureTargetAssociation,
+        chainedFeatureChainingFeatureAssociation,
+        featureChainedOwnedFeatureChainingAssociation,
+        chainedFeatureChainingChainingFeatureAssociation
+    )
 }

@@ -15,17 +15,79 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.gearshift.metamodel.BodyLanguage
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML OwningMembership metaclass.
  * Specializes: Membership
  * A membership where the namespace owns the member element.
+ *
+ * Association ends (defined in NamespacesAssociations.kt):
+ * - ownedMemberElement : Element [1] {composite, redefines memberElement}
  */
 fun createOwningMembershipMetaClass() = MetaClass(
     name = "OwningMembership",
     isAbstract = false,
     superclasses = listOf("Membership"),
-    attributes = emptyList(),
+    attributes = listOf(
+        MetaProperty(
+            name = "ownedMemberName",
+            type = "String",
+            lowerBound = 0,
+            isDerived = true,
+            derivationConstraint = "deriveOwningMembershipOwnedMemberName",
+            description = "The name of the ownedMemberElement"
+        ),
+        MetaProperty(
+            name = "ownedMemberShortName",
+            type = "String",
+            lowerBound = 0,
+            isDerived = true,
+            derivationConstraint = "deriveOwningMembershipOwnedMemberShortName",
+            description = "The shortName of the ownedMemberElement"
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveOwningMembershipOwnedMemberName",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedMemberElement.name",
+            description = "The ownedMemberName of an OwningMembership is the name of its ownedMemberElement"
+        ),
+        MetaConstraint(
+            name = "deriveOwningMembershipOwnedMemberShortName",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedMemberElement.shortName",
+            description = "The ownedMemberShortName of an OwningMembership is the shortName of its ownedMemberElement"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "path",
+            returnType = "String",
+            returnLowerBound = 1,
+            returnUpperBound = 1,
+            redefines = "path",
+            body = """
+                if ownedMemberElement.qualifiedName <> null then
+                    ownedMemberElement.qualifiedName + '/owningMembership'
+                else self.oclAsType(Relationship).path()
+                endif
+            """.trimIndent(),
+            bodyLanguage = BodyLanguage.OCL,
+            isQuery = true,
+            description = """
+                If the ownedMemberElement of this OwningMembership has a non-null qualifiedName,
+                then return the string constructed by appending to that qualifiedName the string
+                "/owningMembership". Otherwise, return the path of the OwningMembership as
+                specified for a Relationship.
+            """.trimIndent()
+        )
+    ),
     description = "A membership where the namespace owns the member element"
 )

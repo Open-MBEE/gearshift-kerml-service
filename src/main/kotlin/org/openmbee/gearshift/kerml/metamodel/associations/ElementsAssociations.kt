@@ -129,10 +129,10 @@ fun createElementAssociations(): List<MetaAssociation> {
     )
 
     val owningRelatedElementOwnedRelationship = MetaAssociation(
-        name = "owningRelationshipOwnedRelatedElementAssociation",
+        name = "owningRelatedElementOwnedRelationshipAssociation",
         sourceEnd = MetaAssociationEnd(
             name = "owningRelatedElement",
-            "Element",
+            type = "Element",
             lowerBound = 0,
             upperBound = 1,
             subsets = listOf("relatedElement")

@@ -15,17 +15,61 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.gearshift.metamodel.BodyLanguage
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 
 /**
  * KerML MembershipImport metaclass.
  * Specializes: Import
  * An import that brings a specific membership into a namespace.
+ *
+ * Association ends (redefines Import):
+ * - importedElement : Element [1] {derived, redefines importedElement}
  */
 fun createMembershipImportMetaClass() = MetaClass(
     name = "MembershipImport",
     isAbstract = false,
     superclasses = listOf("Import"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveMembershipImportImportedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "importedMembership.memberElement",
+            redefines = "deriveImportImportedElement",
+            description = "The importedElement of a MembershipImport is the memberElement of its importedMembership"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "importedMemberships",
+            returnType = "Membership",
+            returnUpperBound = -1,
+            parameters = listOf(
+                MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
+            ),
+            redefines = "Import::importedMemberships",
+            body = """
+                if not isRecursive or
+                   not importedElement.oclIsKindOf(Namespace) or
+                   excluded->includes(importedElement)
+                then Sequence{importedMembership}
+                else importedElement.oclAsType(Namespace).
+                     visibleMemberships(excluded, true, isImportAll)->
+                     prepend(importedMembership)
+                endif
+            """.trimIndent(),
+            bodyLanguage = BodyLanguage.OCL,
+            description = """
+                Returns at least the importedMembership. If isRecursive = true and the memberElement
+                of the importedMembership is a Namespace, then Memberships are also recursively
+                imported from that Namespace.
+            """.trimIndent()
+        )
+    ),
     description = "An import that brings a specific membership into a namespace"
 )

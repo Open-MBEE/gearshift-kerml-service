@@ -82,4 +82,24 @@ class OclParserTest : DescribeSpec({
             (ast as InfixExp).operator shouldBe "implies"
         }
     }
+
+    describe("type operations") {
+
+        it("should parse oclType arrow operation") {
+            val ast = OclParser.parse("self->oclType()")
+            ast.shouldBeInstanceOf<ArrowCallExp>()
+            (ast as ArrowCallExp).operationName shouldBe "oclType"
+        }
+
+        it("should parse oclIsKindOf with dynamic type") {
+            val ast = OclParser.parse("memberElement.oclIsKindOf(other.memberElement.oclType())")
+            ast.shouldBeInstanceOf<OperationCallExp>()
+            (ast as OperationCallExp).operationName shouldBe "oclIsKindOf"
+        }
+
+        it("should parse chained oclType call") {
+            val ast = OclParser.parse("other.memberElement->oclType()")
+            ast.shouldBeInstanceOf<ArrowCallExp>()
+        }
+    }
 })

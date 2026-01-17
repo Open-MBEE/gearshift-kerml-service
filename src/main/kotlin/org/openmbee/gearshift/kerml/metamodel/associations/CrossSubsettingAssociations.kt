@@ -15,12 +15,83 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 22: Cross Subsetting
  * Defines associations for Cross Subsetting relationships.
  */
 fun createCrossSubsettingAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // CrossSubsetting references the crossedFeature Feature (target/subsetted)
+    val crossSupersettingCrossedFeatureAssociation = MetaAssociation(
+        name = "crossSupersettingCrossedFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "crossSupersetting",
+            type = "CrossSubsetting",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            subsets = listOf("supersetting")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "crossedFeature",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            redefines = listOf("subsettedFeature")
+        )
+    )
+
+    // Feature owns its CrossSubsetting relationships (composite)
+    val crossingFeatureOwnedCrossSubsettingAssociation = MetaAssociation(
+        name = "crossingFeatureOwnedCrossSubsettingAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "crossingFeature",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("owningFeature", "subsettingFeature")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedCrossSubsetting",
+            type = "CrossSubsetting",
+            lowerBound = 0,
+            upperBound = 1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            subsets = listOf("ownedSubsetting"),
+            derivationConstraint = "deriveFeatureOwnedCrossSubsetting"
+        )
+    )
+
+    // Feature has crossFeatures (derived, through CrossSubsetting)
+    val featureCrossingCrossFeatureAssociation = MetaAssociation(
+        name = "featureCrossingCrossFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "featureCrossing",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "crossFeature",
+            type = "Feature",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveFeatureCrossFeature"
+        )
+    )
+
+    return listOf(
+        crossSupersettingCrossedFeatureAssociation,
+        crossingFeatureOwnedCrossSubsettingAssociation,
+        featureCrossingCrossFeatureAssociation
+    )
 }

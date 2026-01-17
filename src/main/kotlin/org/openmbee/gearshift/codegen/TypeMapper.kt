@@ -15,6 +15,8 @@
  */
 package org.openmbee.gearshift.codegen
 
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
@@ -34,7 +36,15 @@ object TypeMapper {
         "Double" to "Double",
         "Float" to "Float",
         "Real" to "Double",
-        "Any" to "Any"
+        "Any" to "Any",
+        // Enum types - map to String for now until enum generation is added
+        "VisibilityKind" to "String",
+        "FeatureDirectionKind" to "String",
+        "PortionKind" to "String",
+        "RequirementConstraintKind" to "String",
+        "StateSubactionKind" to "String",
+        "TransitionFeatureKind" to "String",
+        "TriggerKind" to "String"
     )
 
     /**
@@ -83,6 +93,52 @@ object TypeMapper {
             isNullable = !property.isRequired && !property.isMultiValued,
             isOrdered = property.isOrdered,
             isUnique = property.isUnique
+        )
+    }
+
+    /**
+     * Map a MetaOperation's return type to its Kotlin type.
+     *
+     * Uses returnLowerBound and returnUpperBound:
+     * - returnUpperBound == 1: single value
+     * - returnUpperBound == -1 or > 1: multi-valued (List)
+     * - returnLowerBound == 0: nullable (for single values)
+     * - returnLowerBound >= 1: non-nullable
+     */
+    fun mapOperationReturnType(operation: MetaOperation): String {
+        val returnType = operation.returnType ?: return "Unit"
+
+        val isMultiValued = operation.returnUpperBound == -1 || operation.returnUpperBound > 1
+        val isNullable = operation.returnLowerBound == 0 && !isMultiValued
+
+        return mapToKotlinType(
+            metaType = returnType,
+            isMultiValued = isMultiValued,
+            isNullable = isNullable,
+            isOrdered = true,  // Operations return ordered lists by default
+            isUnique = false   // No uniqueness constraint on operation returns
+        )
+    }
+
+    /**
+     * Map a MetaParameter to its Kotlin type.
+     *
+     * Uses lowerBound and upperBound:
+     * - upperBound == 1: single value
+     * - upperBound == -1 or > 1: multi-valued (List)
+     * - lowerBound == 0: nullable (for single values)
+     * - lowerBound >= 1: non-nullable
+     */
+    fun mapParameterType(parameter: MetaParameter): String {
+        val isMultiValued = parameter.upperBound == -1 || parameter.upperBound > 1
+        val isNullable = parameter.lowerBound == 0 && !isMultiValued
+
+        return mapToKotlinType(
+            metaType = parameter.type,
+            isMultiValued = isMultiValued,
+            isNullable = isNullable,
+            isOrdered = true,  // Parameters are ordered lists by default
+            isUnique = false   // No uniqueness constraint on parameters
         )
     }
 

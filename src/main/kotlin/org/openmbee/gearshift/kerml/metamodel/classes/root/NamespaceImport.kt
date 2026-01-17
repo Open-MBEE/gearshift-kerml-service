@@ -15,17 +15,56 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.gearshift.metamodel.BodyLanguage
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 
 /**
  * KerML NamespaceImport metaclass.
  * Specializes: Import
  * An import that brings all visible members of a namespace into another namespace.
+ *
+ * Association ends (defined in ImportsAssociations.kt):
+ * - importedNamespace : Namespace [1] {redefines target}
  */
 fun createNamespaceImportMetaClass() = MetaClass(
     name = "NamespaceImport",
     isAbstract = false,
     superclasses = listOf("Import"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveNamespaceImportImportedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "importedNamespace",
+            redefines = "deriveImportImportedElement",
+            description = "The importedElement of a NamespaceImport is its importedNamespace"
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "importedMemberships",
+            returnType = "Membership",
+            returnUpperBound = -1,
+            parameters = listOf(
+                MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
+            ),
+            redefines = "Import::importedMemberships",
+            body = """
+                if excluded->includes(importedNamespace) then Sequence{}
+                else importedNamespace.visibleMemberships(excluded, isRecursive, isImportAll)
+                endif
+            """.trimIndent(),
+            bodyLanguage = BodyLanguage.OCL,
+            description = """
+                Returns at least the visibleMemberships of the importedNamespace. If isRecursive = true,
+                then Memberships are also recursively imported from any ownedMembers of the
+                importedNamespace that are themselves Namespaces.
+            """.trimIndent()
+        )
+    ),
     description = "An import that brings all visible members of a namespace into another namespace"
 )

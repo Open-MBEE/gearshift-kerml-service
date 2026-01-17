@@ -28,5 +28,11 @@ data class MetaParameter(
     val type: String,
 
     @JsonProperty
+    val lowerBound: Int = 1,
+
+    @JsonProperty
+    val upperBound: Int = 1,
+
+    @JsonProperty
     val defaultValue: String? = null
 )

@@ -65,12 +65,35 @@ fun createUnioningAssociations(): List<MetaAssociation> {
             isDerived = true,
             aggregation = AggregationKind.COMPOSITE,
             isOrdered = true,
-            subsets = listOf("sourceRelationship", "ownedRelationship")
+            subsets = listOf("sourceRelationship", "ownedRelationship"),
+            derivationConstraint = "deriveTypeOwnedUnioning"
+        )
+    )
+
+    val unionedTypeUnioningTypeAssociation = MetaAssociation(
+        name = "unionedTypeUnioningTypeAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "unionedType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "unioningType",
+            type = "Type",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isOrdered = true,
+            derivationConstraint = "deriveTypeUnioningType"
         )
     )
 
     return listOf(
         unionedUnioningUnioningTypeAssociation,
-        typeUnionedOwnedUnioningAssociation
+        typeUnionedOwnedUnioningAssociation,
+        unionedTypeUnioningTypeAssociation
     )
 }

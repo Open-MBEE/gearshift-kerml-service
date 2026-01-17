@@ -102,6 +102,7 @@ object KerMLMetamodelLoader {
 
         // Specialization relationships
         engine.registerMetaClass(createSpecializationMetaClass())
+        engine.registerMetaClass(createSubclassificationMetaClass())
         engine.registerMetaClass(createConjugationMetaClass())
         engine.registerMetaClass(createDisjoiningMetaClass())
         engine.registerMetaClass(createDifferencingMetaClass())
@@ -109,29 +110,22 @@ object KerMLMetamodelLoader {
         engine.registerMetaClass(createUnioningMetaClass())
 
         // Features
+        engine.registerMetaClass(createCrossSubsettingMetaClass())
+        engine.registerMetaClass(createEndFeatureMembershipMetaClass())
         engine.registerMetaClass(createFeatureMetaClass())
+        engine.registerMetaClass(createFeatureChainingMetaClass())
         engine.registerMetaClass(createFeatureMembershipMetaClass())
         engine.registerMetaClass(createFeatureTypingMetaClass())
         engine.registerMetaClass(createFeatureInvertingMetaClass())
-        engine.registerMetaClass(createSubsettingMetaClass())
         engine.registerMetaClass(createRedefinitionMetaClass())
+        engine.registerMetaClass(createReferenceSubsettingMetaClass())
+        engine.registerMetaClass(createSubsettingMetaClass())
 
         // Types
         engine.registerMetaClass(createTypeMetaClass())
         engine.registerMetaClass(createClassifierMetaClass())
         engine.registerMetaClass(createFeaturingMetaClass())
         engine.registerMetaClass(createTypeFeaturingMetaClass())
-
-        // Structured types
-        engine.registerMetaClass(createDataTypeMetaClass())
-        engine.registerMetaClass(createClassMetaClass())
-        engine.registerMetaClass(createStructureMetaClass())
-
-        // Associations
-        engine.registerMetaClass(createAssociationMetaClass())
-        engine.registerMetaClass(createAssociationStructureMetaClass())
-        engine.registerMetaClass(createConnectorMetaClass())
-        engine.registerMetaClass(createBindingConnectorMetaClass())
 
         // Multiplicity
         engine.registerMetaClass(createMultiplicityMetaClass())
@@ -147,64 +141,27 @@ object KerMLMetamodelLoader {
     private fun registerKernelPackage(engine: GearshiftEngine) {
         logger.debug { "Registering Kernel package..." }
 
-        // Packages
-        engine.registerMetaClass(createPackageMetaClass())
-        engine.registerMetaClass(createLibraryPackageMetaClass())
+        // Structured types
+        engine.registerMetaClass(createDataTypeMetaClass())
+        engine.registerMetaClass(createClassMetaClass())
+        engine.registerMetaClass(createStructureMetaClass())
 
-        // Definitions and Usages
-        engine.registerMetaClass(createDefinitionMetaClass())
-        engine.registerMetaClass(createUsageMetaClass())
+        // Associations
+        engine.registerMetaClass(createAssociationMetaClass())
+        engine.registerMetaClass(createAssociationStructureMetaClass())
 
-        // Occurrences
-        engine.registerMetaClass(createOccurrenceDefinitionMetaClass())
-        engine.registerMetaClass(createOccurrenceUsageMetaClass())
-
-        // Items
-        engine.registerMetaClass(createItemDefinitionMetaClass())
-        engine.registerMetaClass(createItemUsageMetaClass())
-
-        // Parts
-        engine.registerMetaClass(createPartDefinitionMetaClass())
-        engine.registerMetaClass(createPartUsageMetaClass())
-
-        // Ports
-        engine.registerMetaClass(createPortDefinitionMetaClass())
-        engine.registerMetaClass(createPortUsageMetaClass())
-        engine.registerMetaClass(createConjugatedPortDefinitionMetaClass())
-
-        // Connections
-        engine.registerMetaClass(createConnectionDefinitionMetaClass())
-        engine.registerMetaClass(createConnectionUsageMetaClass())
-        engine.registerMetaClass(createConnectorAsUsageMetaClass())
-        engine.registerMetaClass(createFlowConnectionUsageMetaClass())
-
-        // Interfaces
-        engine.registerMetaClass(createInterfaceDefinitionMetaClass())
-        engine.registerMetaClass(createInterfaceUsageMetaClass())
-
-        // Allocations
-        engine.registerMetaClass(createAllocationDefinitionMetaClass())
-        engine.registerMetaClass(createAllocationUsageMetaClass())
-
-        // Attributes
-        engine.registerMetaClass(createAttributeDefinitionMetaClass())
-        engine.registerMetaClass(createAttributeUsageMetaClass())
-
-        // References
-        engine.registerMetaClass(createReferenceUsageMetaClass())
-
-        // Enumerations
-        engine.registerMetaClass(createEnumerationDefinitionMetaClass())
-        engine.registerMetaClass(createEnumerationUsageMetaClass())
+        // Connectors
+        engine.registerMetaClass(createConnectorMetaClass())
+        engine.registerMetaClass(createBindingConnectorMetaClass())
+        engine.registerMetaClass(createSuccessionMetaClass())
 
         // Behaviors
         engine.registerMetaClass(createBehaviorMetaClass())
         engine.registerMetaClass(createStepMetaClass())
+        engine.registerMetaClass(createParameterMembershipMetaClass())
 
         // Actions
-        engine.registerMetaClass(createActionDefinitionMetaClass())
-        engine.registerMetaClass(createActionUsageMetaClass())
-        engine.registerMetaClass(createSuccessionMetaClass())
+
 
         // Interactions
         engine.registerMetaClass(createInteractionMetaClass())
@@ -213,8 +170,6 @@ object KerMLMetamodelLoader {
 
         // Functions and Calculations
         engine.registerMetaClass(createFunctionMetaClass())
-        engine.registerMetaClass(createCalculationDefinitionMetaClass())
-        engine.registerMetaClass(createCalculationUsageMetaClass())
         engine.registerMetaClass(createPredicateMetaClass())
 
         // Expressions
@@ -240,19 +195,14 @@ object KerMLMetamodelLoader {
         engine.registerMetaClass(createSelectExpressionMetaClass())
         engine.registerMetaClass(createMetadataAccessExpressionMetaClass())
 
-        // Cases
-        engine.registerMetaClass(createCaseDefinitionMetaClass())
-        engine.registerMetaClass(createCaseUsageMetaClass())
-        engine.registerMetaClass(createAnalysisCaseDefinitionMetaClass())
-        engine.registerMetaClass(createAnalysisCaseUsageMetaClass())
-        engine.registerMetaClass(createVerificationCaseDefinitionMetaClass())
-        engine.registerMetaClass(createVerificationCaseUsageMetaClass())
-        engine.registerMetaClass(createUseCaseDefinitionMetaClass())
-        engine.registerMetaClass(createUseCaseUsageMetaClass())
-
         // Metadata
         engine.registerMetaClass(createMetaclassMetaClass())
         engine.registerMetaClass(createMetadataFeatureMetaClass())
+
+        // Packages
+        engine.registerMetaClass(createPackageMetaClass())
+        engine.registerMetaClass(createLibraryPackageMetaClass())
+        engine.registerMetaClass(createElementFilterMembershipMetaClass())
 
         logger.debug { "Kernel package registered" }
     }
@@ -264,12 +214,13 @@ object KerMLMetamodelLoader {
     private fun registerAssociations(engine: GearshiftEngine) {
         logger.debug { "Registering associations..." }
 
-        // Root associations (Figures 4-)
+        // Root associations (Figures 4-8)
         createElementAssociations().forEach { engine.registerMetaAssociation(it) }
         createDependencyAssociations().forEach { engine.registerMetaAssociation(it) }
         createAnnotationAssociations().forEach { engine.registerMetaAssociation(it) }
         createNamespaceAssociations().forEach { engine.registerMetaAssociation(it) }
         createImportAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Core Associations (Figures 9-22)
         createTypeAssociations().forEach { engine.registerMetaAssociation(it) }
         createSpecializationAssociations().forEach { engine.registerMetaAssociation(it) }
         createConjugationAssociations().forEach { engine.registerMetaAssociation(it) }
@@ -277,6 +228,20 @@ object KerMLMetamodelLoader {
         createUnioningAssociations().forEach { engine.registerMetaAssociation(it) }
         createIntersectingAssociations().forEach { engine.registerMetaAssociation(it) }
         createDifferencingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createClassifierAssociations().forEach { engine.registerMetaAssociation(it) }
+        createFeaturesAssociations().forEach { engine.registerMetaAssociation(it) }
+        createSubsettingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createFeatureChainingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createFeatureInvertingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createEndFeatureMembershipAssociations().forEach { engine.registerMetaAssociation(it) }
+        createCrossSubsettingAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Kernel Associations (Figures 23-
+        createAssociationAssociations().forEach { engine.registerMetaAssociation(it) }
+        createConnectorAssociations().forEach { engine.registerMetaAssociation(it) }
+        createBehaviorAssociations().forEach { engine.registerMetaAssociation(it) }
+        createParameterMembershipAssociations().forEach { engine.registerMetaAssociation(it) }
+        //...
+        createPackageAssociations().forEach { engine.registerMetaAssociation(it) }
 
         logger.debug { "Associations registered" }
     }
@@ -306,16 +271,41 @@ object KerMLMetamodelLoader {
     )
 
     private fun getCorePackageClasses() = setOf(
-        "Specialization", "Conjugation", "Disjoining", "Differencing", "Intersecting", "Unioning",
-        "Feature", "FeatureMembership", "FeatureTyping", "FeatureInverting",
-        "Subsetting", "Redefinition",
-        "Type", "Classifier", "Featuring", "TypeFeaturing",
-        "DataType", "Class", "Structure",
-        "Association", "AssociationStructure", "Connector", "BindingConnector",
-        "Multiplicity", "MultiplicityRange"
+        // Type Metaclasses
+        "Conjugation",
+        "Differencing",
+        "Disjoining",
+        "FeatureMembership",
+        "Intersecting",
+        "Specialization",
+        "Multiplicity",
+        "Type",
+        "Unioning",
+        // Classifier
+        "Classifier",
+        "Subclassification",
+        // Feature Metaclasses
+        "CrossSubsetting",
+        "EndFeatureMembership",
+        "Feature",
+        "FeatureChaining",
+        "FeatureInverting",
+        "FeatureTyping",
+        "Redefinition",
+        "ReferenceSubsetting",
+        "Subsetting",
+        "Featuring",
+        "TypeFeaturing",
     )
 
     private fun getKernelPackageClasses() = setOf(
+        "DataType",
+        "Class",
+        "Structure",
+        "Association",
+        "AssociationStructure",
+        "Connector",
+        "BindingConnector",
         "Package", "LibraryPackage",
         "Definition", "Usage",
         "OccurrenceDefinition", "OccurrenceUsage",
@@ -342,6 +332,7 @@ object KerMLMetamodelLoader {
         "AnalysisCaseDefinition", "AnalysisCaseUsage",
         "VerificationCaseDefinition", "VerificationCaseUsage",
         "UseCaseDefinition", "UseCaseUsage",
+        "MultiplicityRange",
         "Metaclass", "MetadataFeature"
     )
 }

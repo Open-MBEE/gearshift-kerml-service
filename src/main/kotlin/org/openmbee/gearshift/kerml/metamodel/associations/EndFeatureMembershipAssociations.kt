@@ -15,12 +15,40 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 21: End Feature Membership
  * Defines associations for End Feature Membership.
  */
 fun createEndFeatureMembershipAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // EndFeatureMembership owns the ownedMemberFeature (redefines FeatureMembership::ownedMemberFeature)
+    val owningEndFeatureMembershipOwnedMemberFeatureAssociation = MetaAssociation(
+        name = "owningEndFeatureMembershipOwnedMemberFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningEndFeatureMembership",
+            type = "EndFeatureMembership",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            redefines = listOf("owningFeatureMembership")
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedMemberFeature",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            aggregation = AggregationKind.COMPOSITE,
+            isDerived = true,
+            redefines = listOf("ownedMemberFeature")
+        )
+    )
+
+    return listOf(
+        owningEndFeatureMembershipOwnedMemberFeatureAssociation
+    )
 }
