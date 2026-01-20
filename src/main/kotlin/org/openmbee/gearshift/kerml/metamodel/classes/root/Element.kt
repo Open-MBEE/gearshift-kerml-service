@@ -15,11 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.metamodel.ConstraintType
-import org.openmbee.gearshift.metamodel.MetaClass
-import org.openmbee.gearshift.metamodel.MetaConstraint
-import org.openmbee.gearshift.metamodel.MetaOperation
-import org.openmbee.gearshift.metamodel.MetaProperty
+import org.openmbee.gearshift.metamodel.*
 
 /**
  * KerML Element (Root.Element)
@@ -59,15 +55,6 @@ fun createElementMetaClass() = MetaClass(
             name = "isImpliedIncluded",
             type = "Boolean",
             description = "Whether this element is implied included"
-        ),
-        MetaProperty(
-            name = "documentation",
-            type = "Documentation",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            derivationConstraint = "deriveElementDocumentation",
-            description = "The documentation of this Element (derived)"
         ),
         MetaProperty(
             name = "isLibraryElement",

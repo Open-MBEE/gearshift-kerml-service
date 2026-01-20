@@ -24,6 +24,8 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  * Defines associations for Parameter Memberships.
  */
 fun createParameterMembershipAssociations(): List<MetaAssociation> {
+
+    // ParameterMembership has ownedMemberParameter : Feature [1..1] {redefines ownedMemberFeature}
     val owningParameterMembershipOwnedMemberParameterAssociation = MetaAssociation(
         name = "owningParameterMembershipOwnedMemberParameterAssociation",
         sourceEnd = MetaAssociationEnd(

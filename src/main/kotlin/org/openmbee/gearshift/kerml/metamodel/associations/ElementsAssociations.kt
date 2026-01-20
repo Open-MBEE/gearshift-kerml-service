@@ -24,6 +24,8 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  * Defines associations for the Element metaclass and related relationships.
  */
 fun createElementAssociations(): List<MetaAssociation> {
+
+    // Element has owner : Element [0..1] {derived}
     val ownedElementOwnerAssociation = MetaAssociation(
         name = "ownedElementOwnerAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -45,6 +47,7 @@ fun createElementAssociations(): List<MetaAssociation> {
         )
     )
 
+    // Relationship has relatedElement : Element [0..*] {ordered, nonunique, derived, union}
     val relationshipRelatedElementAssociation = MetaAssociation(
         name = "relationshipRelatedElementAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -55,8 +58,7 @@ fun createElementAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isUnion = true,
             isUnique = false,
-            isDerived = true,
-            derivationConstraint = "deriveRelationshipRelationship",
+            isDerived = true
         ),
         targetEnd = MetaAssociationEnd(
             name = "relatedElement",
@@ -66,10 +68,11 @@ fun createElementAssociations(): List<MetaAssociation> {
             isOrdered = true,
             isUnique = false,
             isDerived = true,
-            derivationConstraint = "deriveElementRelatedElement"
+            derivationConstraint = "deriveRelationshipRelatedElement"
         )
     )
 
+    // Relationship has target : Element [0..*] {subsets relatedElement}
     val targetRelationshipTargetAssociation = MetaAssociation(
         name = "targetRelationshipTargetAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -89,6 +92,7 @@ fun createElementAssociations(): List<MetaAssociation> {
         )
     )
 
+    // Relationship has source : Element [0..*] {subsets relatedElement}
     val sourceRelationshipSourceAssociation = MetaAssociation(
         name = "sourceRelationshipSourceAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -108,6 +112,7 @@ fun createElementAssociations(): List<MetaAssociation> {
         )
     )
 
+    // Relationship has ownedRelatedElement : Element [0..*] {ordered, subsets relatedElement}
     val owningRelationshipOwnedRelatedElementAssociation = MetaAssociation(
         name = "owningRelationshipOwnedRelatedElementAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -128,6 +133,7 @@ fun createElementAssociations(): List<MetaAssociation> {
         )
     )
 
+    // Element has ownedRelationship : Relationship [0..*] {ordered, subsets relationship}
     val owningRelatedElementOwnedRelationship = MetaAssociation(
         name = "owningRelatedElementOwnedRelationshipAssociation",
         sourceEnd = MetaAssociationEnd(

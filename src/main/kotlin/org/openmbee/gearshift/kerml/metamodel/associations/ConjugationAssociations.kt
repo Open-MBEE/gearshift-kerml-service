@@ -25,7 +25,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createConjugationAssociations(): List<MetaAssociation> {
 
-    // Conjugation references the originalType Type (target)
+    // Conjugation has originalType : Type [1..1] {redefines target}
     val conjugationOriginalTypeAssociation = MetaAssociation(
         name = "conjugationOriginalTypeAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -45,7 +45,7 @@ fun createConjugationAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Conjugator references the conjugatedType (source)
+    // Conjugation has conjugatedType : Type [1..1] {redefines source}
     val conjugatorConjugatedTypeAssociation = MetaAssociation(
         name = "conjugatorConjugatedTypeAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -65,7 +65,7 @@ fun createConjugationAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Type owns its Conjugator relationships (composite)
+    // Type has ownedConjugator : Conjugation [0..1] {derived, subsets conjugator, ownedRelationship}
     val owningTypeOwnedConjugatorAssociation = MetaAssociation(
         name = "ownedConjugatorOwningTypeAssociation",
         sourceEnd = MetaAssociationEnd(

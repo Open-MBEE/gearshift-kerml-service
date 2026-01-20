@@ -15,13 +15,16 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralBoolean metaclass.
  * Specializes: LiteralExpression
- * A literal expression with a boolean value.
+ * LiteralBoolean is a LiteralExpression that provides a Boolean value as a result. Its result parameter
+ * must have type Boolean.
  */
 fun createLiteralBooleanMetaClass() = MetaClass(
     name = "LiteralBoolean",
@@ -31,8 +34,17 @@ fun createLiteralBooleanMetaClass() = MetaClass(
         MetaProperty(
             name = "value",
             type = "Boolean",
-            description = "The boolean value"
+            description = "The Boolean value that is the result of evaluating this LiteralBoolean."
         )
     ),
-    description = "A literal expression with a boolean value"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkLiteralBooleanSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::literalBooleanEvaluations')",
+            libraryTypeName = "Performances::literalBooleanEvaluations",
+            description = "A LiteralBoolean must directly or indirectly specialize Performances::literalBooleanEvaluations from the Kernel Semantic Library."
+        )
+    ),
+    description = "LiteralBoolean is a LiteralExpression that provides a Boolean value as a result."
 )

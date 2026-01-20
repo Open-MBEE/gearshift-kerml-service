@@ -160,14 +160,6 @@ object KerMLMetamodelLoader {
         engine.registerMetaClass(createStepMetaClass())
         engine.registerMetaClass(createParameterMembershipMetaClass())
 
-        // Actions
-
-
-        // Interactions
-        engine.registerMetaClass(createInteractionMetaClass())
-        engine.registerMetaClass(createItemFlowMetaClass())
-        engine.registerMetaClass(createSuccessionItemFlowMetaClass())
-
         // Functions and Calculations
         engine.registerMetaClass(createFunctionMetaClass())
         engine.registerMetaClass(createPredicateMetaClass())
@@ -189,13 +181,26 @@ object KerMLMetamodelLoader {
         engine.registerMetaClass(createNullExpressionMetaClass())
 
         // Complex Expressions
+        engine.registerMetaClass(createInstantiationExpressionMetaClass())
         engine.registerMetaClass(createOperatorExpressionMetaClass())
         engine.registerMetaClass(createInvocationExpressionMetaClass())
         engine.registerMetaClass(createFeatureChainExpressionMetaClass())
         engine.registerMetaClass(createFeatureReferenceExpressionMetaClass())
+        engine.registerMetaClass(createIndexExpressionMetaClass())
         engine.registerMetaClass(createCollectExpressionMetaClass())
+        engine.registerMetaClass(createConstructorExpressionMetaClass())
         engine.registerMetaClass(createSelectExpressionMetaClass())
         engine.registerMetaClass(createMetadataAccessExpressionMetaClass())
+
+        // Interactions
+        engine.registerMetaClass(createInteractionMetaClass())
+        engine.registerMetaClass(createFlowMetaClass())
+        engine.registerMetaClass(createFlowEndMetaClass())
+        engine.registerMetaClass(createPayloadFeatureMetaClass())
+        engine.registerMetaClass(createSuccessionFlowMetaClass())
+
+        // Feature Values
+        engine.registerMetaClass(createFeatureValueMetaClass())
 
         // Metadata
         engine.registerMetaClass(createMetaclassMetaClass())
@@ -247,6 +252,13 @@ object KerMLMetamodelLoader {
         createFunctionAssociations().forEach { engine.registerMetaAssociation(it) }
         createPredicateAssociations().forEach { engine.registerMetaAssociation(it) }
         createFunctionAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Expressions
+        createExpressionAssociations().forEach { engine.registerMetaAssociation(it) }
+        createLiteralExpressionAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Flow
+        createFlowAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Feature Values
+        createFeatureValueAssociations().forEach { engine.registerMetaAssociation(it) }
         //...
         createPackageAssociations().forEach { engine.registerMetaAssociation(it) }
 
@@ -327,7 +339,7 @@ object KerMLMetamodelLoader {
         "EnumerationDefinition", "EnumerationUsage",
         "Behavior", "Step",
         "ActionDefinition", "ActionUsage", "Succession",
-        "Interaction", "ItemFlow", "SuccessionItemFlow",
+        "Interaction", "Flow", "FlowEnd", "PayloadFeature", "SuccessionFlow", "FeatureValue",
         "Function", "CalculationDefinition", "CalculationUsage", "Predicate",
         "Expression", "BooleanExpression", "Invariant",
         "LiteralExpression", "LiteralBoolean", "LiteralInteger", "LiteralRational",

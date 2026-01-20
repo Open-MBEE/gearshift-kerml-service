@@ -24,6 +24,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createDependencyAssociations(): List<MetaAssociation> {
 
+    // Dependency has client : Element [1..*] {ordered, redefines source}
     val clientDependencyClientAssociation = MetaAssociation(
         name = "clientDependencyclientAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -44,6 +45,7 @@ fun createDependencyAssociations(): List<MetaAssociation> {
             )
     )
 
+    // Dependency has supplier : Element [1..*] {ordered, redefines target}
     val supplierDependencySupplier = MetaAssociation(
         name = "supplierDependencySupplier",
         sourceEnd = MetaAssociationEnd(

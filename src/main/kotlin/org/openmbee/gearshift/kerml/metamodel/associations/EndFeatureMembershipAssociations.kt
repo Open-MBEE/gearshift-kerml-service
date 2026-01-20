@@ -25,7 +25,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createEndFeatureMembershipAssociations(): List<MetaAssociation> {
 
-    // EndFeatureMembership owns the ownedMemberFeature (redefines FeatureMembership::ownedMemberFeature)
+    // EndFeatureMembership has ownedMemberFeature : Feature [1..1] {derived, redefines ownedMemberFeature}
     val owningEndFeatureMembershipOwnedMemberFeatureAssociation = MetaAssociation(
         name = "owningEndFeatureMembershipOwnedMemberFeatureAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -44,7 +44,8 @@ fun createEndFeatureMembershipAssociations(): List<MetaAssociation> {
             upperBound = 1,
             aggregation = AggregationKind.COMPOSITE,
             isDerived = true,
-            redefines = listOf("ownedMemberFeature")
+            redefines = listOf("ownedMemberFeature"),
+            derivationConstraint = "deriveEndFeatureMembershipOwnedMemberFeature"
         )
     )
 

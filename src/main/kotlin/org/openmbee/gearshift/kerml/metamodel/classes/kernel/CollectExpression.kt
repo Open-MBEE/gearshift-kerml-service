@@ -15,17 +15,36 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML CollectExpression metaclass.
  * Specializes: OperatorExpression
- * An expression that collects elements.
+ * A CollectExpression is an OperatorExpression whose operator is "collect", which resolves to the
+ * Function ControlFunctions::collect from the Kernel Functions Library.
  */
 fun createCollectExpressionMetaClass() = MetaClass(
     name = "CollectExpression",
     isAbstract = false,
     superclasses = listOf("OperatorExpression"),
-    attributes = emptyList(),
-    description = "An expression that collects elements"
+    attributes = listOf(
+        MetaProperty(
+            name = "operator",
+            type = "String",
+            redefines = listOf("operator"),
+            description = "The operator for this CollectExpression, which must be 'collect'."
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateCollectExpressionOperator",
+            type = ConstraintType.VERIFICATION,
+            expression = "operator = 'collect'",
+            description = "The operator of a CollectExpression must be 'collect'."
+        )
+    ),
+    description = "A CollectExpression is an OperatorExpression whose operator is 'collect', which resolves to the Function ControlFunctions::collect from the Kernel Functions Library."
 )

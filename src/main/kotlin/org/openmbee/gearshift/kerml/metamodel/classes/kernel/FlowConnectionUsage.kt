@@ -19,13 +19,13 @@ import org.openmbee.gearshift.metamodel.MetaClass
 
 /**
  * KerML FlowConnectionUsage metaclass.
- * Specializes: ItemFlow, ConnectorAsUsage
+ * Specializes: Flow, ConnectorAsUsage
  * An item flow used as a flow connection.
  */
 fun createFlowConnectionUsageMetaClass() = MetaClass(
     name = "FlowConnectionUsage",
     isAbstract = false,
-    superclasses = listOf("ItemFlow", "ConnectorAsUsage"),
+    superclasses = listOf("Flow", "ConnectorAsUsage"),
     attributes = emptyList(),
     description = "An item flow used as a flow connection"
 )

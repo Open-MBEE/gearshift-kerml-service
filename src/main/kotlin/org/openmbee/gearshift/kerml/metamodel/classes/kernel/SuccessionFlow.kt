@@ -20,24 +20,25 @@ import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
- * KerML LiteralInfinity metaclass.
- * Specializes: LiteralExpression
- * A LiteralInfinity is a LiteralExpression that provides the positive infinity value (*). Its result must
- * have the type Positive.
+ * KerML SuccessionFlow metaclass.
+ * Specializes: Flow, Succession
+ * A SuccessionFlow is a Flow that also provides temporal ordering. It classifies Transfers that
+ * cannot start until the sourceOccurrence has completed and that must complete before the
+ * targetOccurrence can start.
  */
-fun createLiteralInfinityMetaClass() = MetaClass(
-    name = "LiteralInfinity",
+fun createSuccessionFlowMetaClass() = MetaClass(
+    name = "SuccessionFlow",
     isAbstract = false,
-    superclasses = listOf("LiteralExpression"),
+    superclasses = listOf("Flow", "Succession"),
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkLiteralInfinitySpecialization",
+            name = "checkSuccessionFlowSpecialization",
             type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::literalIntegerEvaluations')",
-            libraryTypeName = "Performances::literalIntegerEvaluations",
-            description = "A LiteralInfinity must directly or indirectly specialize Performances::literalIntegerEvaluations from the Kernel Semantic Library."
+            expression = "specializesFromLibrary('Transfers::flowTransfersBefore')",
+            libraryTypeName = "Transfers::flowTransfersBefore",
+            description = "A SuccessionFlow must directly or indirectly specialize the Step Transfers::flowTransfersBefore from the Kernel Semantic Library."
         )
     ),
-    description = "A LiteralInfinity is a LiteralExpression that provides the positive infinity value (*)."
+    description = "A SuccessionFlow is a Flow that also provides temporal ordering. It classifies Transfers that cannot start until the sourceOccurrence has completed and that must complete before the targetOccurrence can start."
 )

@@ -25,7 +25,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createClassifierAssociations(): List<MetaAssociation> {
 
-    // Subclassification references the superclassifier Classifier (target)
+    // Subclassification has superclassifier : Classifier [1..1] {redefines general}
     val superclassificationSuperclassifierAssociation = MetaAssociation(
         name = "superclassificationSuperclassifierAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -45,7 +45,7 @@ fun createClassifierAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Subclassification references the subclassifier Classifier (source)
+    // Subclassification has subclassifier : Classifier [1..1] {redefines specific}
     val subclassificationSubclassifierAssociation = MetaAssociation(
         name = "subclassificationSubclassifierAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -65,7 +65,7 @@ fun createClassifierAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Classifier owns its Subclassification relationships (composite)
+    // Classifier has ownedSubclassification : Subclassification [0..*] {derived, subsets ownedSpecialization}
     val owningClassifierOwnedSubclassificationAssociation = MetaAssociation(
         name = "owningClassifierOwnedSubclassificationAssociation",
         sourceEnd = MetaAssociationEnd(

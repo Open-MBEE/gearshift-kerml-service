@@ -15,17 +15,79 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 
 /**
  * KerML MetadataAccessExpression metaclass.
  * Specializes: Expression
- * An expression that accesses metadata.
+ * A MetadataAccessExpression is an Expression whose result is a sequence of instances of Metaclasses
+ * representing the metadataFeatures of the referencedElement.
  */
 fun createMetadataAccessExpressionMetaClass() = MetaClass(
     name = "MetadataAccessExpression",
     isAbstract = false,
     superclasses = listOf("Expression"),
     attributes = emptyList(),
-    description = "An expression that accesses metadata"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkMetadataAccessExpressionSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::metadataAccessEvaluations')",
+            libraryTypeName = "Performances::metadataAccessEvaluations",
+            description = "A MetadataAccessExpression must directly or indirectly specialize Performances::metadataAccessEvaluations from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "deriveMetadataAccessExpressionReferencedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "let membership : Membership = ownedMembership->first() in if membership = null then null else membership.memberElement endif",
+            description = "The referencedElement of a MetadataAccessExpression is the memberElement of its first ownedMembership (if any)."
+        ),
+        MetaConstraint(
+            name = "validateMetadataAccessExpressionReferencedElement",
+            type = ConstraintType.VERIFICATION,
+            expression = "referencedElement <> null",
+            description = "A MetadataAccessExpression must have a non-null referencedElement."
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "evaluate",
+            returnType = "Element",
+            returnLowerBound = 0,
+            returnUpperBound = -1,
+            parameters = listOf(
+                MetaParameter(name = "target", type = "Element")
+            ),
+            redefines = "evaluate",
+            preconditions = listOf("isModelLevelEvaluable"),
+            body = "referencedElement.metadataFeature->collect(m | m.metaclass)->selectByKind(Metaclass)->collect(mc | metaclassFeature(mc))",
+            description = "The model-level evaluation of a MetadataAccessExpression results in instances of Metaclasses representing metadata."
+        ),
+        MetaOperation(
+            name = "metaclassFeature",
+            returnType = "Feature",
+            returnLowerBound = 0,
+            returnUpperBound = 1,
+            parameters = listOf(
+                MetaParameter(name = "metaclass", type = "Metaclass")
+            ),
+            body = "metaclass.ownedFeature->select(f | f.name = referencedElement.name)->any(true)",
+            description = "Returns the Feature of the given Metaclass with the same name as the referencedElement."
+        ),
+        MetaOperation(
+            name = "modelLevelEvaluable",
+            returnType = "Boolean",
+            parameters = listOf(
+                MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
+            ),
+            redefines = "modelLevelEvaluable",
+            body = "true",
+            description = "A MetadataAccessExpression is always model-level evaluable."
+        )
+    ),
+    description = "A MetadataAccessExpression is an Expression whose result is a sequence of instances of Metaclasses representing the metadataFeatures of the referencedElement."
 )

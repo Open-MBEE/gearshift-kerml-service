@@ -32,6 +32,12 @@ fun createEndFeatureMembershipMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveEndFeatureMembershipOwnedMemberFeature",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "ownedMemberFeature",
+            description = "The ownedMemberFeature of an EndFeatureMembership redefines FeatureMembership::ownedMemberFeature."
+        ),
+        MetaConstraint(
             name = "validateEndFeatureMembershipIsEnd",
             type = ConstraintType.VERIFICATION,
             expression = "ownedMemberFeature.isEnd",

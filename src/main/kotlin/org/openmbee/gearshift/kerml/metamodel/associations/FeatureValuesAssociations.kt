@@ -15,12 +15,63 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 37: Feature Values
  * Defines associations for Feature Values.
  */
 fun createFeatureValueAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // FeatureValue has value : Expression [1..1] {redefines ownedMemberElement}
+    val expressedValuationValueAssociation = MetaAssociation(
+        name = "expressedValuationValueAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "expressedValuation",
+            type = "FeatureValue",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("owningMembership"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "value",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            redefines = listOf("ownedMemberElement"),
+        )
+    )
+
+    // FeatureValue has featureWithValue : Feature [1..1] {subsets membershipOwningNamespace}
+    val valuationFeatureWithValueAssociation = MetaAssociation(
+        name = "valuationFeatureWithValueAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "valuation",
+            type = "FeatureValue",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("ownedMembership"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "featureWithValue",
+            type = "Feature",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("membershipOwningNamespace"),
+        )
+    )
+
+    return listOf(
+        expressedValuationValueAssociation,
+        valuationFeatureWithValueAssociation,
+    )
 }

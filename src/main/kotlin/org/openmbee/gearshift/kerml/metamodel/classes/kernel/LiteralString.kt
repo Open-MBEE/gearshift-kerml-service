@@ -15,13 +15,16 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralString metaclass.
  * Specializes: LiteralExpression
- * A literal expression with a string value.
+ * A LiteralString is a LiteralExpression that provides a String value as a result. Its result parameter
+ * must have the type String.
  */
 fun createLiteralStringMetaClass() = MetaClass(
     name = "LiteralString",
@@ -31,8 +34,17 @@ fun createLiteralStringMetaClass() = MetaClass(
         MetaProperty(
             name = "value",
             type = "String",
-            description = "The string value"
+            description = "The String value that is the result of evaluating this LiteralString."
         )
     ),
-    description = "A literal expression with a string value"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkLiteralStringSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::literalStringEvaluations')",
+            libraryTypeName = "Performances::literalStringEvaluations",
+            description = "A LiteralString must directly or indirectly specialize Performances::literalStringEvaluations from the Kernel Semantic Library."
+        )
+    ),
+    description = "A LiteralString is a LiteralExpression that provides a String value as a result."
 )

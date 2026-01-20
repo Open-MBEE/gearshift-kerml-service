@@ -21,13 +21,13 @@ import org.openmbee.gearshift.metamodel.MetaConstraint
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
- * KerML SelectExpression metaclass.
+ * KerML IndexExpression metaclass.
  * Specializes: OperatorExpression
- * A SelectExpression is an OperatorExpression whose operator is "select", which resolves to the
- * Function ControlFunctions::select from the Kernel Functions Library.
+ * An IndexExpression is an OperatorExpression whose operator is "#", which resolves to the Function
+ * BasicFunctions::'#' from the Kernel Functions Library.
  */
-fun createSelectExpressionMetaClass() = MetaClass(
-    name = "SelectExpression",
+fun createIndexExpressionMetaClass() = MetaClass(
+    name = "IndexExpression",
     isAbstract = false,
     superclasses = listOf("OperatorExpression"),
     attributes = listOf(
@@ -35,22 +35,26 @@ fun createSelectExpressionMetaClass() = MetaClass(
             name = "operator",
             type = "String",
             redefines = listOf("operator"),
-            description = "The operator for a SelectExpression, which must be 'select'."
+            description = "The operator for this IndexExpression, which must be '#'."
         )
     ),
     constraints = listOf(
         MetaConstraint(
-            name = "checkSelectExpressionResultSpecialization",
+            name = "checkIndexExpressionResultSpecialization",
             type = ConstraintType.VERIFICATION,
-            expression = "argument->notEmpty() implies result.specializes(argument->first().result)",
-            description = "The result of a SelectExpression must specialize the result parameter of the first argument of the SelectExpression."
+            expression = """
+                arguments->notEmpty() and
+                not arguments->first().result.specializesFromLibrary('Collections::Array') implies
+                result.specializes(arguments->first().result)
+            """.trimIndent(),
+            description = "The result of an IndexExpression must specialize the result parameter of the first argument of the IndexExpression, unless that result already directly or indirectly specializes the DataType Collections::Array from the Kernel Data Type Library."
         ),
         MetaConstraint(
-            name = "validateSelectExpressionOperator",
+            name = "validateIndexExpressionOperator",
             type = ConstraintType.VERIFICATION,
-            expression = "operator = 'select'",
-            description = "The operator of a SelectExpression must be 'select'."
+            expression = "operator = '#'",
+            description = "The operator of an IndexExpression must be '#'."
         )
     ),
-    description = "A SelectExpression is an OperatorExpression whose operator is 'select', which resolves to the Function ControlFunctions::select from the Kernel Functions Library."
+    description = "An IndexExpression is an OperatorExpression whose operator is '#', which resolves to the Function BasicFunctions::'#' from the Kernel Functions Library."
 )

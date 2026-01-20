@@ -15,13 +15,16 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML LiteralRational metaclass.
  * Specializes: LiteralExpression
- * A literal expression with a rational number value.
+ * A LiteralRational is a LiteralExpression that provides a Rational value as a result. Its result
+ * parameter must have the type Rational.
  */
 fun createLiteralRationalMetaClass() = MetaClass(
     name = "LiteralRational",
@@ -30,9 +33,18 @@ fun createLiteralRationalMetaClass() = MetaClass(
     attributes = listOf(
         MetaProperty(
             name = "value",
-            type = "String",
-            description = "The rational value as a string"
+            type = "Real",
+            description = "The value whose rational approximation is the result of evaluating this LiteralRational."
         )
     ),
-    description = "A literal expression with a rational number value"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkLiteralRationalSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::literalRationalEvaluations')",
+            libraryTypeName = "Performances::literalRationalEvaluations",
+            description = "A LiteralRational must directly or indirectly specialize Performances::literalRationalEvaluations from the Kernel Semantic Library."
+        )
+    ),
+    description = "A LiteralRational is a LiteralExpression that provides a Rational value as a result."
 )

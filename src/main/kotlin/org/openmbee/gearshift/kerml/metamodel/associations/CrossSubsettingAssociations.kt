@@ -25,7 +25,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createCrossSubsettingAssociations(): List<MetaAssociation> {
 
-    // CrossSubsetting references the crossedFeature Feature (target/subsetted)
+    // CrossSubsetting has crossedFeature : Feature [1..1] {redefines subsettedFeature}
     val crossSupersettingCrossedFeatureAssociation = MetaAssociation(
         name = "crossSupersettingCrossedFeatureAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -45,7 +45,7 @@ fun createCrossSubsettingAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Feature owns its CrossSubsetting relationships (composite)
+    // Feature has ownedCrossSubsetting : CrossSubsetting [0..1] {derived, subsets ownedSubsetting}
     val crossingFeatureOwnedCrossSubsettingAssociation = MetaAssociation(
         name = "crossingFeatureOwnedCrossSubsettingAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -68,7 +68,7 @@ fun createCrossSubsettingAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Feature has crossFeatures (derived, through CrossSubsetting)
+    // Feature has crossFeature : Feature [0..1] {derived}
     val featureCrossingCrossFeatureAssociation = MetaAssociation(
         name = "featureCrossingCrossFeatureAssociation",
         sourceEnd = MetaAssociationEnd(

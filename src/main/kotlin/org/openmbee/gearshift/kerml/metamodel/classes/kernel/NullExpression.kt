@@ -15,17 +15,54 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.MetaOperation
+import org.openmbee.gearshift.metamodel.MetaParameter
 
 /**
  * KerML NullExpression metaclass.
  * Specializes: Expression
- * An expression representing a null value.
+ * A NullExpression is an Expression that results in a null value.
  */
 fun createNullExpressionMetaClass() = MetaClass(
     name = "NullExpression",
     isAbstract = false,
     superclasses = listOf("Expression"),
     attributes = emptyList(),
-    description = "An expression representing a null value"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkNullExpressionSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::nullEvaluations')",
+            libraryTypeName = "Performances::nullEvaluations",
+            description = "A NullExpression must directly or indirectly specialize Performances::nullEvaluations from the Kernel Semantic Library."
+        )
+    ),
+    operations = listOf(
+        MetaOperation(
+            name = "evaluate",
+            returnType = "Element",
+            returnLowerBound = 0,
+            returnUpperBound = -1,
+            parameters = listOf(
+                MetaParameter(name = "target", type = "Element")
+            ),
+            redefines = "evaluate",
+            body = "Sequence{}",
+            description = "The model-level value of a NullExpression is an empty sequence."
+        ),
+        MetaOperation(
+            name = "modelLevelEvaluable",
+            returnType = "Boolean",
+            parameters = listOf(
+                MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
+            ),
+            redefines = "modelLevelEvaluable",
+            body = "true",
+            description = "A NullExpression is always model-level evaluable."
+        )
+    ),
+    description = "A NullExpression is an Expression that results in a null value."
 )

@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML AnnotatingElement metaclass.
@@ -27,5 +29,31 @@ fun createAnnotatingElementMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Element"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveAnnotatingElementAnnotatedElement",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                if annotation->notEmpty() then annotation.annotatedElement
+                else Sequence{owningNamespace} endif
+            """.trimIndent(),
+            description = "Derivation for AnnotatingElement::annotatedElement"
+        ),
+        MetaConstraint(
+            name = "deriveAnnotatingElementAnnotation",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                if owningAnnotatingRelationship = null then ownedAnnotatingRelationship
+                else ownedAnnotatingRelationship->prepend(owningAnnotatingRelationship) endif
+            """.trimIndent(),
+            description = "Derivation for AnnotatingElement::annotation"
+        ),
+        MetaConstraint(
+            name = "deriveAnnotatingElementOwnedAnnotatingRelationship",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedRelationship->selectByKind(Annotation)->select(a | a.annotatedElement <> self)",
+            description = "Derivation for AnnotatingElement::ownedAnnotatingRelationship"
+        )
+    ),
     description = "An element that annotates other elements"
 )

@@ -16,11 +16,84 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 38: Multiplicities
  * Defines associations for Multiplicities.
  */
 fun createMultiplicityAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // MultiplicityRange has bound : Expression [1..2] {ordered, derived, subsets ownedMember}
+    val multiplicityBoundAssociation = MetaAssociation(
+        name = "multiplicityBoundAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "multiplicity",
+            type = "MultiplicityRange",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("owningType"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "bound",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 2,
+            isDerived = true,
+            isOrdered = true,
+            subsets = listOf("ownedMember"),
+        )
+    )
+
+    // MultiplicityRange has lowerBound : Expression [0..1] {derived, subsets bound}
+    val multiplicityLowerBoundAssociation = MetaAssociation(
+        name = "multiplicityLowerBoundAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "multiplicity",
+            type = "MultiplicityRange",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("multiplicity"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "lowerBound",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("bound"),
+        )
+    )
+
+    // MultiplicityRange has upperBound : Expression [1..1] {derived, subsets bound}
+    val multiplicityUpperBoundAssociation = MetaAssociation(
+        name = "multiplicityUpperBoundAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "multiplicity",
+            type = "MultiplicityRange",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("multiplicity"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "upperBound",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("bound"),
+        )
+    )
+
+    return listOf(
+        multiplicityBoundAssociation,
+        multiplicityLowerBoundAssociation,
+        multiplicityUpperBoundAssociation,
+    )
 }

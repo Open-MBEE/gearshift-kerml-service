@@ -20,24 +20,24 @@ import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
- * KerML LiteralInfinity metaclass.
- * Specializes: LiteralExpression
- * A LiteralInfinity is a LiteralExpression that provides the positive infinity value (*). Its result must
- * have the type Positive.
+ * KerML PayloadFeature metaclass.
+ * Specializes: Feature
+ * A PayloadFeature is the ownedFeature of a Flow that identifies the things carried by the kinds
+ * of transfers that are instances of the Flow.
  */
-fun createLiteralInfinityMetaClass() = MetaClass(
-    name = "LiteralInfinity",
+fun createPayloadFeatureMetaClass() = MetaClass(
+    name = "PayloadFeature",
     isAbstract = false,
-    superclasses = listOf("LiteralExpression"),
+    superclasses = listOf("Feature"),
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkLiteralInfinitySpecialization",
+            name = "checkPayloadFeatureRedefinition",
             type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::literalIntegerEvaluations')",
-            libraryTypeName = "Performances::literalIntegerEvaluations",
-            description = "A LiteralInfinity must directly or indirectly specialize Performances::literalIntegerEvaluations from the Kernel Semantic Library."
+            expression = "redefinesFromLibrary('Transfers::Transfer::payload')",
+            libraryTypeName = "Transfers::Transfer::payload",
+            description = "A PayloadFeature must redefine the Feature Transfers::Transfer::payload from the Kernel Semantic Library."
         )
     ),
-    description = "A LiteralInfinity is a LiteralExpression that provides the positive infinity value (*)."
+    description = "A PayloadFeature is the ownedFeature of a Flow that identifies the things carried by the kinds of transfers that are instances of the Flow."
 )

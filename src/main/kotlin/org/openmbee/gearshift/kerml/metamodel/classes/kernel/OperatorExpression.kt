@@ -16,12 +16,14 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaOperation
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
  * KerML OperatorExpression metaclass.
  * Specializes: InvocationExpression
- * An expression that uses an operator.
+ * An OperatorExpression is an InvocationExpression whose function is determined by resolving its
+ * operator in the context of one of the standard packages from the Kernel Function Library.
  */
 fun createOperatorExpressionMetaClass() = MetaClass(
     name = "OperatorExpression",
@@ -31,8 +33,19 @@ fun createOperatorExpressionMetaClass() = MetaClass(
         MetaProperty(
             name = "operator",
             type = "String",
-            description = "The operator symbol"
+            description = "An operator symbol that names a corresponding Function from one of the standard packages from the Kernel Function Library."
         )
     ),
-    description = "An expression that uses an operator"
+    operations = listOf(
+        MetaOperation(
+            name = "instantiatedType",
+            returnType = "Type",
+            returnLowerBound = 0,
+            returnUpperBound = 1,
+            redefines = "instantiatedType",
+            body = "let libFunctions : Sequence(Element) = Sequence{'BaseFunctions', 'DataFunctions', 'ControlFunctions'}->collect(ns | resolveGlobal(ns + \"::\'\" + operator + \"'\").memberElement) in if libFunctions->isEmpty() then null else libFunctions->first().oclAsType(Type) endif",
+            description = "The instantiatedType of an OperatorExpression is the resolution of its operator from one of the packages BaseFunctions, DataFunctions, or ControlFunctions from the Kernel Function Library."
+        )
+    ),
+    description = "An OperatorExpression is an InvocationExpression whose function is determined by resolving its operator in the context of one of the standard packages from the Kernel Function Library."
 )

@@ -75,6 +75,12 @@ fun createStepMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "type->selectByKind(Behavior)",
             description = "The behaviors of a Step are all its types that are Behaviors."
+        ),
+        MetaConstraint(
+            name = "deriveStepParameter",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "directedFeature",
+            description = "The parameters of a Step are its directedFeatures, whose values are passed into and/or out of a performance of the Step."
         )
     ),
     description = "A feature that represents a step in a behavior"

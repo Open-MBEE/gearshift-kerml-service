@@ -25,7 +25,7 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  */
 fun createDifferencingAssociations(): List<MetaAssociation> {
 
-    // Conjugator references the conjugatedType (source)
+    // Differencing has differencingType : Type [1..1] {redefines target}
     val differencedDifferencingDifferencingTypeAssociation = MetaAssociation(
         name = "differencedDifferencingDifferencingTypeAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -45,7 +45,7 @@ fun createDifferencingAssociations(): List<MetaAssociation> {
         )
     )
 
-    // Type owns its Conjugator relationships (composite)
+    // Type has ownedDifferencing : Differencing [0..*] {ordered, derived, subsets sourceRelationship, ownedRelationship}
     val typeDifferencedOwnedDifferencingAssociation = MetaAssociation(
         name = "typeDifferencedOwnedDifferencingAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -70,6 +70,7 @@ fun createDifferencingAssociations(): List<MetaAssociation> {
         )
     )
 
+    // Type has differencingType : Type [0..*] {ordered, derived}
     val differencedTypeDifferencingTypeAssociation = MetaAssociation(
         name = "differencedTypeDifferencingTypeAssociation",
         sourceEnd = MetaAssociationEnd(

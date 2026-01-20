@@ -24,6 +24,8 @@ import org.openmbee.gearshift.metamodel.MetaAssociationEnd
  * Defines associations for Annotation and AnnotatingElement.
  */
 fun createAnnotationAssociations(): List<MetaAssociation> {
+
+    // Element has textualRepresentation : TextualRepresentation [0..*] {ordered, derived, subsets annotatingElement, ownedElement}
     val representedElementTextualRepresentationAssociation = MetaAssociation(
         name = "representedElementTextualRepresentationAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -43,8 +45,11 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             subsets = listOf("annotatingElement", "ownedElement"),
+            derivationConstraint = "deriveElementTextualRepresentation"
         ),
     )
+
+    // Element has ownedAnnotation : Annotation [0..*] {ordered, derived, subsets annotation, ownedRelationship}
     val owningAnnotatedElementOwnedAnnotationAssociation = MetaAssociation(
         name = "owningAnnotatedElementOwnedAnnotationAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -64,8 +69,11 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             subsets = listOf("annotation", "ownedRelationship"),
+            derivationConstraint = "deriveElementOwnedAnnotation"
         ),
     )
+
+    // Annotation has annotatedElement : Element [1..1] {redefines target}
     val annotationAnnotatedElementAssociation = MetaAssociation(
         name = "annotationAnnotatedElementAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -85,6 +93,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
         ),
     )
 
+    // AnnotatingElement has annotation : Annotation [0..*] {ordered, derived, subsets sourceRelationship}
     val annotatingElementAnnotationAssociation = MetaAssociation(
         name = "annotatingElementAnnotationAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -103,8 +112,11 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             subsets = listOf("sourceRelationship"),
+            derivationConstraint = "deriveAnnotatingElementAnnotation"
         ),
     )
+
+    // Annotation has ownedAnnotatingElement : AnnotatingElement [0..1] {subsets annotatingElement, ownedRelatedElement}
     val owningAnnotatingRelationshipOwnedAnnotatingElementAssociation = MetaAssociation(
         name = "owningAnnotatingRelationshipOwnedAnnotatingElementAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -123,6 +135,8 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             subsets = listOf("annotatingElement", "ownedRelatedElement"),
         )
     )
+
+    // AnnotatingElement has ownedAnnotatingRelationship : Annotation [0..*] {ordered, derived, subsets annotation, ownedRelationship}
     val owningAnnotatingElementOwnedAnnotatingRelationshipAssociation = MetaAssociation(
         name = "owningAnnotatingElementOwnedAnnotatingRelationshipAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -140,9 +154,13 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             upperBound = -1,
             aggregation = AggregationKind.COMPOSITE,
             isOrdered = true,
+            isDerived = true,
             subsets = listOf("annotation", "ownedRelationship"),
+            derivationConstraint = "deriveAnnotatingElementOwnedAnnotatingRelationship"
         )
     )
+
+    // Element has documentation : Documentation [0..*] {ordered, derived, subsets annotatingElement, ownedElement}
     val documentedElementDocumentationAssociation = MetaAssociation(
         name = "documentedElementDocumentationAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -162,9 +180,11 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             subsets = listOf("annotatingElement", "ownedElement"),
-
-            )
+            derivationConstraint = "deriveElementDocumentation"
+        )
     )
+
+    // AnnotatingElement has annotatedElement : Element [1..*] {ordered, derived}
     val annotatingElementAnnotatedElementAssociation = MetaAssociation(
         name = "annotatingElementAnnotatedElementAssociation",
         sourceEnd = MetaAssociationEnd(
@@ -182,7 +202,8 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             lowerBound = 1,
             upperBound = -1,
             isDerived = true,
-            isOrdered = true
+            isOrdered = true,
+            derivationConstraint = "deriveAnnotatingElementAnnotatedElement"
         ),
     )
     return listOf(
