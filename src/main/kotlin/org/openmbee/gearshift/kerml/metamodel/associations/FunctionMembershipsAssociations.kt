@@ -15,12 +15,41 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
+import org.openmbee.gearshift.metamodel.AggregationKind
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 32: Function Memberships
  * Defines associations for Function Memberships.
  */
 fun createFunctionMembershipAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // ResultExpressionMembership has ownedResultExpression : Expression [1..1] {redefines ownedMemberFeature}
+    val owningResultExpressionMembershipOwnedResultExpressionAssociation = MetaAssociation(
+        name = "owningResultExpressionMembershipOwnedResultExpressionAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningResultExpressionMembership",
+            type = "ResultExpressionMembership",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            subsets = listOf("owningFeatureMembership"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "ownedResultExpression",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            aggregation = AggregationKind.COMPOSITE,
+            redefines = listOf("ownedMemberFeature"),
+            derivationConstraint = "deriveResultExpressionMembershipOwnedResultExpression",
+        )
+    )
+
+    return listOf(
+        owningResultExpressionMembershipOwnedResultExpressionAssociation,
+    )
 }

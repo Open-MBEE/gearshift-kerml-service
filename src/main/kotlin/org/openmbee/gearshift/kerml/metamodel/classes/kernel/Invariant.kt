@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 import org.openmbee.gearshift.metamodel.MetaProperty
 
 /**
@@ -32,6 +34,22 @@ fun createInvariantMetaClass() = MetaClass(
             name = "isNegated",
             type = "Boolean",
             description = "Whether this invariant is negated"
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkInvariantNegatedSpecialization",
+            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
+            expression = "isNegated",
+            libraryTypeName = "Performances::falseEvaluations",
+            description = "An Invariant with isNegated = true must directly or indirectly specialize Performances::falseEvaluations from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "checkInvariantSpecialization",
+            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
+            expression = "not isNegated",
+            libraryTypeName = "Performances::trueEvaluations",
+            description = "An Invariant with isNegated = false must directly or indirectly specialize Performances::trueEvaluations from the Kernel Semantic Library."
         )
     ),
     description = "A boolean expression that specifies a constraint"

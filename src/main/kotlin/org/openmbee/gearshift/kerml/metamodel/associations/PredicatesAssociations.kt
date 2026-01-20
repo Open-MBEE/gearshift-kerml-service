@@ -16,11 +16,60 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 31: Predicates
  * Defines associations for Predicates.
  */
 fun createPredicateAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // BooleanExpression has predicate : Predicate [0..*] {ordered, derived, redefines function}
+    val typedBooleanExpressionPredicateAssociation = MetaAssociation(
+        name = "typedBooleanExpressionPredicateAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typedBooleanExpression",
+            type = "BooleanExpression",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typedExpression"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "predicate",
+            type = "Predicate",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("function"),
+        )
+    )
+
+    // Expression has function : Function [0..*] {ordered, derived, redefines behavior}
+    val typedExpressionFunctionAssociation = MetaAssociation(
+        name = "typedExpressionFunctionAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typedExpression",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typedStep"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "function",
+            type = "Function",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("behavior"),
+        )
+    )
+
+    return listOf(
+        typedBooleanExpressionPredicateAssociation,
+        typedExpressionFunctionAssociation,
+    )
 }

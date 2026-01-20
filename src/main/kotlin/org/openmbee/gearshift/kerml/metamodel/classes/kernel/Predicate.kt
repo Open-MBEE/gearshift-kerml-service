@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Predicate metaclass.
@@ -27,5 +29,14 @@ fun createPredicateMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Function"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkPredicateSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::BooleanEvaluation')",
+            libraryTypeName = "Performances::BooleanEvaluation",
+            description = "A Predicate must directly or indirectly specialize the base Predicate Performances::BooleanEvaluation from the Kernel Semantic Library."
+        )
+    ),
     description = "A function that returns a boolean result"
 )

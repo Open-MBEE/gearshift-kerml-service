@@ -27,7 +27,7 @@ enum class ConstraintType {
      */
     CONDITIONAL_IMPLICIT_SPECIALIZATION,
 
-    /** Derivation constraint for computing derived property values */
+    /** Derivation constraint for computing derived property values (spec-defined) */
     DERIVATION,
 
     /**
@@ -38,6 +38,18 @@ enum class ConstraintType {
 
     /** Constraint for calculating non-navigable association ends */
     NON_NAVIGABLE_END,
+
+    /**
+     * Inferred derivation for properties that redefine another property.
+     * Value equals the redefined property. Not explicitly in spec but derived from metamodel structure.
+     */
+    REDEFINES_DERIVATION,
+
+    /**
+     * Inferred derivation for properties that subset another property.
+     * Value is filtered from the subsetted property. Not explicitly in spec but derived from metamodel structure.
+     */
+    SUBSETS_DERIVATION,
 
     /** Verification constraint for validating invariants */
     VERIFICATION

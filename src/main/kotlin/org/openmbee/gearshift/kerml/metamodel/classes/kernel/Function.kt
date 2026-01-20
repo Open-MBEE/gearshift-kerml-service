@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Function metaclass.
@@ -27,5 +29,52 @@ fun createFunctionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Behavior"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkFunctionResultBindingConnector",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                ownedMembership.selectByKind(ResultExpressionMembership)->
+                forAll(mem | ownedFeature.selectByKind(BindingConnector)->
+                    exists(binding |
+                        binding.relatedFeature->includes(result) and
+                        binding.relatedFeature->includes(mem.ownedResultExpression.result)))
+            """.trimIndent(),
+            description = "If a Function has an Expression owned via a ResultExpressionMembership, then the owning Function must also own a BindingConnector between its result parameter and the result parameter of the resultExpression."
+        ),
+        MetaConstraint(
+            name = "checkFunctionSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::Evaluation')",
+            libraryTypeName = "Performances::Evaluation",
+            description = "A Function must directly or indirectly specialize the base Function Performances::Evaluation from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "deriveFunctionResult",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                let resultParams : Sequence(Feature) =
+                    featureMemberships->
+                    selectByKind(ReturnParameterMembership).
+                    ownedMemberParameter in
+                if resultParams->notEmpty() then resultParams->first()
+                else null
+                endif
+            """.trimIndent(),
+            description = "The result parameter of a Function is its parameter owned (possibly in a supertype) via a ReturnParameterMembership (if any)."
+        ),
+        MetaConstraint(
+            name = "validateFunctionResultExpressionMembership",
+            type = ConstraintType.VERIFICATION,
+            expression = "membership->selectByKind(ResultExpressionMembership)->size() <= 1",
+            description = "A Function must have at most one ResultExpressionMembership."
+        ),
+        MetaConstraint(
+            name = "validateFunctionResultParameterMembership",
+            type = ConstraintType.VERIFICATION,
+            expression = "featureMembership->selectByKind(ReturnParameterMembership)->size() = 1",
+            description = "A Function must have exactly one featureMembership (owned or inherited) that is a ResultParameterMembership."
+        )
+    ),
     description = "A behavior that represents a function"
 )

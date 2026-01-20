@@ -171,6 +171,8 @@ object KerMLMetamodelLoader {
         // Functions and Calculations
         engine.registerMetaClass(createFunctionMetaClass())
         engine.registerMetaClass(createPredicateMetaClass())
+        engine.registerMetaClass(createResultExpressionMembershipMetaClass())
+        engine.registerMetaClass(createReturnParameterMembershipMetaClass())
 
         // Expressions
         engine.registerMetaClass(createExpressionMetaClass())
@@ -238,8 +240,13 @@ object KerMLMetamodelLoader {
         // Kernel Associations (Figures 23-
         createAssociationAssociations().forEach { engine.registerMetaAssociation(it) }
         createConnectorAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Behavior
         createBehaviorAssociations().forEach { engine.registerMetaAssociation(it) }
         createParameterMembershipAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Functions
+        createFunctionAssociations().forEach { engine.registerMetaAssociation(it) }
+        createPredicateAssociations().forEach { engine.registerMetaAssociation(it) }
+        createFunctionAssociations().forEach { engine.registerMetaAssociation(it) }
         //...
         createPackageAssociations().forEach { engine.registerMetaAssociation(it) }
 

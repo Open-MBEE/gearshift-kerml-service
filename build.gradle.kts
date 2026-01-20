@@ -42,6 +42,13 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.3")
     implementation("ch.qos.logback:logback-classic:1.4.14")
 
+    // Ktor (web server)
+    val ktorVersion = "2.3.7"
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
+
     // Testing
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
@@ -59,7 +66,18 @@ kotlin {
 }
 
 application {
-    mainClass.set("org.openmbee.gearshift.kerml.ApplicationKt")
+    mainClass.set("org.openmbee.gearshift.ApplicationKt")
+}
+
+// Task to run the Demo API server
+tasks.register<JavaExec>("runDemoApi") {
+    description = "Run the Demo API server"
+    group = "application"
+
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.openmbee.gearshift.api.DemoApiKt")
+
+    // Allow passing port as argument: ./gradlew runDemoApi --args="9090"
 }
 
 // Configure ANTLR to generate Kotlin code

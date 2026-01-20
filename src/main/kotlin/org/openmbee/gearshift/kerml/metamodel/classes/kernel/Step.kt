@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Step metaclass.
@@ -27,5 +29,53 @@ fun createStepMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Feature"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkStepEnclosedPerformanceSpecialization",
+            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
+            expression = """
+                owningType <> null and
+                (owningType.oclIsKindOf(Behavior) or owningType.oclIsKindOf(Step))
+            """.trimIndent(),
+            libraryTypeName = "Performances::Performance::enclosedPerformance",
+            description = "A Step whose owningType is a Behavior or another Step must directly or indirectly specialize the Step Performances::Performance::enclosedPerformance."
+        ),
+        MetaConstraint(
+            name = "checkStepOwnedPerformanceSpecialization",
+            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
+            expression = """
+                isComposite and owningType <> null and
+                (owningType.oclIsKindOf(Structure) or
+                 owningType.oclIsKindOf(Feature) and
+                 owningType.oclAsType(Feature).type->exists(oclIsKindOf(Structure)))
+            """.trimIndent(),
+            libraryTypeName = "Objects::Object::ownedPerformance",
+            description = "A composite Step whose owningType is a Structure or a Feature typed by a Structure must directly or indirectly specialize the Step Objects::Object::ownedPerformance."
+        ),
+        MetaConstraint(
+            name = "checkStepSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Performances::performances')",
+            libraryTypeName = "Performances::performances",
+            description = "A Step must directly or indirectly specialize the base Step Performances::performances from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "checkStepSubperformanceSpecialization",
+            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
+            expression = """
+                owningType <> null and
+                (owningType.oclIsKindOf(Behavior) or owningType.oclIsKindOf(Step)) and
+                isComposite
+            """.trimIndent(),
+            libraryTypeName = "Performances::Performance::subperformance",
+            description = "A Step whose owningType is a Behavior or another Step, and which is composite, must directly or indirectly specialize the Step Performances::Performance::subperformance."
+        ),
+        MetaConstraint(
+            name = "deriveStepBehavior",
+            type = ConstraintType.DERIVATION,
+            expression = "type->selectByKind(Behavior)",
+            description = "The behaviors of a Step are all its types that are Behaviors."
+        )
+    ),
     description = "A feature that represents a step in a behavior"
 )

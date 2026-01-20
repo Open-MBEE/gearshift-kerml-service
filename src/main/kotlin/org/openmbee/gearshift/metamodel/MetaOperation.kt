@@ -67,6 +67,9 @@ data class MetaOperation(
     val isAbstract: Boolean = false,
 
     @JsonProperty
+    val preconditions: List<String> = emptyList(),
+
+    @JsonProperty
     val isQuery: Boolean = false,
 
     @JsonProperty
