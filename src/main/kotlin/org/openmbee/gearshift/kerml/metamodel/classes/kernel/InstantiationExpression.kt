@@ -34,6 +34,12 @@ fun createInstantiationExpressionMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveInstantiationExpressionArgument",
+            type = ConstraintType.DERIVATION,
+            expression = "null",
+            description = "Abstract derivation for argument - redefined by InvocationExpression and ConstructorExpression"
+        ),
+        MetaConstraint(
             name = "deriveInstantiationExpressionInstantiatedType",
             type = ConstraintType.DERIVATION,
             expression = "instantiatedType()",

@@ -15,17 +15,28 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaConstraint
 
 /**
  * KerML Metaclass metaclass.
  * Specializes: Structure
- * A structure that represents a metaclass.
+ * A Metaclass is a Structure used to type MetadataFeatures.
  */
 fun createMetaclassMetaClass() = MetaClass(
     name = "Metaclass",
     isAbstract = false,
     superclasses = listOf("Structure"),
     attributes = emptyList(),
-    description = "A structure that represents a metaclass"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkMetaclassSpecialization",
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            expression = "specializesFromLibrary('Metaobjects::Metaobject')",
+            libraryTypeName = "Metaobjects::Metaobject",
+            description = "A Metaclass must directly or indirectly specialize the base Metaclass Metaobjects::Metaobject from the Kernel Semantic Library."
+        )
+    ),
+    description = "A Metaclass is a Structure used to type MetadataFeatures."
 )

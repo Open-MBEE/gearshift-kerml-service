@@ -16,11 +16,33 @@
 package org.openmbee.gearshift.kerml.metamodel.associations
 
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 
 /**
  * Figure 39: Metadata Annotation
  * Defines associations for Metadata Annotation.
  */
 fun createMetadataAnnotationAssociations(): List<MetaAssociation> {
-    return emptyList()
+    val typedMetadataMetaclassAssociation = MetaAssociation(
+        name = "typedMetadataMetaclassAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typedMetadata",
+            type = "MetadataFeature",
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            subsets = listOf("typedFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "metaclass",
+            type = "Metaclass",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("type"),
+            derivationConstraint = "deriveMetadataFeatureMetaclass",
+        )
+    )
+    return listOf(typedMetadataMetaclassAssociation)
 }

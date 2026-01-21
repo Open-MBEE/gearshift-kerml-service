@@ -242,6 +242,7 @@ object KerMLMetamodelLoader {
         createFeatureInvertingAssociations().forEach { engine.registerMetaAssociation(it) }
         createEndFeatureMembershipAssociations().forEach { engine.registerMetaAssociation(it) }
         createCrossSubsettingAssociations().forEach { engine.registerMetaAssociation(it) }
+        createMultiplicityAssociations().forEach { engine.registerMetaAssociation(it) }
         // Kernel Associations (Figures 23-
         createAssociationAssociations().forEach { engine.registerMetaAssociation(it) }
         createConnectorAssociations().forEach { engine.registerMetaAssociation(it) }
@@ -259,6 +260,8 @@ object KerMLMetamodelLoader {
         createFlowAssociations().forEach { engine.registerMetaAssociation(it) }
         // Feature Values
         createFeatureValueAssociations().forEach { engine.registerMetaAssociation(it) }
+        // Metadata
+        createMetadataAnnotationAssociations().forEach { engine.registerMetaAssociation(it) }
         //...
         createPackageAssociations().forEach { engine.registerMetaAssociation(it) }
 

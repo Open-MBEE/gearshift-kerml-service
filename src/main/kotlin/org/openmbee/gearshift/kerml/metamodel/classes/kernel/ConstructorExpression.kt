@@ -67,7 +67,8 @@ fun createConstructorExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "deriveConstructorExpressionArgument",
-            type = ConstraintType.REDEFINES_DERIVATION,
+            type = ConstraintType.DERIVATION,
+            redefines = "deriveInstantiationExpressionArgument",
             expression = """
                 instantiatedType.feature->collect(f |
                     result.ownedFeatures->select(redefines(f)).valuation->

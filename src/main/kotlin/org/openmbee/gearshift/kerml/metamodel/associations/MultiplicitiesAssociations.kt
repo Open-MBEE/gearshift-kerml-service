@@ -44,6 +44,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             subsets = listOf("ownedMember"),
+            derivationConstraint = "deriveMultiplicityRangeBound",
         )
     )
 
@@ -66,6 +67,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("bound"),
+            derivationConstraint = "deriveMultiplicityRangeLowerBound",
         )
     )
 
@@ -88,6 +90,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("bound"),
+            derivationConstraint = "deriveMultiplicityRangeUpperBound",
         )
     )
 

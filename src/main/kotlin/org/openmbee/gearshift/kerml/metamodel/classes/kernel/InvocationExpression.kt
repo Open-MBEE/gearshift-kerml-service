@@ -72,7 +72,8 @@ fun createInvocationExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "deriveInvocationExpressionArgument",
-            type = ConstraintType.REDEFINES_DERIVATION,
+            type = ConstraintType.DERIVATION,
+            redefines = "deriveInstantiationExpressionArgument",
             expression = """
                 instantiatedType.input->collect(inp |
                     ownedFeatures->select(redefines(inp)).valuation->

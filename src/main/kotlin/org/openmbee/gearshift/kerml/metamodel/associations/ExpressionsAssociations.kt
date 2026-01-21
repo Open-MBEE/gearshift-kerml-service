@@ -42,6 +42,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isOrdered = true,
+            derivationConstraint = "deriveInstantiationExpressionArgument"
         )
     )
 
