@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.codegen
 
 import org.openmbee.gearshift.engine.MetamodelRegistry
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaOperation
 import org.openmbee.gearshift.metamodel.MetaProperty
@@ -89,11 +90,19 @@ class MetamodelCodeGenerator(
         sb.append("interface ${metaClass.name}")
         sb.appendLine(" : ${superInterfaces.joinToString(", ")} {")
 
-        // Properties
+        // Properties (attributes)
         val ownProperties = metaClass.attributes.sortedBy { it.name }
         for (property in ownProperties) {
             sb.appendLine()
             sb.append(generateInterfaceProperty(property))
+        }
+
+        // Association ends (own only, not inherited)
+        val ownAssociationEnds = registry.getNavigableEndsForClass(metaClass.name)
+            .sortedBy { it.name }
+        for (end in ownAssociationEnds) {
+            sb.appendLine()
+            sb.append(generateInterfaceAssociationEnd(end))
         }
 
         // Operations
@@ -129,6 +138,26 @@ class MetamodelCodeGenerator(
         val overrideModifier = if (property.redefines.isNotEmpty()) "override " else ""
 
         sb.appendLine("    $overrideModifier$modifier ${property.name}: $kotlinType")
+
+        return sb.toString()
+    }
+
+    /**
+     * Generate interface association end declaration.
+     */
+    private fun generateInterfaceAssociationEnd(end: MetaAssociationEnd): String {
+        val sb = StringBuilder()
+
+        val modifier = if (end.isDerived) "val" else "var"
+        val kotlinType = TypeMapper.mapAssociationEndType(end)
+
+        // Add 'override' if this redefines or subsets a property with the same name from a parent interface
+        // This handles cases like:
+        // - EndFeatureMembership.ownedMemberFeature redefining FeatureMembership.ownedMemberFeature
+        // - Redefinition.owningFeature subsetting Subsetting.owningFeature
+        val needsOverride = end.redefines.contains(end.name) || end.subsets.contains(end.name)
+        val overrideModifier = if (needsOverride) "override " else ""
+        sb.appendLine("    $overrideModifier$modifier ${end.name}: $kotlinType")
 
         return sb.toString()
     }
@@ -180,10 +209,9 @@ class MetamodelCodeGenerator(
         sb.appendLine("import org.openmbee.gearshift.engine.MDMObject")
         sb.appendLine("import ${config.interfacePackage}.*")
         sb.appendLine("import ${config.utilPackage}.Wrappers")
-        // Add explicit import for classes that conflict with Kotlin stdlib
-        if (metaClass.name == "Function" || metaClass.superclasses.contains("Function")) {
-            sb.appendLine("import ${config.interfacePackage}.Function as KerMLFunction")
-        }
+        // Add explicit imports for classes that conflict with Kotlin stdlib
+        sb.appendLine("import ${config.interfacePackage}.Annotation as KerMLAnnotation")
+        sb.appendLine("import ${config.interfacePackage}.Function as KerMLFunction")
         sb.appendLine()
 
         // KDoc
@@ -203,7 +231,7 @@ class MetamodelCodeGenerator(
         }
 
         // Use alias for classes that conflict with Kotlin stdlib
-        val interfaceName = if (metaClass.name == "Function") "KerMLFunction" else metaClass.name
+        val interfaceName = TypeMapper.getAliasedTypeName(metaClass.name)
 
         sb.appendLine("$openModifier class ${metaClass.name}Impl(")
         sb.appendLine("    wrapped: MDMObject,")
@@ -227,6 +255,22 @@ class MetamodelCodeGenerator(
         for (property in secondaryInheritedProperties.sortedBy { it.name }) {
             sb.appendLine()
             sb.append(generateImplProperty(property))
+        }
+
+        // Generate own association ends
+        val ownAssociationEnds = registry.getNavigableEndsForClass(metaClass.name)
+            .sortedBy { it.name }
+        for (end in ownAssociationEnds) {
+            sb.appendLine()
+            sb.append(generateImplAssociationEnd(end))
+        }
+
+        // Generate inherited association ends from secondary superclasses
+        val primaryChainEndNames = collectPrimaryChainAssociationEndNames(metaClass, registry)
+        val secondaryInheritedEnds = collectSecondaryInheritedAssociationEnds(metaClass, registry, primaryChainEndNames)
+        for (end in secondaryInheritedEnds.sortedBy { it.name }) {
+            sb.appendLine()
+            sb.append(generateImplAssociationEnd(end))
         }
 
         // Collect own operations
@@ -294,6 +338,7 @@ class MetamodelCodeGenerator(
         val isNullable = !property.isRequired || property.isMultiValued
         val baseType = kotlinType.removeSuffix("?")
         val isSet = property.isUnique && !property.isOrdered
+        val castType = TypeMapper.getAliasedTypeName(property.type)
 
         sb.appendLine("        get() {")
         sb.appendLine("            val rawValue = engine.getProperty(wrapped.id!!, \"${property.name}\")")
@@ -304,7 +349,7 @@ class MetamodelCodeGenerator(
             if (isReference) {
                 sb.appendLine("            return (rawValue as? List<*>)")
                 sb.appendLine("                ?.filterIsInstance<MDMObject>()")
-                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }$toCollection")
+                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as $castType }$toCollection")
                 sb.appendLine("                ?: $emptyCollection")
             } else {
                 sb.appendLine("            @Suppress(\"UNCHECKED_CAST\")")
@@ -313,9 +358,9 @@ class MetamodelCodeGenerator(
         } else {
             if (isReference) {
                 if (isNullable) {
-                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as $castType }")
                 } else {
-                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as ${property.type} }")
+                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as $castType }")
                 }
             } else {
                 if (isNullable) {
@@ -342,6 +387,7 @@ class MetamodelCodeGenerator(
         val isNullable = !property.isRequired || property.isMultiValued
         val baseType = kotlinType.removeSuffix("?")
         val isSet = property.isUnique && !property.isOrdered
+        val castType = TypeMapper.getAliasedTypeName(property.type)
 
         sb.appendLine("        get() {")
         sb.appendLine("            val rawValue = wrapped.getProperty(\"${property.name}\")")
@@ -352,7 +398,7 @@ class MetamodelCodeGenerator(
             if (isReference) {
                 sb.appendLine("            return (rawValue as? List<*>)")
                 sb.appendLine("                ?.filterIsInstance<MDMObject>()")
-                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as ${property.type} }$toCollection")
+                sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as $castType }$toCollection")
                 sb.appendLine("                ?: $emptyCollection")
             } else {
                 sb.appendLine("            @Suppress(\"UNCHECKED_CAST\")")
@@ -361,9 +407,9 @@ class MetamodelCodeGenerator(
         } else {
             if (isReference) {
                 if (isNullable) {
-                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${property.type} }")
+                    sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as $castType }")
                 } else {
-                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as ${property.type} }")
+                    sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as $castType }")
                 }
             } else {
                 if (isNullable) {
@@ -411,6 +457,128 @@ class MetamodelCodeGenerator(
     }
 
     /**
+     * Generate implementation for an association end.
+     *
+     * Key distinction:
+     * - Derived association ends delegate to engine.getProperty() for constraint evaluation
+     * - Regular association ends use wrapped.getProperty() directly for efficiency
+     */
+    private fun generateImplAssociationEnd(end: MetaAssociationEnd): String {
+        val sb = StringBuilder()
+
+        val modifier = if (end.isDerived) "val" else "var"
+        val kotlinType = TypeMapper.mapAssociationEndType(end, useAliases = true)
+
+        sb.appendLine("    override $modifier ${end.name}: $kotlinType")
+
+        if (end.isDerived) {
+            sb.append(generateDerivedAssociationEndGetter(end))
+        } else {
+            sb.append(generateRegularAssociationEndGetter(end))
+
+            // Association ends are always references (not primitives)
+            sb.append(generateAssociationEndSetter(end))
+        }
+
+        return sb.toString()
+    }
+
+    /**
+     * Generate getter for derived association ends that delegates to engine.getProperty().
+     */
+    private fun generateDerivedAssociationEndGetter(end: MetaAssociationEnd): String {
+        val sb = StringBuilder()
+        val kotlinType = TypeMapper.mapAssociationEndType(end)
+        val isMultiValued = end.upperBound == -1 || end.upperBound > 1
+        val isNullable = end.lowerBound == 0 && !isMultiValued
+        val isSet = end.isUnique && !end.isOrdered
+        val castType = TypeMapper.getAliasedTypeName(end.type)
+
+        sb.appendLine("        get() {")
+        sb.appendLine("            val rawValue = engine.getProperty(wrapped.id!!, \"${end.name}\")")
+
+        if (isMultiValued) {
+            val emptyCollection = if (isSet) "emptySet()" else "emptyList()"
+            val toCollection = if (isSet) "?.toSet()" else ""
+            sb.appendLine("            return (rawValue as? List<*>)")
+            sb.appendLine("                ?.filterIsInstance<MDMObject>()")
+            sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as $castType }$toCollection")
+            sb.appendLine("                ?: $emptyCollection")
+        } else {
+            if (isNullable) {
+                sb.appendLine("            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as $castType }")
+            } else {
+                sb.appendLine("            return (rawValue as MDMObject).let { Wrappers.wrap(it, engine) as $castType }")
+            }
+        }
+
+        sb.appendLine("        }")
+
+        return sb.toString()
+    }
+
+    /**
+     * Generate getter for regular association ends.
+     * Uses engine.getProperty() which knows how to traverse links for association ends.
+     */
+    private fun generateRegularAssociationEndGetter(end: MetaAssociationEnd): String {
+        val sb = StringBuilder()
+        val kotlinType = TypeMapper.mapAssociationEndType(end)
+        val isMultiValued = end.upperBound == -1 || end.upperBound > 1
+        val isNullable = end.lowerBound == 0 && !isMultiValued
+        val isSet = end.isUnique && !end.isOrdered
+        val castType = TypeMapper.getAliasedTypeName(end.type)
+
+        sb.appendLine("        get() {")
+        // Use engine.getProperty() which handles link traversal for association ends
+        sb.appendLine("            val rawValue = engine.getProperty(wrapped.id!!, \"${end.name}\")")
+
+        if (isMultiValued) {
+            val emptyCollection = if (isSet) "emptySet()" else "emptyList()"
+            val toCollection = if (isSet) "?.toSet()" else ""
+            sb.appendLine("            return (rawValue as? List<*>)")
+            sb.appendLine("                ?.filterIsInstance<MDMObject>()")
+            sb.appendLine("                ?.map { Wrappers.wrap(it, engine) as $castType }$toCollection")
+            sb.appendLine("                ?: $emptyCollection")
+        } else {
+            // engine.getProperty returns List<MDMObject> for association ends, take first element
+            sb.appendLine("            val linked = (rawValue as? List<*>)?.filterIsInstance<MDMObject>()?.firstOrNull()")
+            if (isNullable) {
+                sb.appendLine("            return linked?.let { Wrappers.wrap(it, engine) as $castType }")
+            } else {
+                sb.appendLine("            return linked?.let { Wrappers.wrap(it, engine) as $castType }")
+                sb.appendLine("                ?: throw IllegalStateException(\"Required association end '${end.name}' has no linked target\")")
+            }
+        }
+
+        sb.appendLine("        }")
+
+        return sb.toString()
+    }
+
+    /**
+     * Generate setter for writable association ends.
+     */
+    private fun generateAssociationEndSetter(end: MetaAssociationEnd): String {
+        val sb = StringBuilder()
+        val isMultiValued = end.upperBound == -1 || end.upperBound > 1
+
+        sb.appendLine("        set(value) {")
+
+        if (isMultiValued) {
+            sb.appendLine("            val rawValue = value.map { (it as BaseModelElementImpl).wrapped }")
+            sb.appendLine("            engine.setProperty(wrapped.id!!, \"${end.name}\", rawValue)")
+        } else {
+            sb.appendLine("            val rawValue = (value as? BaseModelElementImpl)?.wrapped")
+            sb.appendLine("            engine.setProperty(wrapped.id!!, \"${end.name}\", rawValue)")
+        }
+
+        sb.appendLine("        }")
+
+        return sb.toString()
+    }
+
+    /**
      * Generate implementation operation that delegates to engine.invokeOperation().
      *
      * Handles:
@@ -430,6 +598,7 @@ class MetamodelCodeGenerator(
         val isReference = operation.returnType?.let { TypeMapper.isModelElementType(it) } ?: false
         val isMultiValued = operation.returnUpperBound == -1 || operation.returnUpperBound > 1
         val isNullable = operation.returnLowerBound == 0 && !isMultiValued
+        val castType = operation.returnType?.let { TypeMapper.getAliasedTypeName(it) }
 
         // Abstract operations have no body
         if (operation.isAbstract) {
@@ -452,22 +621,21 @@ class MetamodelCodeGenerator(
             // No return value
         } else if (isMultiValued) {
             // Multi-valued return type
-            val elementType = operation.returnType!!
-            if (isReference) {
+            if (isReference && castType != null) {
                 sb.appendLine("        return (result as? List<*>)")
                 sb.appendLine("            ?.filterIsInstance<MDMObject>()")
-                sb.appendLine("            ?.map { Wrappers.wrap(it, engine) as $elementType }")
+                sb.appendLine("            ?.map { Wrappers.wrap(it, engine) as $castType }")
                 sb.appendLine("            ?: emptyList()")
             } else {
                 sb.appendLine("        @Suppress(\"UNCHECKED_CAST\")")
                 sb.appendLine("        return (result as? $returnType) ?: emptyList()")
             }
-        } else if (isReference) {
+        } else if (isReference && castType != null) {
             // Single reference type
             if (isNullable) {
-                sb.appendLine("        return (result as? MDMObject)?.let { Wrappers.wrap(it, engine) as ${operation.returnType} }")
+                sb.appendLine("        return (result as? MDMObject)?.let { Wrappers.wrap(it, engine) as $castType }")
             } else {
-                sb.appendLine("        return (result as MDMObject).let { Wrappers.wrap(it, engine) as ${operation.returnType} }")
+                sb.appendLine("        return (result as MDMObject).let { Wrappers.wrap(it, engine) as $castType }")
             }
         } else {
             // Single primitive type
@@ -579,8 +747,8 @@ class MetamodelCodeGenerator(
             appendLine(" * Base implementation for all generated model element wrappers.")
             appendLine(" */")
             appendLine("open class BaseModelElementImpl(")
-            appendLine("    protected val wrapped: MDMObject,")
-            appendLine("    protected val engine: GearshiftEngine")
+            appendLine("    internal val wrapped: MDMObject,")
+            appendLine("    internal val engine: GearshiftEngine")
             appendLine(") : ModelElement {")
             appendLine()
             appendLine("    override val id: String?")
@@ -772,6 +940,85 @@ class MetamodelCodeGenerator(
                 if (op.name !in seen) {
                     result.add(op)
                     seen.add(op.name)
+                }
+            }
+
+            // Queue this class's superclasses
+            queue.addAll(clazz.superclasses)
+        }
+
+        return result
+    }
+
+    /**
+     * Collect all association end names from the primary superclass chain.
+     * The primary chain is followed by taking the first superclass at each level.
+     */
+    private fun collectPrimaryChainAssociationEndNames(metaClass: MetaClass, registry: MetamodelRegistry): Set<String> {
+        val names = mutableSetOf<String>()
+
+        // Add own association ends
+        names.addAll(registry.getNavigableEndsForClass(metaClass.name).map { it.name })
+
+        // Walk up the primary superclass chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuperclassName = current.superclasses.first()
+            val primarySuperclass = registry.getClass(primarySuperclassName)
+            if (primarySuperclass != null) {
+                names.addAll(registry.getNavigableEndsForClass(primarySuperclass.name).map { it.name })
+                current = primarySuperclass
+            } else {
+                break
+            }
+        }
+        return names
+    }
+
+    /**
+     * Collect association ends from secondary superclasses that aren't already in the primary chain.
+     */
+    private fun collectSecondaryInheritedAssociationEnds(
+        metaClass: MetaClass,
+        registry: MetamodelRegistry,
+        primaryChainNames: Set<String>
+    ): List<MetaAssociationEnd> {
+        val result = mutableListOf<MetaAssociationEnd>()
+        val seen = mutableSetOf<String>()
+        seen.addAll(primaryChainNames)
+
+        // BFS through all superclasses to find secondary chain association ends
+        val queue = ArrayDeque<String>()
+
+        // Start with secondary superclasses (skip the first)
+        if (metaClass.superclasses.size > 1) {
+            queue.addAll(metaClass.superclasses.drop(1))
+        }
+
+        // Also check secondary superclasses of ancestors in the primary chain
+        var current: MetaClass? = metaClass
+        while (current != null && current.superclasses.isNotEmpty()) {
+            val primarySuper = registry.getClass(current.superclasses.first())
+            if (primarySuper != null && primarySuper.superclasses.size > 1) {
+                queue.addAll(primarySuper.superclasses.drop(1))
+            }
+            current = primarySuper
+        }
+
+        // Process all secondary superclasses
+        val visitedClasses = mutableSetOf<String>()
+        while (queue.isNotEmpty()) {
+            val className = queue.removeFirst()
+            if (className in visitedClasses) continue
+            visitedClasses.add(className)
+
+            val clazz = registry.getClass(className) ?: continue
+
+            // Add association ends not yet seen
+            for (end in registry.getNavigableEndsForClass(clazz.name)) {
+                if (end.name !in seen) {
+                    result.add(end)
+                    seen.add(end.name)
                 }
             }
 

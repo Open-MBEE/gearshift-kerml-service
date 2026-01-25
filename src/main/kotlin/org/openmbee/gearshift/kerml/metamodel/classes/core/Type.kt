@@ -47,8 +47,9 @@ fun createTypeMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkTypeSpecialization",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
             expression = "specializesFromLibrary('Base::Anything')",
+            libraryTypeName = "Base::Anything",
             description = "A Type must directly or indirectly specialize Base::Anything from the Kernel Semantic Library"
         ),
         MetaConstraint(

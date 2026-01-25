@@ -45,6 +45,7 @@ fun createFeatureValueAssociations(): List<MetaAssociation> {
             isDerived = true,
             aggregation = AggregationKind.COMPOSITE,
             redefines = listOf("ownedMemberElement"),
+            derivationConstraint = "deriveFeatureValueValue"
         )
     )
 
@@ -67,6 +68,7 @@ fun createFeatureValueAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("membershipOwningNamespace"),
+            derivationConstraint = "deriveFeatureValueFeatureWithValue"
         )
     )
 

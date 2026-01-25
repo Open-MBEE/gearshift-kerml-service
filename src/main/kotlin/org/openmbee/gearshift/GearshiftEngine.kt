@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift
 
+import org.openmbee.gearshift.engine.LifecycleHandler
 import org.openmbee.gearshift.engine.MDMEngine
 import org.openmbee.gearshift.engine.MDMLink
 import org.openmbee.gearshift.engine.MDMObject
@@ -41,8 +42,38 @@ class GearshiftEngine {
     val objectRepository = ModelRepository()
     val linkRepository = LinkRepository()
     val queryEngine = QueryEngine(objectRepository)
-    val nameResolver = NameResolver(objectRepository, metamodelRegistry)
-    private val mdmEngine = MDMEngine(metamodelRegistry, objectRepository, linkRepository)
+
+    /**
+     * The underlying MDMEngine for advanced operations.
+     * Prefer using GearshiftEngine's methods when possible.
+     */
+    val mdmEngine = MDMEngine(metamodelRegistry, objectRepository, linkRepository)
+
+    // Use the mdmEngine's NameResolver which has access to the engine
+    val nameResolver: NameResolver
+        get() = mdmEngine.nameResolver
+
+    // ===== Lifecycle Hooks =====
+
+    /**
+     * Register a lifecycle handler to receive model change events.
+     * Handlers are invoked in priority order (lower values first).
+     *
+     * @param handler The handler to register
+     */
+    fun addLifecycleHandler(handler: LifecycleHandler) {
+        mdmEngine.addLifecycleHandler(handler)
+    }
+
+    /**
+     * Remove a previously registered lifecycle handler.
+     *
+     * @param handler The handler to remove
+     * @return true if the handler was found and removed
+     */
+    fun removeLifecycleHandler(handler: LifecycleHandler): Boolean {
+        return mdmEngine.removeLifecycleHandler(handler)
+    }
 
     // ===== Metamodel Management =====
 
@@ -92,7 +123,7 @@ class GearshiftEngine {
      * @param id Optional custom ID for the instance. If not provided, a UUID will be generated.
      */
     fun createInstance(className: String, id: String? = null): Pair<String, MDMObject> {
-        val instance = mdmEngine.createInstance(className, skipImplicitSpecializations = false, id = id)
+        val instance = mdmEngine.createInstance(className, id = id)
         // MDMEngine already stored the instance and assigned an ID
         val instanceId = instance.id ?: throw IllegalStateException("Instance ID not set by MDMEngine")
         return instanceId to instance
@@ -240,10 +271,54 @@ class GearshiftEngine {
     // ===== Query and Search =====
 
     /**
-     * Get all instances of a specific type.
+     * Get all instances of a specific type (exact match only).
      */
     fun getInstancesByType(className: String): List<MDMObject> {
         return objectRepository.getByType(className)
+    }
+
+    /**
+     * Get all instances of a specific type or any of its subtypes.
+     * Uses the metamodel registry to determine the inheritance hierarchy.
+     */
+    fun getInstancesByTypeIncludingSubtypes(className: String): List<MDMObject> {
+        val result = mutableListOf<MDMObject>()
+
+        // Find all metaclasses that inherit from the given metaclass
+        for (metaClass in metamodelRegistry.getAllClasses()) {
+            if (metaClass.name == className || metaclassInheritsFrom(metaClass.name, className)) {
+                result.addAll(objectRepository.getByType(metaClass.name))
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * Check if a metaclass inherits from a target metaclass (directly or transitively).
+     */
+    private fun metaclassInheritsFrom(metaclassName: String, targetName: String): Boolean {
+        if (metaclassName == targetName) return true
+
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<String>()
+        queue.add(metaclassName)
+        visited.add(metaclassName)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val metaClass = metamodelRegistry.getClass(current) ?: continue
+
+            for (superclass in metaClass.superclasses) {
+                if (superclass == targetName) return true
+                if (superclass !in visited) {
+                    queue.add(superclass)
+                    visited.add(superclass)
+                }
+            }
+        }
+
+        return false
     }
 
     /**
@@ -267,6 +342,25 @@ class GearshiftEngine {
         objects = objectRepository.getStatistics(),
         links = linkRepository.getStatistics()
     )
+
+    /**
+     * Evaluate an OCL expression on an instance.
+     * Returns the result of the evaluation, or null if evaluation fails.
+     */
+    fun evaluateOcl(instance: MDMObject, expression: String): Any? {
+        return mdmEngine.evaluateOclExpression(instance, expression)
+    }
+
+    /**
+     * Evaluate an OCL expression AST on an instance.
+     * Returns the result of the evaluation, or null if evaluation fails.
+     */
+    fun evaluateOclAst(
+        instance: MDMObject,
+        ast: org.openmbee.gearshift.constraints.parsers.ocl.OclExpression
+    ): Any? {
+        return mdmEngine.evaluateOclAst(instance, ast)
+    }
 
     /**
      * Clear all instances and links (keeps metamodel).
@@ -309,6 +403,25 @@ class GearshiftEngine {
      */
     fun parseQualifiedName(name: String): NameResolver.QualifiedName {
         return NameResolver.QualifiedName.parse(name)
+    }
+
+    /**
+     * Resolve a qualified name globally (from the root namespace).
+     * This is used by Namespace::resolveGlobal operation.
+     *
+     * @param qualifiedName The qualified name to resolve (e.g., "Base::Anything")
+     * @return The Membership MDMObject or null if not found
+     */
+    fun resolveGlobal(qualifiedName: String): MDMObject? {
+        // Find any root namespace (one without an owner)
+        val rootNamespace = objectRepository.getAll().firstOrNull { obj ->
+            val owner = obj.getProperty("owner")
+            owner == null && (obj.className == "Namespace" || obj.className == "Package" ||
+                    obj.className == "LibraryPackage" || metamodelRegistry.isSubclassOf(obj.className, "Namespace"))
+        } ?: return null
+
+        val result = nameResolver.resolve(qualifiedName, rootNamespace.id!!, false)
+        return result?.membership
     }
 }
 

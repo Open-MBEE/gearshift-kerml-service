@@ -17,10 +17,19 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.metamodel.MetaClass
+import org.openmbee.gearshift.metamodel.MetaOperation
 
 fun createParameterMembershipMetaClass() = MetaClass(
     name = "ParameterMembership",
     superclasses = listOf("FeatureMembership"),
+    operations = listOf(
+        MetaOperation(
+            name = "parameterDirection",
+            returnType = "FeatureDirectionKind",
+            body = "ownedMemberParameter.direction",
+            description = "The direction of the ownedMemberParameter."
+        )
+    ),
     description = """
         A ParameterMembership is a FeatureMembership that identifies its memberFeature as a parameter, which is
         always owned, and must have a direction. A ParameterMembership must be owned by a Behavior, a Step,

@@ -321,40 +321,34 @@ object KerMLMetamodelLoader {
     )
 
     private fun getKernelPackageClasses() = setOf(
-        "DataType",
-        "Class",
-        "Structure",
-        "Association",
-        "AssociationStructure",
-        "Connector",
-        "BindingConnector",
-        "Package", "LibraryPackage",
-        "Definition", "Usage",
-        "OccurrenceDefinition", "OccurrenceUsage",
-        "ItemDefinition", "ItemUsage",
-        "PartDefinition", "PartUsage",
-        "PortDefinition", "PortUsage", "ConjugatedPortDefinition",
-        "ConnectionDefinition", "ConnectionUsage", "ConnectorAsUsage", "FlowConnectionUsage",
-        "InterfaceDefinition", "InterfaceUsage",
-        "AllocationDefinition", "AllocationUsage",
-        "AttributeDefinition", "AttributeUsage",
-        "ReferenceUsage",
-        "EnumerationDefinition", "EnumerationUsage",
-        "Behavior", "Step",
-        "ActionDefinition", "ActionUsage", "Succession",
-        "Interaction", "Flow", "FlowEnd", "PayloadFeature", "SuccessionFlow", "FeatureValue",
-        "Function", "CalculationDefinition", "CalculationUsage", "Predicate",
+        // Structured types
+        "DataType", "Class", "Structure",
+        // Associations
+        "Association", "AssociationStructure",
+        // Connectors
+        "Connector", "BindingConnector", "Succession",
+        // Behaviors
+        "Behavior", "Step", "ParameterMembership",
+        // Functions
+        "Function", "Predicate", "ResultExpressionMembership", "ReturnParameterMembership",
+        // Expressions
         "Expression", "BooleanExpression", "Invariant",
+        // Literal Expressions
         "LiteralExpression", "LiteralBoolean", "LiteralInteger", "LiteralRational",
         "LiteralString", "LiteralInfinity", "NullExpression",
-        "OperatorExpression", "InvocationExpression", "FeatureChainExpression",
-        "FeatureReferenceExpression", "CollectExpression", "SelectExpression",
-        "MetadataAccessExpression",
-        "CaseDefinition", "CaseUsage",
-        "AnalysisCaseDefinition", "AnalysisCaseUsage",
-        "VerificationCaseDefinition", "VerificationCaseUsage",
-        "UseCaseDefinition", "UseCaseUsage",
-        "MultiplicityRange",
-        "Metaclass", "MetadataFeature"
+        // Complex Expressions
+        "InstantiationExpression", "OperatorExpression", "InvocationExpression",
+        "FeatureChainExpression", "FeatureReferenceExpression", "IndexExpression",
+        "CollectExpression", "ConstructorExpression", "SelectExpression", "MetadataAccessExpression",
+        // Interactions
+        "Interaction", "Flow", "FlowEnd", "PayloadFeature", "SuccessionFlow",
+        // Feature Values
+        "FeatureValue",
+        // Metadata
+        "Metaclass", "MetadataFeature",
+        // Packages
+        "Package", "LibraryPackage", "ElementFilterMembership",
+        // Multiplicity
+        "MultiplicityRange"
     )
 }

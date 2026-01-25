@@ -79,6 +79,12 @@ interface EngineAccessor {
      * Invoke an operation on an instance.
      */
     fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?> = emptyMap()): Any?
+
+    /**
+     * Resolve a qualified name globally.
+     * Returns the Membership MDMObject or null if not found.
+     */
+    fun resolveGlobal(qualifiedName: String): MDMObject? = null
 }
 
 /**

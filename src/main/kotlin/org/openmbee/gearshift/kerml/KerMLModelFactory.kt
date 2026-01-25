@@ -17,7 +17,8 @@ package org.openmbee.gearshift.kerml
 
 import org.openmbee.gearshift.GearshiftEngine
 import org.openmbee.gearshift.generated.Wrappers
-import org.openmbee.gearshift.generated.interfaces.*
+import org.openmbee.gearshift.generated.interfaces.Element
+import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
 import org.openmbee.gearshift.kerml.parser.KerMLParseResult
 import java.nio.file.Path
@@ -51,22 +52,34 @@ class KerMLModelFactory(
     private val coordinator = KerMLParseCoordinator(engine)
     private var lastParseResult: KerMLParseResult? = null
 
+    /**
+     * The KerML semantic handler for processing implied relationships.
+     */
+    private val semanticHandler = KerMLSemanticHandler(engine)
+
     init {
         // Load the KerML metamodel
         KerMLMetamodelLoader.initialize(engine)
+
+        // Register the KerML semantic handler for lifecycle events
+        engine.addLifecycleHandler(semanticHandler)
     }
 
     /**
      * Parse KerML text from a string.
+     * Multiple calls accumulate elements in the model.
+     *
+     * Implied relationships (e.g., implicit specializations) are created automatically
+     * via lifecycle handlers as elements are parsed.
      *
      * @param kermlText The KerML source code
      * @return The root Package if successful, null otherwise
      */
     fun parseString(kermlText: String): KerMLPackage? {
-        coordinator.reset()
+        // Don't reset - allow accumulation across multiple parses
         lastParseResult = coordinator.parseString(kermlText)
 
-        if (!lastParseResult!!.success) {
+        if (lastParseResult!!.errors.isNotEmpty()) {
             return null
         }
 
@@ -76,15 +89,19 @@ class KerMLModelFactory(
 
     /**
      * Parse KerML from a file.
+     * Multiple calls accumulate elements in the model.
+     *
+     * Implied relationships (e.g., implicit specializations) are created automatically
+     * via lifecycle handlers as elements are parsed.
      *
      * @param path Path to the KerML file
      * @return The root Package if successful, null otherwise
      */
     fun parseFile(path: Path): KerMLPackage? {
-        coordinator.reset()
+        // Don't reset - allow accumulation across multiple parses
         lastParseResult = coordinator.parseFile(path)
 
-        if (!lastParseResult!!.success) {
+        if (lastParseResult!!.errors.isNotEmpty()) {
             return null
         }
 
@@ -107,6 +124,18 @@ class KerMLModelFactory(
         val obj = engine.getInstance(id) ?: return null
         val wrapper = Wrappers.wrap(obj, engine)
         return wrapper as? T
+    }
+
+    /**
+     * Create a new instance of a model element type.
+     *
+     * @return The created element wrapped in its typed interface
+     */
+    inline fun <reified T : ModelElement> create(): T {
+        val typeName = T::class.simpleName ?: throw IllegalArgumentException("Cannot determine type name")
+        val (id, _) = engine.createInstance(typeName)
+        val obj = engine.getInstance(id) ?: throw IllegalStateException("Failed to retrieve created instance")
+        return Wrappers.wrap(obj, engine) as T
     }
 
     /**

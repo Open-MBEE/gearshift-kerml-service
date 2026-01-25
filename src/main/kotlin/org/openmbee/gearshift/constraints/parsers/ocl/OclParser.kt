@@ -240,6 +240,8 @@ object OclParser {
                 opToken.contains("oclIsTypeOf") -> "oclIsTypeOf"
                 opToken.contains("oclIsKindOf") -> "oclIsKindOf"
                 opToken.contains("oclAsSet") -> "oclAsSet"
+                opToken.contains("selectByKind") -> "selectByKind"
+                opToken.contains("selectByType") -> "selectByType"
                 else -> extractOperationName(opToken)
             }
             val typeName = ctx.typeName().text
@@ -288,7 +290,8 @@ object OclParser {
         }
 
         private fun applyExists(source: OclExpression, ctx: OCLParser.ExistsSuffixContext): OclExpression {
-            val iterVar = ctx.iteratorVar.text
+            // Support both full form (x | body) and shorthand form (body)
+            val iterVar = ctx.iteratorVar?.text ?: "_it"
             val body = visit(ctx.body)
             return IteratorExp(source, "exists", iterVar, body)
         }
@@ -356,10 +359,33 @@ object OclParser {
                 ctx.collectionLiteral() != null -> visitCollectionLiteral(ctx.collectionLiteral())
                 ctx.enumerationLiteralExp() != null -> visitEnumerationLiteralExp(ctx.enumerationLiteralExp())
                 ctx.preValueExp() != null -> visitPreValueExp(ctx.preValueExp())
+                ctx.standaloneTypeOp() != null -> visitStandaloneTypeOp(ctx.standaloneTypeOp())
+                ctx.standaloneOperationCall() != null -> visitStandaloneOperationCall(ctx.standaloneOperationCall())
                 ctx.variableExp() != null -> visitVariableExp(ctx.variableExp())
                 ctx.parenthesizedExpression() != null -> visit(ctx.parenthesizedExpression().expression())
                 else -> throw OclParseException("Unknown primary expression: ${ctx.text}")
             }
+        }
+
+        override fun visitStandaloneTypeOp(ctx: OCLParser.StandaloneTypeOpContext): OclExpression {
+            // Standalone type operations have implicit self as source
+            val source = VariableExp("_it")  // Use iterator variable or self
+            val typeName = ctx.typeName().text
+            val opName = when {
+                ctx.text.startsWith("oclIsKindOf") -> "oclIsKindOf"
+                ctx.text.startsWith("oclIsTypeOf") -> "oclIsTypeOf"
+                ctx.text.startsWith("oclAsType") -> "oclAsType"
+                else -> throw OclParseException("Unknown standalone type operation: ${ctx.text}")
+            }
+            return TypeExp(source, opName, typeName)
+        }
+
+        override fun visitStandaloneOperationCall(ctx: OCLParser.StandaloneOperationCallContext): OclExpression {
+            // Standalone operation calls have implicit self as source
+            val source = VariableExp("self")
+            val opName = ctx.ID().text
+            val args = ctx.expressionList()?.expression()?.map { visit(it) } ?: emptyList()
+            return OperationCallExp(source, opName, args)
         }
 
         override fun visitBooleanLiteral(ctx: OCLParser.BooleanLiteralContext): OclExpression {

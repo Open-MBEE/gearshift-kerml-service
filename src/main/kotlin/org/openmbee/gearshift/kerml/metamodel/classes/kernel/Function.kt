@@ -32,7 +32,7 @@ fun createFunctionMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkFunctionResultBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = """
                 ownedMembership.selectByKind(ResultExpressionMembership)->
                 forAll(mem | ownedFeature.selectByKind(BindingConnector)->

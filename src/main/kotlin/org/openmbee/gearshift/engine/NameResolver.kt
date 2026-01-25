@@ -32,8 +32,16 @@ private val logger = KotlinLogging.logger {}
  */
 class NameResolver(
     private val repository: ModelRepository,
-    private val registry: MetamodelRegistry
+    private val registry: MetamodelRegistry,
+    private var mdmEngine: MDMEngine? = null
 ) {
+    /**
+     * Set the MDMEngine for property resolution.
+     * This is called after MDMEngine is constructed to enable proper property/link resolution.
+     */
+    fun setEngine(engine: MDMEngine) {
+        this.mdmEngine = engine
+    }
     // Track names currently being resolved to prevent infinite loops
     private val resolutionStack = ThreadLocal.withInitial { mutableSetOf<String>() }
 
@@ -301,43 +309,122 @@ class NameResolver(
     }
 
     private fun getOwnedMemberships(namespace: MDMObject): List<MDMObject> {
-        val membershipIds = namespace.getProperty("ownedMembership") as? List<*>
-            ?: return emptyList()
-        return membershipIds.mapNotNull { repository.get(it.toString()) }
+        // Use MDMEngine.getProperty which handles association ends via links
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(namespace, "ownedMembership")
+        } else {
+            namespace.getProperty("ownedMembership")
+        }
+
+        return when (rawValue) {
+            is List<*> -> rawValue.mapNotNull { item ->
+                when (item) {
+                    is MDMObject -> item
+                    is String -> repository.get(item)
+                    else -> null
+                }
+            }
+            else -> emptyList()
+        }
     }
 
     private fun getImports(namespace: MDMObject): List<MDMObject> {
-        val importIds = namespace.getProperty("ownedImport") as? List<*>
-            ?: return emptyList()
-        return importIds.mapNotNull { repository.get(it.toString()) }
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(namespace, "ownedImport")
+        } else {
+            namespace.getProperty("ownedImport")
+        }
+
+        return when (rawValue) {
+            is List<*> -> rawValue.mapNotNull { item ->
+                when (item) {
+                    is MDMObject -> item
+                    is String -> repository.get(item)
+                    else -> null
+                }
+            }
+            else -> emptyList()
+        }
     }
 
     private fun getOwnedSpecializations(type: MDMObject): List<MDMObject> {
-        val specIds = type.getProperty("ownedSpecialization") as? List<*>
-            ?: return emptyList()
-        return specIds.mapNotNull { repository.get(it.toString()) }
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(type, "ownedSpecialization")
+        } else {
+            type.getProperty("ownedSpecialization")
+        }
+
+        return when (rawValue) {
+            is List<*> -> rawValue.mapNotNull { item ->
+                when (item) {
+                    is MDMObject -> item
+                    is String -> repository.get(item)
+                    else -> null
+                }
+            }
+            else -> emptyList()
+        }
     }
 
     private fun getMemberName(membership: MDMObject): String? {
-        return membership.getProperty("memberName") as? String
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(membership, "memberName")
+        } else {
+            membership.getProperty("memberName")
+        }
+        return rawValue as? String
     }
 
     private fun getMemberElement(membership: MDMObject): MDMObject? {
-        val elementId = membership.getProperty("memberElement") as? String
-            ?: return null
-        return repository.get(elementId)
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(membership, "memberElement")
+        } else {
+            membership.getProperty("memberElement")
+        }
+
+        return when (rawValue) {
+            is MDMObject -> rawValue
+            is List<*> -> (rawValue.firstOrNull() as? MDMObject)
+            is String -> repository.get(rawValue)
+            else -> null
+        }
     }
 
     private fun getGeneral(specialization: MDMObject): MDMObject? {
-        val generalId = specialization.getProperty("general") as? String
-            ?: return null
-        return repository.get(generalId)
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(specialization, "general")
+        } else {
+            specialization.getProperty("general")
+        }
+
+        return when (rawValue) {
+            is MDMObject -> rawValue
+            is List<*> -> (rawValue.firstOrNull() as? MDMObject)
+            is String -> repository.get(rawValue)
+            else -> null
+        }
     }
 
     private fun getImportedNamespace(import: MDMObject): MDMObject? {
-        val namespaceId = import.getProperty("importedNamespace") as? String
-            ?: return null
-        return repository.get(namespaceId)
+        val engine = mdmEngine
+        val rawValue = if (engine != null) {
+            engine.getProperty(import, "importedNamespace")
+        } else {
+            import.getProperty("importedNamespace")
+        }
+
+        return when (rawValue) {
+            is MDMObject -> rawValue
+            is List<*> -> (rawValue.firstOrNull() as? MDMObject)
+            is String -> repository.get(rawValue)
+            else -> null
+        }
     }
 
     private fun getInstanceId(obj: MDMObject): String? {

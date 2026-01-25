@@ -110,7 +110,7 @@ class MDMEngineTest : DescribeSpec({
                     engine.setProperty(instance, "nonExistent", "value")
                 }
 
-                exception.message shouldContain "Property 'nonExistent' not found"
+                exception.message shouldContain "'nonExistent' not found"
             }
 
             it("should throw when setting read-only property") {

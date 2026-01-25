@@ -203,6 +203,7 @@ namespaceBodyElement
     : namespaceMember
     | aliasMember
     | import_
+    | REGULAR_COMMENT  // Allow standalone comments in namespace body
     ;
 
 // MemberPrefix : Membership =
@@ -485,6 +486,7 @@ typeBodyElement
     | featureMember
     | aliasMember
     | import_
+    | REGULAR_COMMENT  // Allow standalone comments in type body
     ;
 
 // 8.2.4.1.2 Specialization
@@ -2620,8 +2622,9 @@ MULTILINE_NOTE
     ;
 
 // REGULAR_COMMENT: '/*' COMMENT_TEXT '*/'
+// Note: NOT sent to hidden channel because documentation bodies use this syntax
 REGULAR_COMMENT
-    : '/*' .*? '*/' -> channel(HIDDEN)
+    : '/*' .*? '*/'
     ;
 
 // COMMENT_TEXT: ( COMMENT_LINE_TEXT | LINE_TERMINATOR )*

@@ -36,7 +36,7 @@ fun createInvocationExpressionMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkInvocationExpressionBehaviorBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = """
                 not instantiatedType.oclIsKindOf(Function) and
                 not (instantiatedType.oclIsKindOf(Feature) and
@@ -60,7 +60,7 @@ fun createInvocationExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkInvocationExpressionDefaultValueBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = "true",  // TBD in spec
             description = "An InvocationExpression must own a BindingConnector between the featureWithValue and value Expression of any FeatureValue that is the effective default value for a feature of the instantiatedType of the InvocationExpression."
         ),

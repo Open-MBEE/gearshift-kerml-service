@@ -33,9 +33,9 @@ fun createPayloadFeatureMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkPayloadFeatureRedefinition",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = "redefinesFromLibrary('Transfers::Transfer::payload')",
-            libraryTypeName = "Transfers::Transfer::payload",
+            redefinedFeaturePath = "Transfers::Transfer::payload",
             description = "A PayloadFeature must redefine the Feature Transfers::Transfer::payload from the Kernel Semantic Library."
         )
     ),

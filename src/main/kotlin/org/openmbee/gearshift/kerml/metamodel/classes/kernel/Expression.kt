@@ -43,7 +43,7 @@ fun createExpressionMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkExpressionResultBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = """
                 ownedMembership.selectByKind(ResultExpressionMembership)->
                 forAll(mem | ownedFeature.selectByKind(BindingConnector)->
@@ -62,7 +62,7 @@ fun createExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkExpressionTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = """
                 owningMembership <> null and
                 owningMembership.oclIsKindOf(FeatureValue) implies

@@ -16,8 +16,9 @@
 package org.openmbee.gearshift.engine
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaAssociation
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
+import org.openmbee.gearshift.metamodel.MetaClass
 import java.util.concurrent.ConcurrentHashMap
 
 private val logger = KotlinLogging.logger {}
@@ -160,6 +161,62 @@ class MetamodelRegistry {
         return metaClass.superclasses.any { superclass ->
             hasCircularInheritance(superclass, visited.toMutableSet())
         }
+    }
+
+    /**
+     * Get navigable association ends for a given class.
+     *
+     * Returns all association ends where:
+     * - The sourceEnd.type == className and targetEnd.isNavigable, returns targetEnd
+     * - The targetEnd.type == className and sourceEnd.isNavigable, returns sourceEnd
+     *
+     * @param className The class to get association ends for
+     * @return List of pairs: (navigable end, owning class name for the end)
+     */
+    fun getNavigableEndsForClass(className: String): List<MetaAssociationEnd> {
+        val result = mutableListOf<MetaAssociationEnd>()
+
+        associations.values.forEach { association ->
+            // If source is our class and target is navigable, include target end
+            if (association.sourceEnd.type == className && association.targetEnd.isNavigable) {
+                result.add(association.targetEnd)
+            }
+            // If target is our class and source is navigable, include source end
+            if (association.targetEnd.type == className && association.sourceEnd.isNavigable) {
+                result.add(association.sourceEnd)
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * Get all navigable association ends for a class including inherited ones.
+     *
+     * @param className The class to get association ends for
+     * @return List of navigable association ends (own + inherited)
+     */
+    fun getAllNavigableEndsForClass(className: String): List<MetaAssociationEnd> {
+        val result = mutableListOf<MetaAssociationEnd>()
+        val seenNames = mutableSetOf<String>()
+
+        // Get own ends first
+        getNavigableEndsForClass(className).forEach { end ->
+            if (seenNames.add(end.name)) {
+                result.add(end)
+            }
+        }
+
+        // Get inherited ends from all superclasses
+        getAllSuperclasses(className).forEach { superclass ->
+            getNavigableEndsForClass(superclass).forEach { end ->
+                if (seenNames.add(end.name)) {
+                    result.add(end)
+                }
+            }
+        }
+
+        return result
     }
 
     /**

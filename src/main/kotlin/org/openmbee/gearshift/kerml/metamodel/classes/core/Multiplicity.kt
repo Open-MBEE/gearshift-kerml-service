@@ -32,13 +32,14 @@ fun createMultiplicityMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkMultiplicitySpecialization",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_SPECIALIZATION,
             expression = "specializesFromLibrary('Base::naturals')",
+            libraryTypeName = "Base::naturals",
             description = "A Multiplicity must directly or indirectly specialize the Feature Base::naturals from the Kernel Semantic Library"
         ),
         MetaConstraint(
             name = "checkMultiplicityTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = """
                 if owningType <> null and owningType.oclIsKindOf(Feature) then
                     featuringType = owningType.oclAsType(Feature).featuringType

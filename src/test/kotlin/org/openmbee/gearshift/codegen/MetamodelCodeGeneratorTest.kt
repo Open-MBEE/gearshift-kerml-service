@@ -407,8 +407,8 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
             val (_, implCode) = generator.generateBaseClasses()
 
             implCode shouldContain "open class BaseModelElementImpl"
-            implCode shouldContain "protected val wrapped: MDMObject"
-            implCode shouldContain "protected val engine: GearshiftEngine"
+            implCode shouldContain "internal val wrapped: MDMObject"
+            implCode shouldContain "internal val engine: GearshiftEngine"
             implCode shouldContain "override val id: String?"
             implCode shouldContain "override fun equals(other: Any?): Boolean"
             implCode shouldContain "override fun hashCode(): Int"

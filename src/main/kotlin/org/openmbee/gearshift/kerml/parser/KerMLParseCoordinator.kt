@@ -165,11 +165,87 @@ class KerMLParseCoordinator(
 
         // Handle import
         ctx.import_()?.let { import ->
-            // TODO: Implement import parsing
-            return null
+            return parseImport(import, parentId, parentQualifiedName)
         }
 
         return null
+    }
+
+    /**
+     * Parse an import declaration.
+     */
+    fun parseImport(
+        ctx: KerMLParser.Import_Context,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        val importDecl = ctx.importDeclaration() ?: return null
+
+        // Determine the type of import and create the appropriate instance
+        val (instanceId, importType) = when {
+            importDecl.membershipImport() != null -> {
+                val (id, _) = engine.createInstance("MembershipImport")
+                id to "membership"
+            }
+            importDecl.namespaceImport() != null -> {
+                val (id, _) = engine.createInstance("NamespaceImport")
+                id to "namespace"
+            }
+            else -> return null
+        }
+
+        // Parse visibility
+        ctx.visibilityIndicator()?.let { vis ->
+            val visibility = when {
+                vis.PRIVATE() != null -> "private"
+                vis.PROTECTED() != null -> "protected"
+                vis.PUBLIC() != null -> "public"
+                else -> "public"
+            }
+            engine.setProperty(instanceId, "visibility", visibility)
+        }
+
+        // Parse isImportAll
+        if (ctx.isImportAll != null) {
+            engine.setProperty(instanceId, "isImportAll", true)
+        }
+
+        // Parse the imported element reference
+        when (importType) {
+            "membership" -> {
+                val membershipImport = importDecl.membershipImport()
+                val importedName = extractQualifiedName(membershipImport.importedMembership)
+                val isRecursive = membershipImport.isRecursive != null
+                engine.setProperty(instanceId, "isRecursive", isRecursive)
+
+                // Record unresolved reference to the imported membership
+                recordUnresolvedReference(
+                    sourceInstanceId = instanceId,
+                    associationName = "importingMembershipImportedMembershipAssociation",
+                    targetQualifiedName = importedName,
+                    currentNamespace = parentQualifiedName
+                )
+            }
+            "namespace" -> {
+                val namespaceImport = importDecl.namespaceImport()
+                val importedName = extractQualifiedName(namespaceImport.qualifiedName())
+                val isRecursive = namespaceImport.isRecursive != null
+                engine.setProperty(instanceId, "isRecursive", isRecursive)
+
+                // Record unresolved reference to the imported namespace
+                recordUnresolvedReference(
+                    sourceInstanceId = instanceId,
+                    associationName = "importingNamespaceImportImportedNamespaceAssociation",
+                    targetQualifiedName = importedName,
+                    currentNamespace = parentQualifiedName
+                )
+            }
+        }
+
+        // Link the import to its owning namespace
+        engine.createLink("importOwningNamespaceOwnedImportAssociation", parentId, instanceId)
+
+        return instanceId
     }
 
     /**
@@ -269,9 +345,248 @@ class KerMLParseCoordinator(
             return parseAssociation(assoc, parentId, parentQualifiedName)
         }
 
+        ctx.libraryPackage()?.let { libPkg ->
+            return parseLibraryPackage(libPkg, parentId, parentQualifiedName)
+        }
+
+        ctx.classifier()?.let { classifier ->
+            return parseClassifier(classifier, parentId, parentQualifiedName)
+        }
+
+        ctx.multiplicity()?.let { mult ->
+            return parseMultiplicity(mult, parentId, parentQualifiedName)
+        }
+
         // TODO: Add more element types as needed
 
         return null
+    }
+
+    /**
+     * Parse a LibraryPackage element.
+     */
+    fun parseLibraryPackage(
+        ctx: KerMLParser.LibraryPackageContext,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        val (instanceId, _) = engine.createInstance("LibraryPackage")
+
+        // Set isStandard flag
+        if (ctx.isStandard != null) {
+            engine.setProperty(instanceId, "isStandard", true)
+        }
+
+        // Parse identification from packageDeclaration
+        ctx.packageDeclaration()?.identification()?.let { id ->
+            parseIdentification(id, instanceId)
+        }
+
+        // Get the declared name for qualified name computation
+        val declaredName = engine.getProperty(instanceId, "declaredName") as? String ?: ""
+        val qualifiedName = computeQualifiedName(parentQualifiedName, declaredName)
+
+        // Register the element
+        registerParsedElement(qualifiedName, instanceId)
+
+        // Push namespace for nested elements
+        namespaceStack.addLast(declaredName)
+
+        // Parse package body
+        ctx.packageBody()?.let { body ->
+            parsePackageBody(body, instanceId, qualifiedName)
+        }
+
+        // Pop namespace
+        namespaceStack.removeLast()
+
+        return instanceId
+    }
+
+    /**
+     * Parse a generic Classifier element.
+     */
+    fun parseClassifier(
+        ctx: KerMLParser.ClassifierContext,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        val (instanceId, _) = engine.createInstance("Classifier")
+
+        // Parse isAbstract from typePrefix
+        ctx.typePrefix()?.isAbstract?.let {
+            engine.setProperty(instanceId, "isAbstract", true)
+        }
+
+        // Parse classifierDeclaration
+        ctx.classifierDeclaration()?.let { decl ->
+            parseClassifierDeclaration(decl, instanceId, parentId, parentQualifiedName)
+        }
+
+        // Get the declared name
+        val declaredName = engine.getProperty(instanceId, "declaredName") as? String ?: ""
+        val qualifiedName = computeQualifiedName(parentQualifiedName, declaredName)
+
+        // Register the element
+        registerParsedElement(qualifiedName, instanceId)
+
+        // Parse type body
+        namespaceStack.addLast(declaredName)
+        ctx.typeBody()?.let { body ->
+            parseTypeBody(body, instanceId, qualifiedName)
+        }
+        namespaceStack.removeLast()
+
+        return instanceId
+    }
+
+    /**
+     * Parse a Multiplicity element.
+     */
+    fun parseMultiplicity(
+        ctx: KerMLParser.MultiplicityContext,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        // Multiplicity can be MultiplicitySubset or MultiplicityRange
+        ctx.multiplicitySubset()?.let { subset ->
+            return parseMultiplicitySubset(subset, parentId, parentQualifiedName)
+        }
+
+        ctx.multiplicityRange()?.let { range ->
+            return parseMultiplicityRange(range, parentId, parentQualifiedName)
+        }
+
+        return null
+    }
+
+    /**
+     * Parse a MultiplicityRange element.
+     */
+    fun parseMultiplicityRange(
+        ctx: KerMLParser.MultiplicityRangeContext,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        val (instanceId, _) = engine.createInstance("MultiplicityRange")
+
+        // Parse identification
+        ctx.identification()?.let { id ->
+            parseIdentification(id, instanceId)
+        }
+
+        // Get the declared name
+        val declaredName = engine.getProperty(instanceId, "declaredName") as? String ?: ""
+        val qualifiedName = computeQualifiedName(parentQualifiedName, declaredName)
+
+        // Register the element
+        registerParsedElement(qualifiedName, instanceId)
+
+        // Parse multiplicity bounds [lower..upper] or [exact]
+        ctx.multiplicityBounds()?.let { bounds ->
+            parseMultiplicityBounds(bounds, instanceId)
+        }
+
+        // Parse type body (typically empty for multiplicity)
+        namespaceStack.addLast(declaredName)
+        ctx.typeBody()?.let { body ->
+            parseTypeBody(body, instanceId, qualifiedName)
+        }
+        namespaceStack.removeLast()
+
+        return instanceId
+    }
+
+    /**
+     * Parse a MultiplicitySubset element.
+     */
+    fun parseMultiplicitySubset(
+        ctx: KerMLParser.MultiplicitySubsetContext,
+        parentId: String,
+        parentQualifiedName: String
+    ): String? {
+        val (instanceId, _) = engine.createInstance("Multiplicity")
+
+        // Parse identification
+        ctx.identification()?.let { id ->
+            parseIdentification(id, instanceId)
+        }
+
+        // Get the declared name
+        val declaredName = engine.getProperty(instanceId, "declaredName") as? String ?: ""
+        val qualifiedName = computeQualifiedName(parentQualifiedName, declaredName)
+
+        // Register the element
+        registerParsedElement(qualifiedName, instanceId)
+
+        // Parse subsets
+        ctx.subsets()?.ownedSubsetting()?.let { subsetting ->
+            createSubsetting(subsetting, instanceId, parentQualifiedName)
+        }
+
+        // Parse type body
+        namespaceStack.addLast(declaredName)
+        ctx.typeBody()?.let { body ->
+            parseTypeBody(body, instanceId, qualifiedName)
+        }
+        namespaceStack.removeLast()
+
+        return instanceId
+    }
+
+    /**
+     * Parse multiplicity bounds into literal integer values.
+     */
+    fun parseMultiplicityBounds(
+        ctx: KerMLParser.MultiplicityBoundsContext,
+        multiplicityId: String
+    ) {
+        val members = ctx.multiplicityExpressionMember()
+        if (members.size == 1) {
+            // Single bound: [n] means exactly n
+            parseBoundExpression(members[0])?.let { value ->
+                // For a single bound, both lower and upper are the same
+                // Create LiteralInteger for lowerBound and upperBound memberships
+                createMultiplicityBound(multiplicityId, value, isLower = true)
+                createMultiplicityBound(multiplicityId, value, isLower = false)
+            }
+        } else if (members.size == 2) {
+            // Range: [lower..upper]
+            parseBoundExpression(members[0])?.let { lower ->
+                createMultiplicityBound(multiplicityId, lower, isLower = true)
+            }
+            parseBoundExpression(members[1])?.let { upper ->
+                createMultiplicityBound(multiplicityId, upper, isLower = false)
+            }
+        }
+    }
+
+    /**
+     * Parse a bound expression (literal integer or * for infinity).
+     */
+    fun parseBoundExpression(ctx: KerMLParser.MultiplicityExpressionMemberContext): Any? {
+        ctx.literalExpression()?.let { literal ->
+            literal.literalInteger()?.let { intLit ->
+                return intLit.text.toIntOrNull()
+            }
+            literal.literalInfinity()?.let {
+                return -1 // -1 represents unlimited/infinity
+            }
+        }
+        return null
+    }
+
+    /**
+     * Create a multiplicity bound (lower or upper) as a LiteralInteger.
+     */
+    fun createMultiplicityBound(multiplicityId: String, value: Any, isLower: Boolean) {
+        val (literalId, _) = engine.createInstance("LiteralInteger")
+        engine.setProperty(literalId, "value", value)
+
+        // Create ownership membership
+        val (membershipId, _) = engine.createInstance("OwningMembership")
+        engine.createLink("membershipOwningNamespaceOwnedMembershipAssociation", multiplicityId, membershipId)
+        engine.createLink("owningMembershipOwnedMemberElementAssociation", membershipId, literalId)
     }
 
     /**
@@ -414,9 +729,13 @@ class KerMLParseCoordinator(
         // Create the Subclassification instance
         val (subId, _) = engine.createInstance("Subclassification")
 
-        // Create link from classifier to subclassification
+        // Create link from classifier to subclassification (ownership)
         // Classifier -> ownedSubclassification (owningClassifierOwnedSubclassificationAssociation)
         engine.createLink("owningClassifierOwnedSubclassificationAssociation", classifierId, subId)
+
+        // Create link from Subclassification to subclassifier (the owning classifier IS the subclassifier)
+        // Subclassification -> subclassifier (subclassificationSubclassifierAssociation)
+        engine.createLink("subclassificationSubclassifierAssociation", subId, classifierId)
 
         // Record the unresolved reference to the superclassifier
         // Subclassification -> superclassifier (superclassificationSuperclassifierAssociation)
@@ -722,6 +1041,10 @@ class KerMLParseCoordinator(
         // Feature -> ownedSubsetting (owningFeatureOwnedSubsettingAssociation)
         engine.createLink("owningFeatureOwnedSubsettingAssociation", featureId, subsettingId)
 
+        // Subsetting -> subsettingFeature (the owning feature IS the subsetting feature)
+        // subsettingSubsettingFeatureAssociation
+        engine.createLink("subsettingSubsettingFeatureAssociation", subsettingId, featureId)
+
         // OwnedSubsettingContext.generalType().qualifiedName()
         // Subsetting -> subsettedFeature (supersettingSubsettedFeatureAssociation)
         subsetting.generalType()?.qualifiedName()?.let { qn ->
@@ -990,11 +1313,34 @@ class KerMLParseCoordinator(
      * Create a FeatureMembership to link a feature to its owning type.
      */
     fun createFeatureMembership(parentId: String, featureId: String) {
-        val (membershipId, _) = engine.createInstance("FeatureMembership")
-        // Type -> ownedFeatureMembership (owningTypeOwnedFeatureMembershipAssociation)
-        engine.createLink("owningTypeOwnedFeatureMembershipAssociation", parentId, membershipId)
-        // FeatureMembership -> ownedMemberFeature (owningFeatureMembershipOwnedMemberFeatureAssociation)
-        engine.createLink("owningFeatureMembershipOwnedMemberFeatureAssociation", membershipId, featureId)
+        // Check if parent is a Type (can have FeatureMembership) or just a Namespace (needs OwningMembership)
+        val parentObj = engine.getInstance(parentId)
+        val parentClassName = parentObj?.className ?: ""
+
+        // Types that can have FeatureMembership
+        val typeClassNames = setOf(
+            "Type", "Classifier", "Class", "DataType", "Structure", "Association",
+            "AssociationStructure", "Interaction", "Behavior", "Function", "Predicate",
+            "Feature", "Step", "Expression", "BooleanExpression", "Invariant",
+            "Connector", "BindingConnector", "Succession", "Multiplicity", "MultiplicityRange",
+            "Metaclass", "Flow", "SuccessionFlow"
+        )
+
+        if (parentClassName in typeClassNames) {
+            // Parent is a Type - use FeatureMembership
+            val (membershipId, _) = engine.createInstance("FeatureMembership")
+            // Type -> ownedFeatureMembership (owningTypeOwnedFeatureMembershipAssociation)
+            engine.createLink("owningTypeOwnedFeatureMembershipAssociation", parentId, membershipId)
+            // FeatureMembership -> ownedMemberFeature (owningFeatureMembershipOwnedMemberFeatureAssociation)
+            engine.createLink("owningFeatureMembershipOwnedMemberFeatureAssociation", membershipId, featureId)
+        } else {
+            // Parent is a Namespace (Package, etc.) - use OwningMembership
+            val (membershipId, _) = engine.createInstance("OwningMembership")
+            // Namespace -> ownedMembership (membershipOwningNamespaceOwnedMembershipAssociation)
+            engine.createLink("membershipOwningNamespaceOwnedMembershipAssociation", parentId, membershipId)
+            // OwningMembership -> ownedMemberElement (owningMembershipOwnedMemberElementAssociation)
+            engine.createLink("owningMembershipOwnedMemberElementAssociation", membershipId, featureId)
+        }
     }
 
     /**

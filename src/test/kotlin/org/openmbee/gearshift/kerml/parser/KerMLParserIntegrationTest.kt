@@ -15,12 +15,16 @@
  */
 package org.openmbee.gearshift.kerml.parser
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveAtLeastSize
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import org.openmbee.gearshift.kerml.KerMLModelFactory
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
@@ -217,6 +221,159 @@ class KerMLParserIntegrationTest : DescribeSpec({
                 val elementsAfter = factory.getParsedElements()
                 elementsAfter.containsKey("First") shouldBe false
                 elementsAfter.containsKey("Second") shouldBe true
+            }
+        }
+
+        context("association end setters") {
+
+            it("should set non-derived single-valued association end") {
+                val factory = KerMLModelFactory()
+
+                // Create a namespace and a membership
+                val ns = factory.create<Namespace>()
+                ns.declaredName = "TestNamespace"
+
+                val membership = factory.create<OwningMembership>()
+
+                // Set the association end using the typed wrapper
+                membership.membershipOwningNamespace = ns
+
+                // Verify bidirectional navigation - namespace should see the membership
+                ns.ownedMembership shouldContain membership
+            }
+
+            it("should set non-derived multi-valued association end") {
+                val factory = KerMLModelFactory()
+
+                // Create a namespace and memberships
+                val ns = factory.create<Namespace>()
+                ns.declaredName = "TestNamespace"
+
+                val membership1 = factory.create<OwningMembership>()
+                val membership2 = factory.create<OwningMembership>()
+
+                // Set the multi-valued association end
+                ns.ownedMembership = listOf(membership1, membership2)
+
+                // Verify the association was set
+                ns.ownedMembership shouldHaveSize 2
+                ns.ownedMembership shouldContain membership1
+                ns.ownedMembership shouldContain membership2
+
+                // Verify bidirectional navigation
+                membership1.membershipOwningNamespace shouldBe ns
+                membership2.membershipOwningNamespace shouldBe ns
+            }
+
+            it("should throw when setting derived association end") {
+                val factory = KerMLModelFactory()
+
+                val ns = factory.create<Namespace>()
+                val element = factory.create<KerMLClass>()
+
+                // member is a derived association end - should throw
+                // Note: The interface defines 'member' as val (no setter),
+                // but if we try via engine directly it should throw
+                val exception = shouldThrow<IllegalStateException> {
+                    factory.engine.setProperty(ns.id!!, "member", listOf(element))
+                }
+
+                exception.message shouldContain "derived"
+            }
+
+            it("should replace existing links when setting association end") {
+                val factory = KerMLModelFactory()
+
+                val ns = factory.create<Namespace>()
+                val membership1 = factory.create<OwningMembership>()
+                val membership2 = factory.create<OwningMembership>()
+                val membership3 = factory.create<OwningMembership>()
+
+                // Set initial memberships
+                ns.ownedMembership = listOf(membership1, membership2)
+                ns.ownedMembership shouldHaveSize 2
+
+                // Replace with different memberships
+                ns.ownedMembership = listOf(membership3)
+
+                // Verify old links are removed and new one is added
+                ns.ownedMembership shouldHaveSize 1
+                ns.ownedMembership shouldContain membership3
+            }
+
+            it("should clear association when setting to empty list") {
+                val factory = KerMLModelFactory()
+
+                val ns = factory.create<Namespace>()
+                val membership = factory.create<OwningMembership>()
+
+                // Set membership
+                ns.ownedMembership = listOf(membership)
+                ns.ownedMembership shouldHaveSize 1
+
+                // Clear by setting empty list
+                ns.ownedMembership = emptyList()
+                ns.ownedMembership shouldHaveSize 0
+            }
+
+            it("should update opposite end when reassigning single-valued association") {
+                val factory = KerMLModelFactory()
+
+                // Create two namespaces and a membership
+                val ns1 = factory.create<Namespace>()
+                ns1.declaredName = "Namespace1"
+
+                val ns2 = factory.create<Namespace>()
+                ns2.declaredName = "Namespace2"
+
+                val membership = factory.create<OwningMembership>()
+
+                // Initially assign membership to ns1
+                membership.membershipOwningNamespace = ns1
+
+                // Verify ns1 sees the membership
+                ns1.ownedMembership shouldContain membership
+                ns2.ownedMembership shouldHaveSize 0
+
+                // Reassign membership to ns2
+                membership.membershipOwningNamespace = ns2
+
+                // ns1 should no longer see the membership
+                ns1.ownedMembership shouldHaveSize 0
+
+                // ns2 should now see the membership
+                ns2.ownedMembership shouldContain membership
+            }
+
+            it("should update opposite end when modifying multi-valued association") {
+                val factory = KerMLModelFactory()
+
+                val ns = factory.create<Namespace>()
+                val membership1 = factory.create<OwningMembership>()
+                val membership2 = factory.create<OwningMembership>()
+                val membership3 = factory.create<OwningMembership>()
+
+                // Set initial memberships on namespace
+                ns.ownedMembership = listOf(membership1, membership2)
+
+                // Verify bidirectional from membership's perspective
+                membership1.membershipOwningNamespace shouldBe ns
+                membership2.membershipOwningNamespace shouldBe ns
+
+                // Modify the namespace's memberships (remove membership1, add membership3)
+                ns.ownedMembership = listOf(membership2, membership3)
+
+                // membership1 should no longer point to ns (link removed)
+                // Note: Accessing membershipOwningNamespace when no link exists will throw
+                val links1 = factory.engine.getLinkedTargets(
+                    "membershipOwningNamespaceOwnedMembershipAssociation",
+                    membership1.id!!
+                )
+                links1 shouldHaveSize 0
+
+                // membership2 and membership3 should still point to ns
+                membership2.membershipOwningNamespace shouldBe ns
+                membership3.membershipOwningNamespace shouldBe ns
             }
         }
     }

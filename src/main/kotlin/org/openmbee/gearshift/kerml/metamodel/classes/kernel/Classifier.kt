@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.metamodel.BindingCondition
+import org.openmbee.gearshift.metamodel.BindingKind
 import org.openmbee.gearshift.metamodel.ConstraintType
 import org.openmbee.gearshift.metamodel.MetaClass
 import org.openmbee.gearshift.metamodel.MetaConstraint
+import org.openmbee.gearshift.metamodel.SemanticBinding
 
 /**
  * KerML Classifier metaclass.
@@ -31,13 +34,6 @@ fun createClassifierMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkClassifierSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Base::Anything')",
-            libraryTypeName = "Base::Anything",
-            description = "A Classifier must directly or indirectly specialize Base::Anything from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveClassifierOwnedSubclassification",
             type = ConstraintType.DERIVATION,
             expression = "ownedSpecialization->selectByKind(Subclassification)",
@@ -48,6 +44,14 @@ fun createClassifierMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "multiplicity <> null implies multiplicity.featuringType->isEmpty()",
             description = "If a Classifier has a multiplicity, then the multiplicity must have no featuringTypes (meaning that its domain is implicitly Base::Anything)"
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "classifierAnythingBinding",
+            baseConcept = "Base::Anything",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
         )
     ),
     description = "A type that classifies instances"

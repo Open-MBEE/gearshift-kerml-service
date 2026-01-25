@@ -263,6 +263,8 @@ typeArrowSuffix
     | ARROW_OCL_IS_TYPE_OF '(' typeName ')'
     | ARROW_OCL_IS_KIND_OF '(' typeName ')'
     | ARROW_OCL_AS_SET_OP '(' typeName ')'
+    | ARROW_SELECT_BY_KIND '(' typeName ')'
+    | ARROW_SELECT_BY_TYPE '(' typeName ')'
     ;
 
 typeName
@@ -303,7 +305,8 @@ forAllSuffix
     ;
 
 existsSuffix
-    : ARROW_EXISTS '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'
+    : ARROW_EXISTS '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'  // Full form: ->exists(x | body)
+    | ARROW_EXISTS '(' body=expression ')'  // Shorthand form: ->exists(body)
     ;
 
 exists1Suffix
@@ -348,8 +351,22 @@ primaryExpression
     | collectionLiteral
     | enumerationLiteralExp
     | preValueExp
+    | standaloneTypeOp
+    | standaloneOperationCall
     | variableExp
     | parenthesizedExpression
+    ;
+
+// Standalone type operations with implicit self (used in iterator bodies)
+standaloneTypeOp
+    : 'oclIsKindOf' '(' typeName ')'
+    | 'oclIsTypeOf' '(' typeName ')'
+    | 'oclAsType' '(' typeName ')'
+    ;
+
+// Standalone operation call with implicit self
+standaloneOperationCall
+    : ID '(' expressionList? ')'
     ;
 
 nullLiteral
@@ -508,6 +525,8 @@ ARROW_OCL_AS_TYPE: '->oclAsType';
 ARROW_OCL_IS_TYPE_OF: '->oclIsTypeOf';
 ARROW_OCL_IS_KIND_OF: '->oclIsKindOf';
 ARROW_OCL_AS_SET_OP: '->oclAsSet';
+ARROW_SELECT_BY_KIND: '->selectByKind';
+ARROW_SELECT_BY_TYPE: '->selectByType';
 
 // Iterator operations
 ARROW_COLLECT: '->collect';

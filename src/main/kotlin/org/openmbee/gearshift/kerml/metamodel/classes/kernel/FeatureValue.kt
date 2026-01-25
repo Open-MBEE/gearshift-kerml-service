@@ -45,8 +45,20 @@ fun createFeatureValueMetaClass() = MetaClass(
     ),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveFeatureValueFeatureWithValue",
+            type = ConstraintType.DERIVATION,
+            expression = "membershipOwningNamespace.oclAsType(Feature)",
+            description = "The featureWithValue of a FeatureValue is its membershipOwningNamespace, which must be a Feature."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureValueValue",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedMemberElement.oclAsType(Expression)",
+            description = "The value of a FeatureValue is its ownedMemberElement, which must be an Expression."
+        ),
+        MetaConstraint(
             name = "checkFeatureValueBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = "not isDefault implies featureWithValue.ownedMember->selectByKind(BindingConnector)->exists(b | b.relatedFeature->includes(featureWithValue) and b.relatedFeature->exists(f | f.chainingFeature = Sequence{value, value.result}) and if not isInitial then b.featuringType = featureWithValue.featuringType else b.featuringType->exists(t | t.oclIsKindOf(Feature) and t.oclAsType(Feature).chainingFeature = Sequence{resolveGlobal('Base::things::that').memberElement, resolveGlobal('Occurrences::Occurrence::startShot').memberElement}) endif)",
             description = "If isDefault = false, then the featureWithValue must have an ownedMember that is a BindingConnector whose relatedElements are the featureWithValue and a feature chain consisting of the valueExpression and its result."
         ),

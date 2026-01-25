@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.codegen
 
+import org.openmbee.gearshift.metamodel.MetaAssociationEnd
 import org.openmbee.gearshift.metamodel.MetaOperation
 import org.openmbee.gearshift.metamodel.MetaParameter
 import org.openmbee.gearshift.metamodel.MetaProperty
@@ -37,6 +38,8 @@ object TypeMapper {
         "Float" to "Float",
         "Real" to "Double",
         "Any" to "Any",
+        // MOF types
+        "UnlimitedNatural" to "Int", // -1 represents unlimited/unbounded
         // Enum types - map to String for now until enum generation is added
         "VisibilityKind" to "String",
         "FeatureDirectionKind" to "String",
@@ -165,6 +168,63 @@ object TypeMapper {
      * Check if a type is a model element type (not primitive).
      */
     fun isModelElementType(type: String): Boolean = !isPrimitive(type)
+
+    /**
+     * Map a MetaAssociationEnd to its Kotlin type.
+     *
+     * Uses lowerBound and upperBound:
+     * - upperBound == 1: single value
+     * - upperBound == -1 or > 1: multi-valued (List or Set)
+     * - lowerBound == 0: nullable (for single values)
+     * - lowerBound >= 1: non-nullable
+     *
+     * @param useAliases If true, uses aliased type names for types that conflict with Kotlin stdlib
+     */
+    fun mapAssociationEndType(end: MetaAssociationEnd, useAliases: Boolean = false): String {
+        val isMultiValued = end.upperBound == -1 || end.upperBound > 1
+        val isNullable = end.lowerBound == 0 && !isMultiValued
+        val baseType = if (useAliases) getAliasedTypeName(end.type) else end.type
+
+        return mapToKotlinType(
+            metaType = baseType,
+            isMultiValued = isMultiValued,
+            isNullable = isNullable,
+            isOrdered = end.isOrdered,
+            isUnique = end.isUnique
+        )
+    }
+
+    /**
+     * Types that conflict with Kotlin stdlib and need aliases in impl files.
+     * Maps type name to its alias.
+     */
+    private val typeAliases = mapOf(
+        "Annotation" to "KerMLAnnotation",
+        "Function" to "KerMLFunction"
+    )
+
+    /**
+     * Check if a type name conflicts with Kotlin stdlib.
+     */
+    fun isConflictingType(type: String): Boolean = type in typeAliases
+
+    /**
+     * Get the aliased type name for use in implementation files.
+     * Returns the original type if no alias is needed.
+     */
+    fun getAliasedTypeName(type: String): String = typeAliases[type] ?: type
+
+    /**
+     * Get the fully qualified type name for use in implementation files.
+     * Returns null if no qualification is needed.
+     */
+    fun getQualifiedTypeName(type: String, interfacePackage: String): String? {
+        return if (type in typeAliases) {
+            "$interfacePackage.$type"
+        } else {
+            null
+        }
+    }
 
     /**
      * Get the wrapper interface name for a type.

@@ -35,7 +35,7 @@ fun createMultiplicityRangeMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkMultiplicityRangeExpressionTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = "bound->forAll(b | b.featuringType = self.featuringType)",
             description = "The bounds of a MultiplicityRange must have the same featuringTypes as the MultiplicityRange."
         ),

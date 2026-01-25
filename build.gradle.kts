@@ -104,6 +104,97 @@ sourceSets {
     }
 }
 
+// Bootstrap Stubs Task
+// Creates minimal stub files when generated code doesn't exist (needed for initial compilation)
+tasks.register("createBootstrapStubs") {
+    description = "Create minimal stub files for generated code when missing"
+    group = "build"
+
+    val interfacesDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated/interfaces")
+    val implDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated/impl")
+    val utilDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated")
+
+    // Only run if generated directories are missing or empty
+    onlyIf {
+        !interfacesDir.exists() || !implDir.exists() ||
+        interfacesDir.listFiles()?.isEmpty() ?: true ||
+        implDir.listFiles()?.isEmpty() ?: true
+    }
+
+    doLast {
+        interfacesDir.mkdirs()
+        implDir.mkdirs()
+
+        // Create ModelElement stub interface
+        file("$interfacesDir/ModelElement.kt").writeText("""
+            |package org.openmbee.gearshift.generated.interfaces
+            |
+            |// Bootstrap stub - will be replaced by generated code
+            |interface ModelElement {
+            |    val id: String?
+            |    val className: String
+            |}
+            |
+            |interface Element : ModelElement {
+            |    val name: String?
+            |    val declaredName: String?
+            |}
+            |interface Package : Element
+            |interface Namespace : Element
+            |interface Relationship : Element
+            |interface Membership : Relationship
+        """.trimMargin())
+
+        // Create BaseModelElementImpl stub
+        file("$implDir/BaseModelElementImpl.kt").writeText("""
+            |package org.openmbee.gearshift.generated.impl
+            |
+            |import org.openmbee.gearshift.GearshiftEngine
+            |import org.openmbee.gearshift.engine.MDMObject
+            |import org.openmbee.gearshift.generated.interfaces.ModelElement
+            |
+            |// Bootstrap stub - will be replaced by generated code
+            |open class BaseModelElementImpl(
+            |    internal val wrapped: MDMObject,
+            |    internal val engine: GearshiftEngine
+            |) : ModelElement {
+            |    override val id: String?
+            |        get() = wrapped.id
+            |    override val className: String
+            |        get() = wrapped.className
+            |}
+        """.trimMargin())
+
+        // Create Wrappers stub
+        file("$utilDir/Wrappers.kt").writeText("""
+            |package org.openmbee.gearshift.generated
+            |
+            |import org.openmbee.gearshift.GearshiftEngine
+            |import org.openmbee.gearshift.engine.MDMObject
+            |import org.openmbee.gearshift.generated.interfaces.ModelElement
+            |import org.openmbee.gearshift.generated.impl.BaseModelElementImpl
+            |
+            |// Bootstrap stub - will be replaced by generated code
+            |object Wrappers {
+            |    fun wrap(obj: MDMObject, engine: GearshiftEngine): ModelElement {
+            |        return BaseModelElementImpl(obj, engine)
+            |    }
+            |
+            |    inline fun <reified T : ModelElement> wrapAs(obj: MDMObject, engine: GearshiftEngine): T {
+            |        return wrap(obj, engine) as T
+            |    }
+            |}
+        """.trimMargin())
+
+        println("Created bootstrap stubs for generated code")
+    }
+}
+
+// Ensure bootstrap stubs are created before compilation if needed
+tasks.named("compileKotlin") {
+    dependsOn("createBootstrapStubs")
+}
+
 // Metamodel Code Generation Task
 // Generates typed Kotlin interfaces and implementations from KerML metamodel
 tasks.register<JavaExec>("generateMetamodelCode") {

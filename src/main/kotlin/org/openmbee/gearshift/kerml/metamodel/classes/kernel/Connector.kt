@@ -60,7 +60,7 @@ fun createConnectorMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkConnectorTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = """
                 relatedFeature->forAll(f |
                     if featuringType->isEmpty() then f.isFeaturedWithin(null)

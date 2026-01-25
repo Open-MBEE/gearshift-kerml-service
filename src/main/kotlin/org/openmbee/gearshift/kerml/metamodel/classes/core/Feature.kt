@@ -15,13 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
-import org.openmbee.gearshift.metamodel.BodyLanguage
-import org.openmbee.gearshift.metamodel.ConstraintType
-import org.openmbee.gearshift.metamodel.MetaClass
-import org.openmbee.gearshift.metamodel.MetaConstraint
-import org.openmbee.gearshift.metamodel.MetaOperation
-import org.openmbee.gearshift.metamodel.MetaParameter
-import org.openmbee.gearshift.metamodel.MetaProperty
+import org.openmbee.gearshift.metamodel.*
 
 /**
  * KerML Feature metaclass.
@@ -396,14 +390,8 @@ fun createFeatureMetaClass() = MetaClass(
             description = "If this Feature has isEnd = true and ownedCrossFeature returns a non-null value, then the crossFeature of the Feature must be the Feature returned from ownedCrossFeature."
         ),
         MetaConstraint(
-            name = "checkFeatureDataValueSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = "ownedTyping.type->exists(oclIsKindOf(DataType)) implies specializesFromLibrary('Base::dataValues')",
-            description = "If a Feature has an ownedTyping relationship to a DataType, then it must directly or indirectly specialize Base::dataValues from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "checkFeatureEndRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 isEnd and owningType <> null implies
                 let i: Integer = owningType.ownedEndFeature->indexOf(self) in
@@ -415,19 +403,8 @@ fun createFeatureMetaClass() = MetaClass(
             description = "If a Feature has isEnd = true and an owningType that is not empty, then, for each direct supertype of its owningType, it must redefine the endFeature at the same position, if any."
         ),
         MetaConstraint(
-            name = "checkFeatureEndSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = """
-                isEnd and owningType <> null and
-                (owningType.oclIsKindOf(Association) or
-                 owningType.oclIsKindOf(Connector)) implies
-                specializesFromLibrary('Links::Link::participant')
-            """.trimIndent(),
-            description = "If a Feature has isEnd = true and an owningType that is an Association or a Connector, then it must directly or indirectly specialize Links::Link::participant from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "checkFeatureFeatureMembershipTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = """
                 owningFeatureMembership <> null implies
                 featuringType->exists(t | isFeaturingType(t))
@@ -436,7 +413,7 @@ fun createFeatureMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkFeatureFlowFeatureRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 owningType <> null and
                 owningType.oclIsKindOf(FlowEnd) and
@@ -448,18 +425,6 @@ fun createFeatureMetaClass() = MetaClass(
                 (i = 2 implies redefinesFromLibrary('Transfers::Transfer::target::targetInput'))
             """.trimIndent(),
             description = "If a Feature is the first ownedFeature of a first or second FlowEnd, then it must directly or indirectly specialize either Transfers::Transfer::source::sourceOutput or Transfers::Transfer::target::targetInput, respectively, from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkFeatureObjectSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = "ownedTyping.type->exists(oclIsKindOf(Structure)) implies specializesFromLibrary('Objects::objects')",
-            description = "If a Feature has an ownedTyping relationship to a Structure, then it must directly or indirectly specialize Objects::objects from the Kernel Semantics Library."
-        ),
-        MetaConstraint(
-            name = "checkFeatureOccurrenceSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = "ownedTyping.type->exists(oclIsKindOf(Class)) implies specializesFromLibrary('Occurrences::occurrences')",
-            description = "If a Feature has an ownedTyping relationship to a Class, then it must directly or indirectly specialize Occurrences::occurrences from the Kernel Semantic Library."
         ),
         MetaConstraint(
             name = "checkFeatureOwnedCrossFeatureRedefinitionSpecialization",
@@ -483,7 +448,7 @@ fun createFeatureMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkFeatureOwnedCrossFeatureTypeFeaturing",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_TYPE_FEATURING,
             expression = """
                 isOwnedCrossFeature() implies
                 let otherEnds: OrderedSet(Feature) =
@@ -503,7 +468,7 @@ fun createFeatureMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkFeatureParameterRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 owningType <> null and
                 not owningFeatureMembership.oclIsKindOf(ReturnParameterMembership) and
@@ -527,22 +492,8 @@ fun createFeatureMetaClass() = MetaClass(
             description = "If a Feature is a parameter of an owningType that is a Behavior or Step, but not a result parameter or a parameter of an InvocationExpression with at least one non-implied ownedRedefinition, then, for each direct supertype of its owningType that is also a Behavior or Step, it must redefine the parameter at the same position, if any."
         ),
         MetaConstraint(
-            name = "checkFeaturePortionSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = """
-                isPortion and
-                ownedTyping.type->exists(oclIsKindOf(Class)) and
-                owningType <> null and
-                (owningType.oclIsKindOf(Class) or
-                 owningType.oclIsKindOf(Feature) and
-                 owningType.oclAsType(Feature).type->exists(oclIsKindOf(Class))) implies
-                specializesFromLibrary('Occurrences::Occurrence::portions')
-            """.trimIndent(),
-            description = "If a Feature has isPortion = true, an ownedTyping relationship to a Class, and an owningType that is a Class or another Feature typed by a Class, then it must directly or indirectly specialize Occurrences::Occurrence::portions from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "checkFeatureResultRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 owningType <> null and
                 (owningType.oclIsKindOf(Function) and
@@ -560,40 +511,6 @@ fun createFeatureMetaClass() = MetaClass(
                         endif))
             """.trimIndent(),
             description = "If a Feature is a result parameter of an owningType that is a Function or Expression, then, for each direct supertype of its owningType that is also a Function or Expression, it must redefine the result parameter."
-        ),
-        MetaConstraint(
-            name = "checkFeatureSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = "specializesFromLibrary('Base::things')",
-            description = "A Feature must directly or indirectly specialize Base::things from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkFeatureSubobjectSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = """
-                isComposite and
-                ownedTyping.type->exists(oclIsKindOf(Structure)) and
-                owningType <> null and
-                (owningType.oclIsKindOf(Structure) or
-                 owningType.oclIsKindOf(Feature) and
-                 owningType.oclAsType(Feature).type->exists(oclIsKindOf(Structure))) implies
-                specializesFromLibrary('Objects::Object::subobjects')
-            """.trimIndent(),
-            description = "A composite Feature typed by a Structure, and whose ownedType is a Structure or another Feature typed by a Structure must directly or indirectly specialize Objects::Object::subobjects."
-        ),
-        MetaConstraint(
-            name = "checkFeatureSuboccurrenceSpecialization",
-            type = ConstraintType.VERIFICATION,
-            expression = """
-                isComposite and
-                ownedTyping.type->exists(oclIsKindOf(Class)) and
-                owningType <> null and
-                (owningType.oclIsKindOf(Class) or
-                 owningType.oclIsKindOf(Feature) and
-                 owningType.oclAsType(Feature).type->exists(oclIsKindOf(Class))) implies
-                specializesFromLibrary('Occurrences::Occurrence::suboccurrences')
-            """.trimIndent(),
-            description = "A composite Feature that has an ownedTyping relationship to a Class, and whose ownedType is a Class or another Feature typed by a Class, must directly or indirectly specialize Occurrences::Occurrence::suboccurrences."
         ),
         MetaConstraint(
             name = "checkFeatureValuationSpecialization",
@@ -706,8 +623,8 @@ fun createFeatureMetaClass() = MetaClass(
         MetaConstraint(
             name = "deriveFeatureOwnedTyping",
             type = ConstraintType.DERIVATION,
-            expression = "ownedGeneralization->selectByKind(FeatureTyping)",
-            description = "The ownedTypings of a Feature are its ownedSpecializations that are FeatureTypings."
+            expression = "ownedSpecialization->selectByKind(FeatureTyping)",
+            description = "The ownedTypings of a Feature are its ownedSpecializations that are FeatureTypings. Note: There is an error in the specification (ownedGeneralization is a property that doesn't exist)."
         ),
         MetaConstraint(
             name = "deriveFeatureType",
@@ -823,6 +740,82 @@ fun createFeatureMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "isPortion implies not isVariable",
             description = "A Feature with isPortion = true must not have isVariable = true."
+        )
+    ),
+    semanticBindings = listOf(
+        // Core binding: all Features subset Base::things
+        SemanticBinding(
+            name = "featureThingsBinding",
+            baseConcept = "Base::things",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
+        ),
+        // Conditional: Feature typed by DataType subsets Base::dataValues
+        SemanticBinding(
+            name = "featureDataValueBinding",
+            baseConcept = "Base::dataValues",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.TypedBy("DataType")
+        ),
+        // Conditional: Feature typed by Structure subsets Objects::objects
+        SemanticBinding(
+            name = "featureObjectBinding",
+            baseConcept = "Objects::objects",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.TypedBy("Structure")
+        ),
+        // Conditional: Feature typed by Class subsets Occurrences::occurrences
+        SemanticBinding(
+            name = "featureOccurrenceBinding",
+            baseConcept = "Occurrences::occurrences",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.TypedBy("Class")
+        ),
+        // Conditional: End feature of Association/Connector subsets Links::Link::participant
+        SemanticBinding(
+            name = "featureEndParticipantBinding",
+            baseConcept = "Links::Link::participant",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsEnd,
+                BindingCondition.Or(listOf(
+                    BindingCondition.OwningTypeIs("Association"),
+                    BindingCondition.OwningTypeIs("Connector")
+                ))
+            ))
+        ),
+        // Conditional: isPortion and typed by Class with Class owningType -> Occurrences::Occurrence::portions
+        SemanticBinding(
+            name = "featurePortionBinding",
+            baseConcept = "Occurrences::Occurrence::portions",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsPortion,
+                BindingCondition.TypedBy("Class"),
+                BindingCondition.OwningTypeTypedBy("Class")
+            ))
+        ),
+        // Conditional: isComposite and typed by Structure with Structure owningType -> Objects::Object::subobjects
+        SemanticBinding(
+            name = "featureSubobjectBinding",
+            baseConcept = "Objects::Object::subobjects",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsComposite,
+                BindingCondition.TypedBy("Structure"),
+                BindingCondition.OwningTypeTypedBy("Structure")
+            ))
+        ),
+        // Conditional: isComposite and typed by Class with Class owningType -> Occurrences::Occurrence::suboccurrences
+        SemanticBinding(
+            name = "featureSuboccurrenceBinding",
+            baseConcept = "Occurrences::Occurrence::suboccurrences",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsComposite,
+                BindingCondition.TypedBy("Class"),
+                BindingCondition.OwningTypeTypedBy("Class")
+            ))
         )
     ),
     description = "A type that is also a feature"

@@ -101,8 +101,12 @@ class OclExecutor(
             val selfId = findObjectId(self)
             if (selfId != null) {
                 // Try via engine for derived properties
-                val derivedValue = engineAccessor.getProperty(selfId, exp.name)
-                if (derivedValue != null) return derivedValue
+                try {
+                    val derivedValue = engineAccessor.getProperty(selfId, exp.name)
+                    if (derivedValue != null) return derivedValue
+                } catch (_: Exception) {
+                    // Property not found via engine
+                }
 
                 // Try navigation (association traversal) - returns single element or null for [0..1]
                 try {
@@ -154,6 +158,29 @@ class OclExecutor(
             }
 
             is Map<*, *> -> source[exp.propertyName]
+
+            // OCL implicit collect: collection.property means collection->collect(property)
+            is Collection<*> -> {
+                source.flatMap { element ->
+                    when (element) {
+                        is MDMObject -> {
+                            val value = element.getProperty(exp.propertyName)
+                                ?: findObjectId(element)?.let { engineAccessor.getProperty(it, exp.propertyName) }
+                            when (value) {
+                                is Collection<*> -> value.filterNotNull()
+                                null -> emptyList()
+                                else -> listOf(value)
+                            }
+                        }
+                        is Map<*, *> -> {
+                            val value = element[exp.propertyName]
+                            if (value != null) listOf(value) else emptyList()
+                        }
+                        else -> emptyList<Any>()
+                    }
+                }
+            }
+
             else -> throw OclEvaluationException(
                 "Cannot access property '${exp.propertyName}' on ${source?.javaClass?.simpleName ?: "null"}"
             )
@@ -170,6 +197,23 @@ class OclExecutor(
                 // Try to find association by navigation name
                 // The navigation name could be an association end name
                 engineAccessor.getLinkedTargets(exp.navigationName, sourceId)
+            }
+
+            // OCL implicit collect: collection.navigation means collection->collect(navigation)
+            is Collection<*> -> {
+                source.flatMap { element ->
+                    when (element) {
+                        is MDMObject -> {
+                            val elementId = findObjectId(element)
+                            if (elementId != null) {
+                                engineAccessor.getLinkedTargets(exp.navigationName, elementId)
+                            } else {
+                                emptyList()
+                            }
+                        }
+                        else -> emptyList<MDMObject>()
+                    }
+                }
             }
 
             else -> throw OclEvaluationException(
@@ -376,6 +420,28 @@ class OclExecutor(
                 // Type cast - in our dynamic system, this is essentially a no-op
                 // but we could add runtime type checking
                 source
+            }
+
+            "selectByKind" -> {
+                // Filter collection to only include elements that are instances of typeName (including subtypes)
+                val collection = asCollection(source)
+                collection.filter { element ->
+                    when (element) {
+                        is MDMObject -> isKindOf(element, exp.typeName)
+                        else -> false
+                    }
+                }
+            }
+
+            "selectByType" -> {
+                // Filter collection to only include elements that are exactly typeName
+                val collection = asCollection(source)
+                collection.filter { element ->
+                    when (element) {
+                        is MDMObject -> element.className == exp.typeName
+                        else -> false
+                    }
+                }
             }
 
             else -> throw OclEvaluationException("Unknown type operation: ${exp.operationName}")

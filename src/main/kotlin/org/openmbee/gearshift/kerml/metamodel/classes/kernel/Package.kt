@@ -37,6 +37,7 @@ fun createPackageMetaClass() = MetaClass(
         MetaOperation(
             name = "importedMemberships",
             returnType = "Membership",
+            returnUpperBound = -1,
             parameters = listOf(
                 MetaParameter(
                     name = "excluded",

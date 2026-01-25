@@ -59,6 +59,9 @@ data class MetaClass(
     val operations: List<MetaOperation> = emptyList(),
 
     @JsonProperty
+    val semanticBindings: List<SemanticBinding> = emptyList(),
+
+    @JsonProperty
     val isAbstract: Boolean = false,
 
     @JsonProperty

@@ -19,22 +19,51 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
  * The type of constraint.
+ *
+ * Per KerML 8.4.2, there are categories of semantic constraints:
+ * - Implied relationships (Redefinition, TypeFeaturing, BindingConnector) are created by constraints
+ * - Implied specializations (Subclassification, Subsetting) are now handled via SemanticBinding
+ * - Derivation constraints compute values
+ * - Verification constraints validate invariants
  */
 enum class ConstraintType {
     /**
-     * Conditional implicit specialization - evaluated reactively.
-     * If expression evaluates to true, creates specialization to libraryTypeName.
+     * @deprecated Use SemanticBinding instead. Will be removed in future version.
+     * Conditional implicit specialization - now handled by SemanticBinding with condition.
      */
+    @Deprecated("Use SemanticBinding instead")
     CONDITIONAL_IMPLICIT_SPECIALIZATION,
 
     /** Derivation constraint for computing derived property values (spec-defined) */
     DERIVATION,
 
     /**
-     * Implicit specialization constraint - creates specialization to libraryTypeName.
-     * Expression is used for verification that the specialization exists.
+     * @deprecated Use SemanticBinding instead. Will be removed in future version.
+     * Implicit specialization - now handled by SemanticBinding.
      */
+    @Deprecated("Use SemanticBinding instead")
     IMPLICIT_SPECIALIZATION,
+
+    /**
+     * Implicit binding connector constraint - creates BindingConnector between features.
+     * Expression defines the features to connect.
+     * Example: checkFeatureValueBindingConnector
+     */
+    IMPLICIT_BINDING_CONNECTOR,
+
+    /**
+     * Implicit redefinition constraint - creates Redefinition relationships.
+     * Expression defines what feature(s) should be redefined.
+     * Example: checkConnectorEndRedefinition
+     */
+    IMPLICIT_REDEFINITION,
+
+    /**
+     * Implicit type featuring constraint - creates TypeFeaturing relationships.
+     * Expression defines the featuring type(s).
+     * Example: checkExpressionTypeFeaturing
+     */
+    IMPLICIT_TYPE_FEATURING,
 
     /** Constraint for calculating non-navigable association ends */
     NON_NAVIGABLE_END,
@@ -51,7 +80,7 @@ enum class ConstraintType {
      */
     SUBSETS_DERIVATION,
 
-    /** Verification constraint for validating invariants */
+    /** Verification constraint for validating invariants (no implied relationships) */
     VERIFICATION
 }
 
@@ -73,12 +102,34 @@ data class MetaConstraint(
     val expression: String,
 
     /**
-     * For CONDITIONAL_IMPLICIT_SPECIALIZATION: the qualified library type name to specialize.
-     * For IMPLICIT_SPECIALIZATION: not used (expression contains the library type).
+     * @deprecated Use SemanticBinding.baseConcept instead.
+     * For legacy IMPLICIT_SPECIALIZATION and CONDITIONAL_IMPLICIT_SPECIALIZATION:
+     * The qualified library type name to specialize.
      */
+    @Deprecated("Use SemanticBinding.baseConcept instead")
     @JsonProperty
     val libraryTypeName: String? = null,
 
+    /**
+     * For IMPLICIT_REDEFINITION:
+     * The qualified path to the feature that should be redefined.
+     * If null, the expression computes the redefined feature(s).
+     */
+    @JsonProperty
+    val redefinedFeaturePath: String? = null,
+
+    /**
+     * For IMPLICIT_TYPE_FEATURING:
+     * The qualified path to the type that should feature this element.
+     * If null, the expression computes the featuring type(s).
+     */
+    @JsonProperty
+    val featuringTypePath: String? = null,
+
+    /**
+     * For DERIVATION constraints that redefine a parent constraint.
+     * The name of the constraint being redefined.
+     */
     @JsonProperty
     val redefines: String? = null,
 

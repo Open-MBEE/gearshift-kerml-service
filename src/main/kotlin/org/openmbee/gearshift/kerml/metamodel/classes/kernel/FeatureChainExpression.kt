@@ -57,7 +57,7 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkFeatureChainExpressionSourceTargetRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 let sourceTargetFeature : Feature = sourceTargetFeature() in
                 sourceTargetFeature <> null and
@@ -67,12 +67,13 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
         ),
         MetaConstraint(
             name = "checkFeatureChainExpressionTargetRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 let sourceTargetFeature : Feature = sourceTargetFeature() in
                 sourceTargetFeature <> null and
                 sourceTargetFeature.redefinesFromLibrary('ControlFunctions::\'.\'::source::target')
             """.trimIndent(),
+            redefinedFeaturePath = "ControlFunctions::'.'::source::target",
             description = "The first ownedFeature of the first owned input parameter of a FeatureChainExpression must redefine the Feature ControlFunctions::'.'::source::target from the Kernel Functions Library."
         ),
         MetaConstraint(

@@ -34,7 +34,7 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkFeatureReferenceExpressionBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = """
                 ownedMember->selectByKind(BindingConnector)->exists(b |
                     b.relatedFeatures->includes(targetFeature) and

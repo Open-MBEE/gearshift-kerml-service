@@ -36,13 +36,13 @@ fun createConstructorExpressionMetaClass() = MetaClass(
     constraints = listOf(
         MetaConstraint(
             name = "checkConstructorExpressionResultDefaultValueBindingConnector",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_BINDING_CONNECTOR,
             expression = "true",  // TBD in spec
             description = "The result of a ConstructorExpression must own a BindingConnector between the featureWithValue and valueExpression of any FeatureValue that is the effective default value for a feature of the instantiatedType of the InvocationExpression."
         ),
         MetaConstraint(
             name = "checkConstructorExpressionResultFeatureRedefinition",
-            type = ConstraintType.VERIFICATION,
+            type = ConstraintType.IMPLICIT_REDEFINITION,
             expression = """
                 let features : OrderedSet(Feature) = instantiatedType.feature->
                     select(owningMembership.visibility = VisibilityKind::public) in
