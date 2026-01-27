@@ -88,6 +88,19 @@ class MDMEngine(
             val instance = objectRepository.get(instanceId) ?: return null
             return this@MDMEngine.invokeOperation(instance, operationName, arguments)
         }
+
+        override fun resolveGlobal(qualifiedName: String): MDMObject? {
+            // Find any root namespace to start resolution from
+            val rootNamespace = objectRepository.getAll().firstOrNull { obj ->
+                val owner = obj.getProperty("owner")
+                owner == null && (obj.className == "Namespace" || obj.className == "Package" ||
+                        obj.className == "LibraryPackage" || registry.isSubclassOf(obj.className, "Namespace"))
+            } ?: return null
+
+            // Use the NameResolver to resolve the qualified name
+            val result = nameResolver.resolve(qualifiedName, rootNamespace.id!!, false)
+            return result?.membership
+        }
     }
 
     /**
@@ -824,9 +837,15 @@ class MDMEngine(
         validateLinkTypes(association, source, target)
 
         // Check for duplicate link first (before multiplicity to give better error)
-        if (linkRepository.linkExists(associationName, sourceId, targetId)) {
+        // Enforce uniqueness if EITHER end has isUnique=true:
+        // - targetEnd.isUnique: prevents duplicate targets when navigating source→target
+        // - sourceEnd.isUnique: prevents duplicate sources when navigating target→source
+        // When both ends have isUnique=false (Bag semantics), duplicate links are allowed
+        val requiresUniqueness = association.targetEnd.isUnique || association.sourceEnd.isUnique
+        if (requiresUniqueness && linkRepository.linkExists(associationName, sourceId, targetId)) {
             throw IllegalStateException(
-                "Link already exists: $sourceId --[$associationName]--> $targetId"
+                "Link already exists: $sourceId --[$associationName]--> $targetId " +
+                "(sourceEnd.isUnique=${association.sourceEnd.isUnique}, targetEnd.isUnique=${association.targetEnd.isUnique})"
             )
         }
 

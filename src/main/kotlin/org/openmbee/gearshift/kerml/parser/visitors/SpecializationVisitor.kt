@@ -1,0 +1,74 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.openmbee.gearshift.kerml.parser.visitors
+
+import org.openmbee.gearshift.generated.interfaces.Specialization
+import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
+import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+
+/**
+ * Visitor for Specialization elements.
+ *
+ * Per KerML spec 8.2.3.2: Specialization is a relationship between two Types
+ * where the specific type inherits from the general type.
+ *
+ * Grammar:
+ * ```
+ * specialization
+ *     : ( SPECIALIZATION identification )?
+ *       SUBTYPE specificType
+ *       specializesToken generalType
+ *       relationshipBody
+ *     ;
+ * ```
+ *
+ * Specialization extends Relationship.
+ */
+class SpecializationVisitor : BaseRelationshipVisitor<KerMLParser.SpecializationContext, Specialization>() {
+
+    override fun visit(ctx: KerMLParser.SpecializationContext, parseContext: ParseContext): Specialization {
+        val specialization = parseContext.create<Specialization>()
+
+        // Parse identification (optional)
+        parseIdentification(ctx.identification(), specialization)
+
+        // Parse specific type reference
+        ctx.specificType()?.let { specific ->
+            specific.qualifiedName()?.let { qn ->
+                val specificTypeName = extractQualifiedName(qn)
+                // TODO: Resolve and set specialization.specific
+            }
+        }
+
+        // Parse general type reference
+        ctx.generalType()?.qualifiedName()?.let { qn ->
+            val generalTypeName = extractQualifiedName(qn)
+            // TODO: Resolve and set specialization.general
+        }
+
+        // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
+        createRelationshipMembership(specialization, parseContext)
+
+        // Parse relationship body (inherited from BaseRelationshipVisitor)
+        ctx.relationshipBody()?.let { body ->
+            val childContext = parseContext.withParent(specialization, specialization.declaredName ?: "")
+            parseRelationshipBody(body, specialization, childContext)
+        }
+
+        return specialization
+    }
+}

@@ -418,9 +418,15 @@ class GearshiftEngine {
             val owner = obj.getProperty("owner")
             owner == null && (obj.className == "Namespace" || obj.className == "Package" ||
                     obj.className == "LibraryPackage" || metamodelRegistry.isSubclassOf(obj.className, "Namespace"))
-        } ?: return null
+        }
+        if (rootNamespace == null) {
+            println("DEBUG resolveGlobal: No root namespace found")
+            return null
+        }
+        println("DEBUG resolveGlobal: Root namespace found: ${rootNamespace.className} id=${rootNamespace.id}")
 
         val result = nameResolver.resolve(qualifiedName, rootNamespace.id!!, false)
+        println("DEBUG resolveGlobal: NameResolver result: membership=${result?.membership?.className} id=${result?.membership?.id}")
         return result?.membership
     }
 }

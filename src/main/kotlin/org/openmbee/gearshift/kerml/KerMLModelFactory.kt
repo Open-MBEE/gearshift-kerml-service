@@ -16,9 +16,12 @@
 package org.openmbee.gearshift.kerml
 
 import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.MDMModelFactory
 import org.openmbee.gearshift.generated.Wrappers
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.ModelElement
+import org.openmbee.gearshift.generated.interfaces.Namespace
+import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
 import org.openmbee.gearshift.kerml.parser.KerMLParseResult
 import java.nio.file.Path
@@ -26,7 +29,7 @@ import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
 
 /**
  * Factory for parsing KerML text and accessing typed wrapper objects.
- * Provides a high-level API for working with KerML models.
+ * Extends MDMModelFactory with KerML-specific semantics.
  *
  * Example usage:
  * ```kotlin
@@ -44,11 +47,23 @@ import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
  *     val car = factory.allOfType<Class>().first { it.name == "Car" }
  *     println("Car extends: ${car.superclassifier.first().name}")
  * }
+ *
+ * // With project metadata:
+ * val factory = KerMLModelFactory(
+ *     projectId = "my-vehicle-model-v1",
+ *     projectName = "Vehicle Model",
+ *     projectDescription = "A KerML model of vehicle types"
+ * )
+ * println("Project: ${factory.project.name} (${factory.projectId})")
  * ```
  */
 class KerMLModelFactory(
-    val engine: GearshiftEngine = GearshiftEngine()
-) {
+    engine: GearshiftEngine = GearshiftEngine(),
+    projectId: String? = null,
+    projectName: String = "Untitled KerML Project",
+    projectDescription: String? = null
+) : MDMModelFactory(engine, projectId, projectName, projectDescription) {
+
     private val coordinator = KerMLParseCoordinator(engine)
     private var lastParseResult: KerMLParseResult? = null
 
@@ -61,9 +76,46 @@ class KerMLModelFactory(
         // Load the KerML metamodel
         KerMLMetamodelLoader.initialize(engine)
 
+        // Initialize the model root (from base class)
+        initializeModelRoot()
+
         // Register the KerML semantic handler for lifecycle events
         engine.addLifecycleHandler(semanticHandler)
     }
+
+    // ===== Typed Helper Methods (inline with reified) =====
+
+    /**
+     * Get a typed wrapper for an element by its ID.
+     */
+    inline fun <reified T : ModelElement> getAs(id: String): T? {
+        return getAsElement(id) as? T
+    }
+
+    /**
+     * Create a new instance of a model element type.
+     */
+    inline fun <reified T : ModelElement> create(): T {
+        val typeName = T::class.simpleName ?: throw IllegalArgumentException("Cannot determine type name")
+        return createByName(typeName) as T
+    }
+
+    /**
+     * Get all elements of a specific type.
+     */
+    inline fun <reified T : ModelElement> allOfType(): List<T> {
+        val typeName = T::class.simpleName ?: return emptyList()
+        return allOfTypeByName(typeName).filterIsInstance<T>()
+    }
+
+    /**
+     * Find all elements matching a predicate.
+     */
+    inline fun <reified T : ModelElement> findAll(predicate: (T) -> Boolean): List<T> {
+        return allOfType<T>().filter(predicate)
+    }
+
+    // ===== Parsing Methods =====
 
     /**
      * Parse KerML text from a string.
@@ -115,43 +167,6 @@ class KerMLModelFactory(
     fun getLastParseResult(): KerMLParseResult? = lastParseResult
 
     /**
-     * Get a typed wrapper for an element by its ID.
-     *
-     * @param id The element ID
-     * @return The typed wrapper or null if not found
-     */
-    inline fun <reified T : ModelElement> getAs(id: String): T? {
-        val obj = engine.getInstance(id) ?: return null
-        val wrapper = Wrappers.wrap(obj, engine)
-        return wrapper as? T
-    }
-
-    /**
-     * Create a new instance of a model element type.
-     *
-     * @return The created element wrapped in its typed interface
-     */
-    inline fun <reified T : ModelElement> create(): T {
-        val typeName = T::class.simpleName ?: throw IllegalArgumentException("Cannot determine type name")
-        val (id, _) = engine.createInstance(typeName)
-        val obj = engine.getInstance(id) ?: throw IllegalStateException("Failed to retrieve created instance")
-        return Wrappers.wrap(obj, engine) as T
-    }
-
-    /**
-     * Get all elements of a specific type.
-     *
-     * @return List of all elements matching the type
-     */
-    inline fun <reified T : ModelElement> allOfType(): List<T> {
-        val typeName = T::class.simpleName ?: return emptyList()
-        return engine.getInstancesByType(typeName).mapNotNull { obj ->
-            val wrapper = Wrappers.wrap(obj, engine)
-            wrapper as? T
-        }
-    }
-
-    /**
      * Get the root element if one was parsed.
      */
     fun getRootElement(): Element? {
@@ -160,19 +175,39 @@ class KerMLModelFactory(
     }
 
     /**
-     * Get all parsed elements by qualified name.
+     * Get all parsed elements by qualified name (from old coordinator).
      */
     fun getParsedElements(): Map<String, String> = coordinator.getParsedElements()
 
+    // ===== Name Resolution =====
+
     /**
      * Find an element by its qualified name.
+     * Resolves starting from the model root namespace.
      *
-     * @param qualifiedName The qualified name (e.g., "Vehicles::Car")
+     * @param qualifiedName The qualified name (e.g., "Base::Anything")
      * @return The element or null if not found
      */
     fun findByQualifiedName(qualifiedName: String): Element? {
-        val id = coordinator.getParsedElements()[qualifiedName] ?: return null
-        return getAs<Element>(id)
+        // First try the coordinator's parsed elements map (for backward compatibility)
+        val id = coordinator.getParsedElements()[qualifiedName]
+        if (id != null) {
+            return getAs<Element>(id)
+        }
+
+        // Resolve using the model root
+        val membership = resolveQualifiedName(qualifiedName)
+        if (membership != null) {
+            // Get the memberElement from the membership
+            val memberElementValue = engine.mdmEngine.getProperty(membership, "memberElement")
+            return when (memberElementValue) {
+                is org.openmbee.gearshift.engine.MDMObject -> Wrappers.wrap(memberElementValue, engine) as? Element
+                is String -> getAs<Element>(memberElementValue)
+                else -> null
+            }
+        }
+
+        return null
     }
 
     /**
@@ -187,23 +222,34 @@ class KerMLModelFactory(
     }
 
     /**
-     * Find all elements matching a predicate.
-     */
-    inline fun <reified T : ModelElement> findAll(predicate: (T) -> Boolean): List<T> {
-        return allOfType<T>().filter(predicate)
-    }
-
-    /**
      * Get the parse coordinator for advanced operations.
      */
     fun getCoordinator(): KerMLParseCoordinator = coordinator
 
+    // ===== Model Management =====
+
+    /**
+     * Add a parsed namespace (or its contents) to the model root.
+     * This is called when loading libraries or parsing content with the new visitor API.
+     */
+    fun addToModel(namespace: Namespace) {
+        // Add the namespace's memberships to the model root
+        for (membership in namespace.ownedMembership) {
+            // Create a new OwningMembership linking to the model root
+            val rootMembership = create<OwningMembership>()
+            rootMembership.memberElement = membership.memberElement
+            membership.memberName?.let { rootMembership.memberName = it }
+            membership.memberShortName?.let { rootMembership.memberShortName = it }
+            rootMembership.membershipOwningNamespace = modelRoot
+        }
+    }
+
     /**
      * Clear all parsed data and reset the factory.
      */
-    fun reset() {
+    override fun reset() {
         coordinator.reset()
-        engine.clearInstances()
         lastParseResult = null
+        super.reset()
     }
 }

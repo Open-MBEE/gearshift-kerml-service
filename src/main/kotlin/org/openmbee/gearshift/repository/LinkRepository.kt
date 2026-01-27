@@ -17,6 +17,7 @@ package org.openmbee.gearshift.repository
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.engine.MDMLink
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 private val logger = KotlinLogging.logger {}
@@ -54,19 +55,28 @@ class LinkRepository {
 
     /**
      * Store a link in the repository.
+     * Uses LinkedHashSet to maintain insertion order for isOrdered associations.
      */
     fun store(link: MDMLink) {
         links[link.id] = link
 
-        // Update all indexes
-        byAssociation.getOrPut(link.associationName) { ConcurrentHashMap.newKeySet() }.add(link.id)
-        bySource.getOrPut(link.sourceId) { ConcurrentHashMap.newKeySet() }.add(link.id)
-        byTarget.getOrPut(link.targetId) { ConcurrentHashMap.newKeySet() }.add(link.id)
-        byAssociationSource.getOrPut(associationSourceKey(link)) { ConcurrentHashMap.newKeySet() }.add(link.id)
-        byAssociationTarget.getOrPut(associationTargetKey(link)) { ConcurrentHashMap.newKeySet() }.add(link.id)
+        // Update all indexes using ordered sets (LinkedHashSet) to preserve insertion order
+        // This is important for isOrdered=true association ends
+        byAssociation.getOrPut(link.associationName) { createOrderedSet() }.add(link.id)
+        bySource.getOrPut(link.sourceId) { createOrderedSet() }.add(link.id)
+        byTarget.getOrPut(link.targetId) { createOrderedSet() }.add(link.id)
+        byAssociationSource.getOrPut(associationSourceKey(link)) { createOrderedSet() }.add(link.id)
+        byAssociationTarget.getOrPut(associationTargetKey(link)) { createOrderedSet() }.add(link.id)
 
         logger.debug { "Stored link ${link.id}: ${link.sourceId} --[${link.associationName}]--> ${link.targetId}" }
     }
+
+    /**
+     * Creates a thread-safe, ordered set for storing link IDs.
+     * LinkedHashSet maintains insertion order while Set semantics ensure link ID uniqueness.
+     */
+    private fun createOrderedSet(): MutableSet<String> =
+        Collections.synchronizedSet(LinkedHashSet())
 
     /**
      * Retrieve a link by ID.

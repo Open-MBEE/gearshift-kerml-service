@@ -15,50 +15,50 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors
 
+import org.openmbee.gearshift.generated.interfaces.Classifier
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
-import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
 
 /**
- * Visitor for Class elements.
+ * Visitor for generic Classifier elements.
  *
- * Per KerML spec 8.2.5.2: Classes are classifiers that represent object types with identity.
+ * Per KerML spec 8.2.4.2: Classifiers are types whose instances can be classified.
  *
  * Grammar:
  * ```
- * class
- *     : typePrefix CLASS
+ * classifier
+ *     : typePrefix CLASSIFIER
  *       classifierDeclaration typeBody
  *     ;
  * ```
  *
- * Class extends Classifier. Uses inherited parsing from BaseClassifierVisitor.
+ * Classifier extends Type and is the base for Class, DataType, Association, etc.
  */
-class ClassVisitor : BaseClassifierVisitor<KerMLParser.ClassContext, KerMLClass>() {
+class ClassifierVisitor : BaseClassifierVisitor<KerMLParser.ClassifierContext, Classifier>() {
 
-    override fun visit(ctx: KerMLParser.ClassContext, parseContext: ParseContext): KerMLClass {
-        val cls = parseContext.create<KerMLClass>()
+    override fun visit(ctx: KerMLParser.ClassifierContext, parseContext: ParseContext): Classifier {
+        val classifier = parseContext.create<Classifier>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
-        parseTypePrefix(ctx.typePrefix(), cls)
+        parseTypePrefix(ctx.typePrefix(), classifier)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, cls, parseContext)
+            parseClassifierDeclaration(decl, classifier, parseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(cls, cls.declaredName ?: "")
+        val childContext = parseContext.withParent(classifier, classifier.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(cls, parseContext)
+        createOwnershipMembership(classifier, parseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
             parseTypeBody(body, childContext)
         }
 
-        return cls
+        return classifier
     }
 }

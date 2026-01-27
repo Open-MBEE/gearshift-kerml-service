@@ -191,8 +191,8 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
             }
 
             // Check for annotatingElement
-            memberElement.annotatingElement()?.let { _ ->
-                // TODO: Delegate to AnnotatingElementVisitor
+            memberElement.annotatingElement()?.let { annotating ->
+                parseAnnotatingElement(annotating, parseContext)
             }
         }
     }
@@ -209,8 +209,79 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         // TODO: Parse memberPrefix for visibility
 
         // Get the featureElement
-        ctx.featureElement()?.let { _ ->
-            // TODO: Delegate to FeatureVisitor
+        ctx.featureElement()?.let { featureElement ->
+            parseFeatureElement(featureElement, parseContext)
+        }
+    }
+
+    /**
+     * Parse a feature element (dispatches to specific feature visitor).
+     *
+     * Grammar: featureElement = feature | step | expression | booleanExpression | invariant
+     *                          | connector | bindingConnector | succession | flow | successionFlow
+     */
+    fun parseFeatureElement(
+        ctx: KerMLParser.FeatureElementContext,
+        parseContext: ParseContext
+    ) {
+        // Feature
+        ctx.feature()?.let { feature ->
+            FeatureVisitor().visit(feature, parseContext)
+            return
+        }
+
+        // Step
+        ctx.step()?.let { step ->
+            StepVisitor().visit(step, parseContext)
+            return
+        }
+
+        // Expression
+        ctx.expression()?.let { expr ->
+            ExpressionVisitor().visit(expr, parseContext)
+            return
+        }
+
+        // BooleanExpression
+        ctx.booleanExpression()?.let { boolExpr ->
+            BooleanExpressionVisitor().visit(boolExpr, parseContext)
+            return
+        }
+
+        // Invariant
+        ctx.invariant()?.let { inv ->
+            InvariantVisitor().visit(inv, parseContext)
+            return
+        }
+
+        // Connector
+        ctx.connector()?.let { conn ->
+            ConnectorVisitor().visit(conn, parseContext)
+            return
+        }
+
+        // BindingConnector
+        ctx.bindingConnector()?.let { binding ->
+            BindingConnectorVisitor().visit(binding, parseContext)
+            return
+        }
+
+        // Succession
+        ctx.succession()?.let { succ ->
+            SuccessionVisitor().visit(succ, parseContext)
+            return
+        }
+
+        // Flow
+        ctx.flow()?.let { flow ->
+            FlowVisitor().visit(flow, parseContext)
+            return
+        }
+
+        // SuccessionFlow
+        ctx.successionFlow()?.let { succFlow ->
+            SuccessionFlowVisitor().visit(succFlow, parseContext)
+            return
         }
     }
 
@@ -230,14 +301,26 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         // LibraryPackage
-        ctx.libraryPackage()?.let { _ ->
-            // TODO: Delegate to LibraryPackageVisitor
+        ctx.libraryPackage()?.let { libPkg ->
+            LibraryPackageVisitor().visit(libPkg, parseContext)
             return
         }
 
         // Namespace (generic)
         ctx.namespace()?.let { ns ->
             NamespaceVisitor().visit(ns, parseContext)
+            return
+        }
+
+        // Type (generic)
+        ctx.type()?.let { type ->
+            TypeVisitor().visit(type, parseContext)
+            return
+        }
+
+        // Classifier (generic)
+        ctx.classifier()?.let { classifier ->
+            ClassifierVisitor().visit(classifier, parseContext)
             return
         }
 
@@ -248,56 +331,56 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         // DataType
-        ctx.datatype()?.let { _ ->
-            // TODO: Delegate to DataTypeVisitor
+        ctx.datatype()?.let { dt ->
+            DataTypeVisitor().visit(dt, parseContext)
             return
         }
 
         // Structure
-        ctx.structure()?.let { _ ->
-            // TODO: Delegate to StructureVisitor
+        ctx.structure()?.let { struct ->
+            StructureVisitor().visit(struct, parseContext)
             return
         }
 
         // Association
-        ctx.association()?.let { _ ->
-            // TODO: Delegate to AssociationVisitor
+        ctx.association()?.let { assoc ->
+            AssociationVisitor().visit(assoc, parseContext)
             return
         }
 
         // AssociationStructure
-        ctx.associationStructure()?.let { _ ->
-            // TODO: Delegate to AssociationStructureVisitor
+        ctx.associationStructure()?.let { assocStruct ->
+            AssociationStructureVisitor().visit(assocStruct, parseContext)
             return
         }
 
         // Behavior
-        ctx.behavior()?.let { _ ->
-            // TODO: Delegate to BehaviorVisitor
+        ctx.behavior()?.let { beh ->
+            BehaviorVisitor().visit(beh, parseContext)
             return
         }
 
         // Function
-        ctx.function()?.let { _ ->
-            // TODO: Delegate to FunctionVisitor
+        ctx.function()?.let { func ->
+            FunctionVisitor().visit(func, parseContext)
             return
         }
 
         // Predicate
-        ctx.predicate()?.let { _ ->
-            // TODO: Delegate to PredicateVisitor
+        ctx.predicate()?.let { pred ->
+            PredicateVisitor().visit(pred, parseContext)
             return
         }
 
         // Interaction
-        ctx.interaction()?.let { _ ->
-            // TODO: Delegate to InteractionVisitor
+        ctx.interaction()?.let { inter ->
+            InteractionVisitor().visit(inter, parseContext)
             return
         }
 
         // Metaclass
-        ctx.metaclass()?.let { _ ->
-            // TODO: Delegate to MetaclassVisitor
+        ctx.metaclass()?.let { meta ->
+            MetaclassVisitor().visit(meta, parseContext)
             return
         }
 
@@ -314,23 +397,23 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         // Relationship elements
-        ctx.specialization()?.let { _ ->
-            // TODO: Delegate to SpecializationVisitor
+        ctx.specialization()?.let { spec ->
+            SpecializationVisitor().visit(spec, parseContext)
             return
         }
 
-        ctx.conjugation()?.let { _ ->
-            // TODO: Delegate to ConjugationVisitor
+        ctx.conjugation()?.let { conj ->
+            ConjugationVisitor().visit(conj, parseContext)
             return
         }
 
-        ctx.subclassification()?.let { _ ->
-            // TODO: Delegate to SubclassificationVisitor
+        ctx.subclassification()?.let { subcl ->
+            SubclassificationVisitor().visit(subcl, parseContext)
             return
         }
 
-        ctx.disjoining()?.let { _ ->
-            // TODO: Delegate to DisjoiningVisitor
+        ctx.disjoining()?.let { disj ->
+            DisjoiningVisitor().visit(disj, parseContext)
             return
         }
 
@@ -339,18 +422,18 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
             return
         }
 
-        ctx.featureTyping()?.let { _ ->
-            // TODO: Delegate to FeatureTypingVisitor
+        ctx.featureTyping()?.let { ft ->
+            FeatureTypingVisitor().visit(ft, parseContext)
             return
         }
 
-        ctx.subsetting()?.let { _ ->
-            // TODO: Delegate to SubsettingVisitor
+        ctx.subsetting()?.let { sub ->
+            SubsettingVisitor().visit(sub, parseContext)
             return
         }
 
-        ctx.redefinition()?.let { _ ->
-            // TODO: Delegate to RedefinitionVisitor
+        ctx.redefinition()?.let { redef ->
+            RedefinitionVisitor().visit(redef, parseContext)
             return
         }
 
@@ -378,7 +461,36 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         ctx: KerMLParser.Import_Context,
         parseContext: ParseContext
     ) {
-        // TODO: Implement import parsing
-        // Creates Import or MembershipImport based on import type
+        ImportVisitor().visit(ctx, parseContext)
+    }
+
+    /**
+     * Parse an annotating element (dispatches to specific annotation visitor).
+     *
+     * Grammar: annotatingElement = comment | documentation | textualRepresentation | metadataFeature
+     */
+    private fun parseAnnotatingElement(
+        ctx: KerMLParser.AnnotatingElementContext,
+        parseContext: ParseContext
+    ) {
+        ctx.comment()?.let { comment ->
+            CommentVisitor().visit(comment, parseContext)
+            return
+        }
+
+        ctx.documentation()?.let { doc ->
+            DocumentationVisitor().visit(doc, parseContext)
+            return
+        }
+
+        ctx.textualRepresentation()?.let { textRep ->
+            TextualRepresentationVisitor().visit(textRep, parseContext)
+            return
+        }
+
+        ctx.metadataFeature()?.let { metadata ->
+            MetadataFeatureVisitor().visit(metadata, parseContext)
+            return
+        }
     }
 }

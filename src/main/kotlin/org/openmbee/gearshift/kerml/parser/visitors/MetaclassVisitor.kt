@@ -15,50 +15,50 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors
 
+import org.openmbee.gearshift.generated.interfaces.Metaclass
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
-import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
 
 /**
- * Visitor for Class elements.
+ * Visitor for Metaclass elements.
  *
- * Per KerML spec 8.2.5.2: Classes are classifiers that represent object types with identity.
+ * Per KerML spec 8.2.3.3.4: Metaclasses are classifiers for metadata features.
  *
  * Grammar:
  * ```
- * class
- *     : typePrefix CLASS
+ * metaclass
+ *     : typePrefix METACLASS
  *       classifierDeclaration typeBody
  *     ;
  * ```
  *
- * Class extends Classifier. Uses inherited parsing from BaseClassifierVisitor.
+ * Metaclass extends Structure.
  */
-class ClassVisitor : BaseClassifierVisitor<KerMLParser.ClassContext, KerMLClass>() {
+class MetaclassVisitor : BaseClassifierVisitor<KerMLParser.MetaclassContext, Metaclass>() {
 
-    override fun visit(ctx: KerMLParser.ClassContext, parseContext: ParseContext): KerMLClass {
-        val cls = parseContext.create<KerMLClass>()
+    override fun visit(ctx: KerMLParser.MetaclassContext, parseContext: ParseContext): Metaclass {
+        val metaclass = parseContext.create<Metaclass>()
 
-        // Parse typePrefix (inherited from BaseTypeVisitor)
-        parseTypePrefix(ctx.typePrefix(), cls)
+        // Parse type prefix (inherited from BaseTypeVisitor)
+        parseTypePrefix(ctx.typePrefix(), metaclass)
 
-        // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
+        // Parse classifier declaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, cls, parseContext)
+            parseClassifierDeclaration(decl, metaclass, parseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(cls, cls.declaredName ?: "")
+        val childContext = parseContext.withParent(metaclass, metaclass.declaredName ?: "")
 
-        // Create ownership relationship with parent namespace
-        createOwnershipMembership(cls, parseContext)
+        // Create ownership membership (inherited from BaseTypeVisitor)
+        createOwnershipMembership(metaclass, parseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
             parseTypeBody(body, childContext)
         }
 
-        return cls
+        return metaclass
     }
 }

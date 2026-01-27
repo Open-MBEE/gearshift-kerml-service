@@ -15,8 +15,14 @@
  */
 package org.openmbee.gearshift.kerml
 
-import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
+import org.openmbee.gearshift.generated.interfaces.Namespace
+import org.openmbee.gearshift.kerml.antlr.KerMLLexer
+import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.KerMLParseResult
+import org.openmbee.gearshift.kerml.parser.visitors.RootNamespaceVisitor
+import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -60,6 +66,8 @@ object KerMLSemanticLibraryLoader {
     /**
      * Load the Kernel Semantic Library into the given KerMLModelFactory.
      *
+     * Uses the new typed visitor infrastructure for high-level API usage.
+     *
      * @param factory The factory to load the library into
      * @param libraryPath Optional custom path to the library directory
      * @return List of parse results for each library file
@@ -73,8 +81,8 @@ object KerMLSemanticLibraryLoader {
         for (fileName in LIBRARY_FILES) {
             val filePath = libraryPath.resolve(fileName)
             if (Files.exists(filePath)) {
-                val parseResult = factory.getCoordinator().parseFile(filePath)
-                results.add(LibraryLoadResult(fileName, filePath, parseResult))
+                val result = parseLibraryFile(factory, filePath, fileName)
+                results.add(result)
             } else {
                 results.add(LibraryLoadResult(fileName, filePath, null, "File not found"))
             }
@@ -87,6 +95,8 @@ object KerMLSemanticLibraryLoader {
      * Load only the Base library (minimal for core semantics).
      * This loads Base.kerml which contains Anything and things.
      *
+     * Uses the new typed visitor infrastructure for high-level API usage.
+     *
      * @param factory The factory to load the library into
      * @param libraryPath Optional custom path to the library directory
      * @return The parse result for Base.kerml
@@ -97,10 +107,66 @@ object KerMLSemanticLibraryLoader {
     ): LibraryLoadResult {
         val filePath = libraryPath.resolve("Base.kerml")
         return if (Files.exists(filePath)) {
-            val parseResult = factory.getCoordinator().parseFile(filePath)
-            LibraryLoadResult("Base.kerml", filePath, parseResult)
+            parseLibraryFile(factory, filePath, "Base.kerml")
         } else {
             LibraryLoadResult("Base.kerml", filePath, null, "File not found")
+        }
+    }
+
+    /**
+     * Parse a library file using the new typed visitor infrastructure.
+     * This uses high-level APIs which properly set up memberships and relationships.
+     */
+    private fun parseLibraryFile(
+        factory: KerMLModelFactory,
+        filePath: Path,
+        fileName: String
+    ): LibraryLoadResult {
+        return try {
+            println("DEBUG: Loading library file: $filePath")
+            val lexer = KerMLLexer(CharStreams.fromPath(filePath))
+            val tokens = CommonTokenStream(lexer)
+            val parser = KerMLParser(tokens)
+
+            val tree = parser.rootNamespace()
+            println("DEBUG: Parsed tree, namespace body elements: ${tree.namespaceBodyElement().size}")
+
+            // Use the new typed visitor with ParseContext
+            val parseContext = ParseContext(factory.engine)
+            val rootNamespace = RootNamespaceVisitor().visit(tree, parseContext)
+            println("DEBUG: Root namespace created with id: ${rootNamespace.id}")
+
+            // Check what memberships we have
+            val memberships = rootNamespace.ownedMembership
+            println("DEBUG: Root namespace has ${memberships.size} ownedMemberships")
+            for (m in memberships) {
+                val element = m.memberElement
+                println("DEBUG:   Membership: ${m.memberName} -> ${element?.let { "${it::class.simpleName}(${it.declaredName})" }}")
+
+                // If it's a namespace, check its contents
+                if (element is Namespace) {
+                    val innerMemberships = element.ownedMembership
+                    println("DEBUG:     Inner namespace has ${innerMemberships.size} ownedMemberships")
+                    for (inner in innerMemberships.take(5)) {
+                        println("DEBUG:       - ${inner.memberName} -> ${inner.memberElement?.let { "${it::class.simpleName}(${it.declaredName})" }}")
+                    }
+                    if (innerMemberships.size > 5) {
+                        println("DEBUG:       ... and ${innerMemberships.size - 5} more")
+                    }
+                }
+            }
+
+            // Create a parse result for compatibility
+            val parseResult = KerMLParseResult(
+                success = true,
+                rootElementId = rootNamespace.id
+            )
+
+            LibraryLoadResult(fileName, filePath, parseResult)
+        } catch (e: Exception) {
+            println("DEBUG: Error loading library: ${e.message}")
+            e.printStackTrace()
+            LibraryLoadResult(fileName, filePath, null, "Parse error: ${e.message}")
         }
     }
 
