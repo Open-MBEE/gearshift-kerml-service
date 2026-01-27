@@ -117,7 +117,8 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
 
         ctx.qualifiedName()?.let { qnCtx ->
             val superclassName = extractQualifiedName(qnCtx)
-            // TODO: Record unresolved reference for later resolution
+            // Register pending reference for superclassifier
+            parseContext.registerReference(subclassification, "superclassifier", superclassName)
         }
     }
 }

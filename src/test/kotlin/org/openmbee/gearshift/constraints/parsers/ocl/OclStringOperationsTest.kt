@@ -34,6 +34,7 @@ class OclStringOperationsTest : DescribeSpec({
         override fun getProperty(instanceId: String, propertyName: String): Any? = null
         override fun isSubclassOf(subclass: String, superclass: String): Boolean = false
         override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? = null
+        override fun resolveGlobal(qualifiedName: String): MDMObject? = null
     }
 
     fun createExecutor(): OclExecutor {
@@ -151,6 +152,7 @@ class OclStringOperationsTest : DescribeSpec({
                 return subclass == "TestSubClass" && superclass == "TestClass"
             }
             override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? = null
+            override fun resolveGlobal(qualifiedName: String): MDMObject? = null
         }
 
         it("should return true for exact type match") {

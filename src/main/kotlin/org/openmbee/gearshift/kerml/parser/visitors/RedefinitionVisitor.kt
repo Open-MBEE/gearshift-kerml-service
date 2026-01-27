@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Redefinition
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Redefinition elements.
@@ -47,17 +48,15 @@ class RedefinitionVisitor : BaseRelationshipVisitor<KerMLParser.RedefinitionCont
         parseIdentification(ctx.identification(), redefinition)
 
         // Parse redefining feature (specificType)
-        ctx.specificType()?.let { specific ->
-            specific.qualifiedName()?.let { qn ->
-                val redefiningFeatureName = extractQualifiedName(qn)
-                // TODO: Resolve and set redefinition.redefiningFeature
-            }
+        ctx.specificType()?.qualifiedName()?.let { qn ->
+            val redefiningFeatureName = extractQualifiedName(qn)
+            parseContext.registerReference(redefinition, "redefiningFeature", redefiningFeatureName)
         }
 
         // Parse redefined feature (generalType)
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val redefinedFeatureName = extractQualifiedName(qn)
-            // TODO: Resolve and set redefinition.redefinedFeature
+            parseContext.registerReference(redefinition, "redefinedFeature", redefinedFeatureName, isRedefinitionContext = true)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

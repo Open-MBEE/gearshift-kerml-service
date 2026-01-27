@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Subsetting elements.
@@ -47,17 +48,15 @@ class SubsettingVisitor : BaseRelationshipVisitor<KerMLParser.SubsettingContext,
         parseIdentification(ctx.identification(), subsetting)
 
         // Parse subsetting feature (specificType)
-        ctx.specificType()?.let { specific ->
-            specific.qualifiedName()?.let { qn ->
-                val subsettingFeatureName = extractQualifiedName(qn)
-                // TODO: Resolve and set subsetting.subsettingFeature
-            }
+        ctx.specificType()?.qualifiedName()?.let { qn ->
+            val subsettingFeatureName = extractQualifiedName(qn)
+            parseContext.registerReference(subsetting, "subsettingFeature", subsettingFeatureName)
         }
 
         // Parse subsetted feature (generalType)
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val subsettedFeatureName = extractQualifiedName(qn)
-            // TODO: Resolve and set subsetting.subsettedFeature
+            parseContext.registerReference(subsetting, "subsettedFeature", subsettedFeatureName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

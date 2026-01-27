@@ -22,13 +22,14 @@ import org.openmbee.gearshift.kerml.antlr.KerMLParser
 
 /**
  * Context passed to visitors during parsing.
- * Contains the engine, parent element, and namespace tracking for qualified name resolution.
+ * Contains the engine, parent element, namespace tracking, and reference collector.
  */
 data class ParseContext(
     val engine: GearshiftEngine,
     val parent: ModelElement? = null,
     val parentQualifiedName: String = "",
-    val namespaceStack: ArrayDeque<String> = ArrayDeque()
+    val namespaceStack: ArrayDeque<String> = ArrayDeque(),
+    val referenceCollector: ReferenceCollector? = null
 ) {
     /**
      * Create a child context with a new parent element.
@@ -63,6 +64,13 @@ data class ParseContext(
         val typeName = T::class.simpleName ?: throw IllegalArgumentException("Cannot determine type name")
         val (id, obj) = engine.createInstance(typeName)
         return Wrappers.wrap(obj, engine) as T
+    }
+
+    /**
+     * Get the parent element ID for reference resolution context.
+     */
+    fun getParentElementId(): String? {
+        return (parent as? org.openmbee.gearshift.generated.interfaces.Element)?.elementId
     }
 }
 

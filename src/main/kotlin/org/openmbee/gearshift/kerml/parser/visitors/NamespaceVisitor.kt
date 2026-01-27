@@ -391,8 +391,8 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         // Multiplicity
-        ctx.multiplicity()?.let { _ ->
-            // TODO: Delegate to MultiplicityVisitor
+        ctx.multiplicity()?.let { mult ->
+            MultiplicityVisitor().visit(mult, parseContext)
             return
         }
 

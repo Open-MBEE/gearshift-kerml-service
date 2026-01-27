@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Conjugation
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Conjugation elements.
@@ -59,19 +60,19 @@ class ConjugationVisitor : BaseRelationshipVisitor<KerMLParser.ConjugationContex
         // First reference is the conjugated type
         if (qualifiedNames.size >= 1) {
             val conjugatedTypeName = extractQualifiedName(qualifiedNames[0])
-            // TODO: Resolve and set conjugation.conjugatedType
+            parseContext.registerReference(conjugation, "conjugatedType", conjugatedTypeName)
         } else if (featureChains.size >= 1) {
-            val conjugatedChain = parseFeatureChain(featureChains[0])
-            // TODO: Resolve feature chain reference
+            // Feature chain references require special handling
+            parseFeatureChain(featureChains[0])
         }
 
         // Second reference is the original type
         if (qualifiedNames.size >= 2) {
             val originalTypeName = extractQualifiedName(qualifiedNames[1])
-            // TODO: Resolve and set conjugation.originalType
+            parseContext.registerReference(conjugation, "originalType", originalTypeName)
         } else if (featureChains.size >= 2) {
-            val originalChain = parseFeatureChain(featureChains[1])
-            // TODO: Resolve feature chain reference
+            // Feature chain references require special handling
+            parseFeatureChain(featureChains[1])
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

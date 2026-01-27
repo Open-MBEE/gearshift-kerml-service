@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Specialization
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Specialization elements.
@@ -47,17 +48,15 @@ class SpecializationVisitor : BaseRelationshipVisitor<KerMLParser.Specialization
         parseIdentification(ctx.identification(), specialization)
 
         // Parse specific type reference
-        ctx.specificType()?.let { specific ->
-            specific.qualifiedName()?.let { qn ->
-                val specificTypeName = extractQualifiedName(qn)
-                // TODO: Resolve and set specialization.specific
-            }
+        ctx.specificType()?.qualifiedName()?.let { qn ->
+            val specificTypeName = extractQualifiedName(qn)
+            parseContext.registerReference(specialization, "specific", specificTypeName)
         }
 
         // Parse general type reference
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val generalTypeName = extractQualifiedName(qn)
-            // TODO: Resolve and set specialization.general
+            parseContext.registerReference(specialization, "general", generalTypeName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

@@ -20,6 +20,7 @@ import org.openmbee.gearshift.generated.interfaces.Type
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypeVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for generic Type elements.
@@ -136,7 +137,8 @@ class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val generalName = extractQualifiedName(qnCtx)
-            // TODO: Record unresolved reference for later resolution
+            // Register pending reference for general type
+            parseContext.registerReference(specialization, "general", generalName)
         }
     }
 }

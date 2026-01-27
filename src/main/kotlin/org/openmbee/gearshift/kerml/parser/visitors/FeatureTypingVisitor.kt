@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.FeatureTyping
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for FeatureTyping elements.
@@ -49,13 +50,13 @@ class FeatureTypingVisitor : BaseRelationshipVisitor<KerMLParser.FeatureTypingCo
         // Parse typedFeature reference
         ctx.typedFeature?.let { qn ->
             val typedFeatureName = extractQualifiedName(qn)
-            // TODO: Resolve and set featureTyping.typedFeature
+            parseContext.registerReference(featureTyping, "typedFeature", typedFeatureName)
         }
 
         // Parse general type (the typing type) reference
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val typeName = extractQualifiedName(qn)
-            // TODO: Resolve and set featureTyping.type
+            parseContext.registerReference(featureTyping, "type", typeName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

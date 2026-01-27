@@ -22,6 +22,7 @@ import org.openmbee.gearshift.generated.interfaces.NamespaceImport
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Import elements.
@@ -99,7 +100,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
         // Parse imported membership reference
         ctx.importedMembership?.let { qn ->
             val membershipName = extractQualifiedName(qn)
-            // TODO: Resolve and set membershipImport.importedMembership
+            parseContext.registerReference(membershipImport, "importedMembership", membershipName)
         }
 
         // Parse isRecursive
@@ -124,7 +125,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
         // Parse imported namespace reference
         ctx.qualifiedName()?.let { qn ->
             val namespaceName = extractQualifiedName(qn)
-            // TODO: Resolve and set namespaceImport.importedNamespace
+            parseContext.registerReference(namespaceImport, "importedNamespace", namespaceName)
         }
 
         // Parse isRecursive

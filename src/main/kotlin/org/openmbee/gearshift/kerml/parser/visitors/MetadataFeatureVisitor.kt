@@ -16,10 +16,13 @@
 package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Annotation
+import org.openmbee.gearshift.generated.interfaces.FeatureTyping
 import org.openmbee.gearshift.generated.interfaces.MetadataFeature
+import org.openmbee.gearshift.generated.interfaces.Redefinition
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for MetadataFeature elements.
@@ -84,10 +87,12 @@ class MetadataFeatureVisitor : BaseFeatureVisitor<KerMLParser.MetadataFeatureCon
         }
 
         // Parse owned feature typing
-        ctx.ownedFeatureTyping()?.let { typing ->
-            typing.generalType()?.qualifiedName()?.let { qn ->
+        ctx.ownedFeatureTyping()?.let { typingCtx ->
+            typingCtx.generalType()?.qualifiedName()?.let { qn ->
+                val featureTyping = parseContext.create<FeatureTyping>()
+                featureTyping.typedFeature = metadata
                 val typeName = extractQualifiedName(qn)
-                // TODO: Resolve and set typing relationship
+                parseContext.registerReference(featureTyping, "type", typeName)
             }
         }
     }
@@ -105,7 +110,7 @@ class MetadataFeatureVisitor : BaseFeatureVisitor<KerMLParser.MetadataFeatureCon
 
         ctx.qualifiedName()?.let { qn ->
             val targetName = extractQualifiedName(qn)
-            // TODO: Resolve and set annotation.annotatedElement
+            parseContext.registerReference(annotation, "annotatedElement", targetName)
         }
     }
 
@@ -142,8 +147,10 @@ class MetadataFeatureVisitor : BaseFeatureVisitor<KerMLParser.MetadataFeatureCon
         // Parse redefinition
         ctx.ownedRedefinition()?.let { redef ->
             redef.generalType()?.qualifiedName()?.let { qn ->
+                val redefinition = parseContext.create<Redefinition>()
+                redefinition.redefiningFeature = feature
                 val redefinedName = extractQualifiedName(qn)
-                // TODO: Resolve and create redefinition relationship
+                parseContext.registerReference(redefinition, "redefinedFeature", redefinedName, isRedefinitionContext = true)
             }
         }
 

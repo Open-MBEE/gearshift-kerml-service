@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Disjoining
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Disjoining elements.
@@ -59,19 +60,19 @@ class DisjoiningVisitor : BaseRelationshipVisitor<KerMLParser.DisjoiningContext,
         // First reference is typeDisjoined
         if (qualifiedNames.size >= 1) {
             val typeName = extractQualifiedName(qualifiedNames[0])
-            // TODO: Resolve and set disjoining.typeDisjoined
+            parseContext.registerReference(disjoining, "typeDisjoined", typeName)
         } else if (featureChains.size >= 1) {
-            val chain = parseFeatureChain(featureChains[0])
-            // TODO: Resolve feature chain reference
+            // Feature chain references require special handling
+            parseFeatureChain(featureChains[0])
         }
 
         // Second reference is disjoiningType
         if (qualifiedNames.size >= 2) {
             val typeName = extractQualifiedName(qualifiedNames[1])
-            // TODO: Resolve and set disjoining.disjoiningType
+            parseContext.registerReference(disjoining, "disjoiningType", typeName)
         } else if (featureChains.size >= 2) {
-            val chain = parseFeatureChain(featureChains[1])
-            // TODO: Resolve feature chain reference
+            // Feature chain references require special handling
+            parseFeatureChain(featureChains[1])
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)

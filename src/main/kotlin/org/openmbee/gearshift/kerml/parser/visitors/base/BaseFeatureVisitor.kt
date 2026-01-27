@@ -223,7 +223,8 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val typeName = extractQualifiedName(qnCtx)
-            // TODO: Resolve type reference
+            // Register pending reference for type resolution
+            parseContext.registerReference(featureTyping, "type", typeName)
         }
     }
 
@@ -257,7 +258,8 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val featureName = extractQualifiedName(qnCtx)
-            // TODO: Resolve feature reference
+            // Register pending reference for subsetted feature
+            parseContext.registerReference(subsetting, "subsettedFeature", featureName)
         }
     }
 
@@ -291,7 +293,8 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val featureName = extractQualifiedName(qnCtx)
-            // TODO: Resolve feature reference
+            // Register pending reference for redefined feature (uses redefinition context)
+            parseContext.registerReference(redefinition, "redefinedFeature", featureName, isRedefinitionContext = true)
         }
     }
 

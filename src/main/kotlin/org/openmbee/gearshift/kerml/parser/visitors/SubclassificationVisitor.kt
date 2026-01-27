@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
  * Visitor for Subclassification elements.
@@ -48,13 +49,13 @@ class SubclassificationVisitor : BaseRelationshipVisitor<KerMLParser.Subclassifi
         // Parse subclassifier reference
         ctx.subclassifier?.let { qn ->
             val subclassifierName = extractQualifiedName(qn)
-            // TODO: Resolve and set subclassification.subclassifier
+            parseContext.registerReference(subclassification, "subclassifier", subclassifierName)
         }
 
         // Parse superclassifier reference
         ctx.superclassifier?.let { qn ->
             val superclassifierName = extractQualifiedName(qn)
-            // TODO: Resolve and set subclassification.superclassifier
+            parseContext.registerReference(subclassification, "superclassifier", superclassifierName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
