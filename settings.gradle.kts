@@ -6,3 +6,7 @@
  */
 
 rootProject.name = "gearshift-kerml-service"
+
+include("gearshift-framework")
+include("gearshift-kerml-model")
+include("gearshift-kerml-runtime")
