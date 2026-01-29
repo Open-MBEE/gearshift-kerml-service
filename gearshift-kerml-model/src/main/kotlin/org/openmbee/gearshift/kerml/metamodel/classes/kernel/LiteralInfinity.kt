@@ -15,9 +15,10 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML LiteralInfinity metaclass.
@@ -30,13 +31,13 @@ fun createLiteralInfinityMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("LiteralExpression"),
     attributes = emptyList(),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkLiteralInfinitySpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::literalIntegerEvaluations')",
-            libraryTypeName = "Performances::literalIntegerEvaluations",
-            description = "A LiteralInfinity must directly or indirectly specialize Performances::literalIntegerEvaluations from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "literalInfinityEvaluationsBinding",
+            baseConcept = "Performances::literalIntegerEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "A LiteralInfinity is a LiteralExpression that provides the positive infinity value (*)."

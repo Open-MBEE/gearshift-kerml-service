@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Flow metaclass.
@@ -31,13 +34,6 @@ fun createFlowMetaClass() = MetaClass(
     superclasses = listOf("Step", "Connector"),
     attributes = emptyList(),
     constraints = listOf(
-        MetaConstraint(
-            name = "checkFlowSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Transfers::transfers')",
-            libraryTypeName = "Transfers::transfers",
-            description = "A Flow must directly or indirectly specialize the Step Transfers::transfers from the Kernel Semantic Library."
-        ),
         MetaConstraint(
             name = "checkFlowWithEndsSpecialization",
             type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
@@ -81,6 +77,16 @@ fun createFlowMetaClass() = MetaClass(
             expression = "ownedFeature->selectByKind(PayloadFeature)->size() <= 1",
             description = "A Flow must have at most one ownedFeature that is a PayloadFeature."
         )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "flowTransfersBinding",
+            baseConcept = "Transfers::transfers",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
+        )
+        // Note: checkFlowWithEndsSpecialization for Transfers::flowTransfers requires collection non-empty checking,
+        // which is not yet supported by BindingCondition
     ),
     description = "A Flow is a Step that represents the transfer of values from one Feature to another. Flows can take non-zero time to complete."
 )

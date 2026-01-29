@@ -15,10 +15,11 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML LiteralInteger metaclass.
@@ -37,13 +38,13 @@ fun createLiteralIntegerMetaClass() = MetaClass(
             description = "The Integer value that is the result of evaluating this LiteralInteger."
         )
     ),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkLiteralIntegerSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::literalIntegerEvaluations')",
-            libraryTypeName = "Performances::literalIntegerEvaluations",
-            description = "A LiteralInteger must directly or indirectly specialize Performances::literalIntegerEvaluations from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "literalIntegerEvaluationsBinding",
+            baseConcept = "Performances::literalIntegerEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "A LiteralInteger is a LiteralExpression that provides an Integer value as a result."

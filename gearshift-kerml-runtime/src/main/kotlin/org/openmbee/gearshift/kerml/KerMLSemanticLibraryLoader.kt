@@ -20,7 +20,6 @@ import org.antlr.v4.runtime.CommonTokenStream
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.kerml.antlr.KerMLLexer
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
-import org.openmbee.gearshift.kerml.parser.KerMLParseResult
 import org.openmbee.gearshift.kerml.parser.visitors.RootNamespaceVisitor
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import java.nio.file.Files
@@ -162,7 +161,7 @@ object KerMLSemanticLibraryLoader {
             // Create a parse result for compatibility
             val parseResult = KerMLParseResult(
                 success = true,
-                rootElementId = rootNamespace.id
+                rootNamespace = rootNamespace
             )
 
             LibraryLoadResult(fileName, filePath, parseResult)

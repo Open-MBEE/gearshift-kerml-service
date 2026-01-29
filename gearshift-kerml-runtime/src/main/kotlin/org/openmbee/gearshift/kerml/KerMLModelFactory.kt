@@ -15,17 +15,32 @@
  */
 package org.openmbee.gearshift.kerml
 
-import org.openmbee.gearshift.framework.runtime.MDMEngine
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
 import org.openmbee.gearshift.MDMModelFactory
-import org.openmbee.gearshift.generated.Wrappers
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
-import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
-import org.openmbee.gearshift.kerml.parser.KerMLParseResult
+import org.openmbee.gearshift.kerml.antlr.KerMLLexer
+import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KerMLErrorListener
+import org.openmbee.gearshift.kerml.parser.KerMLParseError
+import org.openmbee.gearshift.kerml.parser.visitors.TypedVisitorFactory
+import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.ReferenceCollector
 import java.nio.file.Path
 import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
+
+/**
+ * Result of a KerML parsing operation.
+ */
+data class KerMLParseResult(
+    val success: Boolean,
+    val rootNamespace: Namespace? = null,
+    val errors: List<KerMLParseError> = emptyList()
+)
 
 /**
  * Factory for parsing KerML text and accessing typed wrapper objects.
@@ -64,7 +79,6 @@ class KerMLModelFactory(
     projectDescription: String? = null
 ) : MDMModelFactory(engine, projectId, projectName, projectDescription) {
 
-    private val coordinator = KerMLParseCoordinator(engine)
     private var lastParseResult: KerMLParseResult? = null
 
     /**
@@ -136,10 +150,9 @@ class KerMLModelFactory(
      * @return The root Package if successful, null otherwise
      */
     fun parseString(kermlText: String): KerMLPackage? {
-        // Don't reset - allow accumulation across multiple parses
-        lastParseResult = coordinator.parseString(kermlText)
+        lastParseResult = parseKerML(CharStreams.fromString(kermlText))
 
-        if (lastParseResult!!.errors.isNotEmpty()) {
+        if (!lastParseResult!!.success) {
             return null
         }
 
@@ -158,15 +171,60 @@ class KerMLModelFactory(
      * @return The root Package if successful, null otherwise
      */
     fun parseFile(path: Path): KerMLPackage? {
-        // Don't reset - allow accumulation across multiple parses
-        lastParseResult = coordinator.parseFile(path)
+        lastParseResult = parseKerML(CharStreams.fromPath(path))
 
-        if (lastParseResult!!.errors.isNotEmpty()) {
+        if (!lastParseResult!!.success) {
             return null
         }
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
+    }
+
+    /**
+     * Parse KerML from a CharStream using the visitor-based architecture.
+     */
+    private fun parseKerML(input: org.antlr.v4.runtime.CharStream): KerMLParseResult {
+        val errorListener = KerMLErrorListener()
+
+        // Create ANTLR lexer and parser
+        val lexer = KerMLLexer(input)
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(errorListener)
+
+        val tokens = CommonTokenStream(lexer)
+        val parser = KerMLParser(tokens)
+        parser.removeErrorListeners()
+        parser.addErrorListener(errorListener)
+
+        // Parse the root namespace
+        val tree = parser.rootNamespace()
+
+        // Check for syntax errors
+        if (errorListener.hasErrors) {
+            return KerMLParseResult(
+                success = false,
+                errors = errorListener.errors
+            )
+        }
+
+        // Create parse context with reference collector
+        val referenceCollector = ReferenceCollector()
+        val parseContext = ParseContext(
+            engine = engine,
+            referenceCollector = referenceCollector
+        )
+
+        // Use the typed visitor to parse the tree
+        val rootNamespace = TypedVisitorFactory.Core.rootNamespace.visit(tree, parseContext)
+
+        // TODO: Resolve collected references after parsing
+        // For now, references are collected but resolution is deferred
+
+        return KerMLParseResult(
+            success = true,
+            rootNamespace = rootNamespace
+        )
     }
 
     /**
@@ -178,14 +236,8 @@ class KerMLModelFactory(
      * Get the root element if one was parsed.
      */
     fun getRootElement(): Element? {
-        val rootId = lastParseResult?.rootElementId ?: return null
-        return getAs<Element>(rootId)
+        return lastParseResult?.rootNamespace as? Element
     }
-
-    /**
-     * Get all parsed elements by qualified name (from old coordinator).
-     */
-    fun getParsedElements(): Map<String, String> = coordinator.getParsedElements()
 
     // ===== Name Resolution =====
 
@@ -197,15 +249,15 @@ class KerMLModelFactory(
      * @return The element or null if not found
      */
     fun findByQualifiedName(qualifiedName: String): Element? {
-        // Try the coordinator's parsed elements map
-        val id = coordinator.getParsedElements()[qualifiedName]
-        if (id != null) {
-            return getAs<Element>(id)
-        }
-
         // TODO: Implement proper name resolution using KerML spec operations
-        // For now, return null - name resolution will be reimplemented
-        return null
+        // For now, search by name parts
+        val parts = qualifiedName.split("::")
+        if (parts.isEmpty()) return null
+
+        // Try to find element with matching declared name
+        return allOfType<Element>().firstOrNull { element ->
+            element.declaredName == parts.last()
+        }
     }
 
     /**
@@ -218,11 +270,6 @@ class KerMLModelFactory(
     inline fun <reified T : Element> findByName(name: String): T? {
         return allOfType<T>().firstOrNull { it.name == name || it.declaredName == name }
     }
-
-    /**
-     * Get the parse coordinator for advanced operations.
-     */
-    fun getCoordinator(): KerMLParseCoordinator = coordinator
 
     // ===== Model Management =====
 
@@ -246,7 +293,6 @@ class KerMLModelFactory(
      * Clear all parsed data and reset the factory.
      */
     override fun reset() {
-        coordinator.reset()
         lastParseResult = null
         super.reset()
     }

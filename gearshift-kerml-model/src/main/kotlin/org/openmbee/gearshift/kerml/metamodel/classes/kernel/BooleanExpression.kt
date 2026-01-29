@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML BooleanExpression metaclass.
@@ -31,17 +34,18 @@ fun createBooleanExpressionMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkBooleanExpressionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::booleanEvaluations')",
-            libraryTypeName = "Performances::booleanEvaluations",
-            description = "A BooleanExpression must directly or indirectly specialize the base BooleanExpression Performances::booleanEvaluations from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveBooleanExpressionPredicate",
             type = ConstraintType.REDEFINES_DERIVATION,
             expression = "type->selectByKind(Predicate)",
             description = "The Predicate that types this BooleanExpression."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "booleanExpressionEvaluationsBinding",
+            baseConcept = "Performances::booleanEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "An expression that evaluates to a boolean value"

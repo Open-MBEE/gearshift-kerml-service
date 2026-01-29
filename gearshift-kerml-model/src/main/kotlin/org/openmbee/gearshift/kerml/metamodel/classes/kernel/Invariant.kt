@@ -15,10 +15,11 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Invariant metaclass.
@@ -36,20 +37,21 @@ fun createInvariantMetaClass() = MetaClass(
             description = "Whether this invariant is negated"
         )
     ),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkInvariantNegatedSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "isNegated",
-            libraryTypeName = "Performances::falseEvaluations",
-            description = "An Invariant with isNegated = true must directly or indirectly specialize Performances::falseEvaluations from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        // Conditional: negated invariant subsets falseEvaluations
+        SemanticBinding(
+            name = "invariantFalseEvaluationsBinding",
+            baseConcept = "Performances::falseEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.PropertyEquals("isNegated", true)
         ),
-        MetaConstraint(
-            name = "checkInvariantSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "not isNegated",
-            libraryTypeName = "Performances::trueEvaluations",
-            description = "An Invariant with isNegated = false must directly or indirectly specialize Performances::trueEvaluations from the Kernel Semantic Library."
+        // Conditional: non-negated invariant subsets trueEvaluations
+        SemanticBinding(
+            name = "invariantTrueEvaluationsBinding",
+            baseConcept = "Performances::trueEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.PropertyEquals("isNegated", false)
         )
     ),
     description = "A boolean expression that specifies a constraint"

@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Association metaclass.
@@ -35,13 +38,6 @@ fun createAssociationMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "associationEnd->size() = 2 implies specializesFromLibrary('Links::BinaryLink')",
             description = "A binary Association must directly or indirectly specialize the base Association Links::binaryLink from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkAssociationSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Links::Link')",
-            libraryTypeName = "Links::Link",
-            description = "An Association must directly or indirectly specialize the base Association Links::Link from the Kernel Semantic Library."
         ),
         MetaConstraint(
             name = "conditionalImplicitBinaryLink",
@@ -98,6 +94,16 @@ fun createAssociationMetaClass() = MetaClass(
             expression = "oclIsKindOf(Structure) = oclIsKindOf(AssociationStructure)",
             description = "If an Association is also a kind of Structure, then it must be an AssociationStructure."
         )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "associationLinkBinding",
+            baseConcept = "Links::Link",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
+        )
+        // Note: conditionalImplicitBinaryLink for Links::BinaryLink requires collection size checking,
+        // which is not yet supported by BindingCondition
     ),
     description = "A classifier and relationship that represents an association"
 )

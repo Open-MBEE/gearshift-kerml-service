@@ -15,11 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaOperation
 import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML ConstructorExpression metaclass.
@@ -59,13 +62,6 @@ fun createConstructorExpressionMetaClass() = MetaClass(
             description = "The result of a ConstructorExpression must specialize the instantiatedType of the ConstructorExpression."
         ),
         MetaConstraint(
-            name = "checkConstructorExpressionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializes('Performances::constructorEvaluations')",
-            libraryTypeName = "Performances::constructorEvaluations",
-            description = "A ConstructorExpression must directly or indirectly specialize the Expression Performances::constructorEvaluations from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveConstructorExpressionArgument",
             type = ConstraintType.DERIVATION,
             redefines = "deriveInstantiationExpressionArgument",
@@ -96,6 +92,14 @@ fun createConstructorExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "ownedFeatures->excluding(result)->isEmpty()",
             description = "A ConstructorExpression must not have any ownedFeatures other than its result."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "constructorExpressionEvaluationsBinding",
+            baseConcept = "Performances::constructorEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     operations = listOf(

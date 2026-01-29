@@ -15,11 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaOperation
 import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML NullExpression metaclass.
@@ -31,13 +32,13 @@ fun createNullExpressionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Expression"),
     attributes = emptyList(),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkNullExpressionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::nullEvaluations')",
-            libraryTypeName = "Performances::nullEvaluations",
-            description = "A NullExpression must directly or indirectly specialize Performances::nullEvaluations from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "nullExpressionEvaluationsBinding",
+            baseConcept = "Performances::nullEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     operations = listOf(

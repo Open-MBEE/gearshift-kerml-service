@@ -15,11 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaOperation
 import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML LiteralExpression metaclass.
@@ -33,17 +36,18 @@ fun createLiteralExpressionMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkLiteralExpressionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::literalEvaluations')",
-            libraryTypeName = "Performances::literalEvaluations",
-            description = "A LiteralExpression must directly or indirectly specialize the base LiteralExpression Performances::literalEvaluations from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveLiteralExpressionIsModelLevelEvaluable",
             type = ConstraintType.REDEFINES_DERIVATION,
             expression = "true",
             description = "A LiteralExpression is always model-level evaluable."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "literalExpressionEvaluationsBinding",
+            baseConcept = "Performances::literalEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     operations = listOf(

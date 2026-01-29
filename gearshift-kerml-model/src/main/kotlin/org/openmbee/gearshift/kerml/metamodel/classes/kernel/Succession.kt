@@ -15,9 +15,10 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Succession metaclass.
@@ -29,13 +30,13 @@ fun createSuccessionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Connector"),
     attributes = emptyList(),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkSuccessionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Occurrences::happensBeforeLinks')",
-            libraryTypeName = "Occurrences::happensBeforeLinks",
-            description = "A Succession must directly or indirectly specialize the Feature Occurrences::happensBeforeLinks from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "successionHappensBeforeLinksBinding",
+            baseConcept = "Occurrences::happensBeforeLinks",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "A connector that represents succession between steps"

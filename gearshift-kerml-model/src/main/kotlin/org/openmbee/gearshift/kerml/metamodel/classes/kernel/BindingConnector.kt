@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML BindingConnector metaclass.
@@ -31,17 +34,18 @@ fun createBindingConnectorMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkBindingConnectorSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Links::selfLinks')",
-            libraryTypeName = "Links::selfLinks",
-            description = "A BindingConnector must directly or indirectly specialize the base BindingConnector Links::selfLinks from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "validateBindingConnectorIsBinary",
             type = ConstraintType.VERIFICATION,
             expression = "relatedFeature->size() = 2",
             description = "A BindingConnector must be binary."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "bindingConnectorSelfLinksBinding",
+            baseConcept = "Links::selfLinks",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "A connector that binds features together"

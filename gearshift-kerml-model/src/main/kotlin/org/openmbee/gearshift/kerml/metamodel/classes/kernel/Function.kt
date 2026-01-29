@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Function metaclass.
@@ -41,13 +44,6 @@ fun createFunctionMetaClass() = MetaClass(
                         binding.relatedFeature->includes(mem.ownedResultExpression.result)))
             """.trimIndent(),
             description = "If a Function has an Expression owned via a ResultExpressionMembership, then the owning Function must also own a BindingConnector between its result parameter and the result parameter of the resultExpression."
-        ),
-        MetaConstraint(
-            name = "checkFunctionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::Evaluation')",
-            libraryTypeName = "Performances::Evaluation",
-            description = "A Function must directly or indirectly specialize the base Function Performances::Evaluation from the Kernel Semantic Library."
         ),
         MetaConstraint(
             name = "deriveFunctionResult",
@@ -74,6 +70,14 @@ fun createFunctionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "featureMembership->selectByKind(ReturnParameterMembership)->size() = 1",
             description = "A Function must have exactly one featureMembership (owned or inherited) that is a ResultParameterMembership."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "functionEvaluationBinding",
+            baseConcept = "Performances::Evaluation",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
         )
     ),
     description = "A behavior that represents a function"

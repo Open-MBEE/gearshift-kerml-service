@@ -46,5 +46,50 @@ fun createStepMetaClass() = MetaClass(
             description = "The parameters of a Step are its directedFeatures, whose values are passed into and/or out of a performance of the Step."
         )
     ),
+    semanticBindings = listOf(
+        // Unconditional: all Steps subset Performances::performances
+        SemanticBinding(
+            name = "stepPerformancesBinding",
+            baseConcept = "Performances::performances",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
+        ),
+        // Conditional: Step whose owningType is Behavior or Step subsets enclosedPerformance
+        SemanticBinding(
+            name = "stepEnclosedPerformanceBinding",
+            baseConcept = "Performances::Performance::enclosedPerformance",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Or(listOf(
+                BindingCondition.OwningTypeIs("Behavior"),
+                BindingCondition.OwningTypeIs("Step")
+            ))
+        ),
+        // Conditional: composite Step whose owningType is Structure or typed by Structure subsets ownedPerformance
+        SemanticBinding(
+            name = "stepOwnedPerformanceBinding",
+            baseConcept = "Objects::Object::ownedPerformance",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsComposite,
+                BindingCondition.Or(listOf(
+                    BindingCondition.OwningTypeIs("Structure"),
+                    BindingCondition.OwningTypeTypedBy("Structure")
+                ))
+            ))
+        ),
+        // Conditional: composite Step whose owningType is Behavior or Step subsets subperformance
+        SemanticBinding(
+            name = "stepSubperformanceBinding",
+            baseConcept = "Performances::Performance::subperformance",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.IsComposite,
+                BindingCondition.Or(listOf(
+                    BindingCondition.OwningTypeIs("Behavior"),
+                    BindingCondition.OwningTypeIs("Step")
+                ))
+            ))
+        )
+    ),
     description = "A feature that represents a step in a behavior"
 )

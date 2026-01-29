@@ -26,10 +26,8 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
-import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
-import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
+import org.openmbee.gearshift.kerml.KerMLModelFactory
 
 /**
  * Response data class representing an element in the tree.
@@ -66,15 +64,11 @@ data class ParseRequest(
 
 /**
  * Demo API server for the Gearshift KerML Service.
+ * Uses the visitor-based parsing architecture via KerMLModelFactory.
  */
 class DemoApi(private val port: Int = 8080) {
-    private val engine = MDMEngine()
-    private val coordinator: KerMLParseCoordinator
-
-    init {
-        KerMLMetamodelLoader.initialize(engine.metamodelRegistry)
-        coordinator = KerMLParseCoordinator(engine)
-    }
+    private val factory = KerMLModelFactory()
+    private val engine get() = factory.engine
 
     /**
      * Build a tree from the parsed model starting at the given root element.
@@ -312,18 +306,15 @@ class DemoApi(private val port: Int = 8080) {
                     try {
                         val request = call.receive<ParseRequest>()
 
-                        // Reset coordinator state for fresh parse
-                        coordinator.reset()
-                        engine.clearInstances()
+                        // Reset factory state for fresh parse
+                        factory.reset()
 
-                        // Parse the KerML
-                        val result = coordinator.parseString(request.kerml)
+                        // Parse the KerML using visitor-based architecture
+                        val pkg = factory.parseString(request.kerml)
+                        val result = factory.getLastParseResult()
 
-                        if (!result.success) {
-                            val errors = result.errors.map { it.message } +
-                                    result.unresolvedReferences.map {
-                                        "Unresolved reference: ${it.targetQualifiedName}"
-                                    }
+                        if (result == null || !result.success) {
+                            val errors = result?.errors?.map { it.message } ?: listOf("Unknown parse error")
                             call.respond(
                                 HttpStatusCode.BadRequest,
                                 ParseResponse(
@@ -335,18 +326,22 @@ class DemoApi(private val port: Int = 8080) {
                         }
 
                         // Build the tree from root element
-                        val tree = result.rootElementId?.let { buildTree(it) }
+                        val rootElement = factory.getRootElement()
+                        val tree = rootElement?.elementId?.let { buildTree(it) }
 
-                        val stats = engine.getStatistics()
+                        // Compute simple statistics from engine
+                        val allElements = engine.getAllElements()
+                        val typeDistribution = allElements.groupBy { it.className }
+                            .mapValues { it.value.size }
+
                         call.respond(
                             ParseResponse(
                                 success = true,
-                                rootId = result.rootElementId,
+                                rootId = rootElement?.elementId,
                                 tree = tree,
                                 statistics = mapOf(
-                                    "totalObjects" to stats.objects.totalObjects,
-                                    "totalLinks" to stats.links.totalLinks,
-                                    "typeDistribution" to stats.objects.typeDistribution
+                                    "totalObjects" to allElements.size,
+                                    "typeDistribution" to typeDistribution
                                 )
                             )
                         )

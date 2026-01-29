@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Structure metaclass.
@@ -31,17 +34,18 @@ fun createStructureMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkStructureSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Objects::Object')",
-            libraryTypeName = "Objects::Object",
-            description = "A Structure must directly or indirectly specialize the base Structure Objects::Object from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "validateStructureSpecialization",
             type = ConstraintType.VERIFICATION,
             expression = "ownedSpecialization.general->forAll(not oclIsKindOf(Behavior))",
             description = "A Structure must not specialize a Behavior."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "structureObjectBinding",
+            baseConcept = "Objects::Object",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
         )
     ),
     description = "A class that represents a structure"

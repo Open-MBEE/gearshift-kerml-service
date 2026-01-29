@@ -15,11 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaOperation
 import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML MetadataAccessExpression metaclass.
@@ -34,13 +37,6 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkMetadataAccessExpressionSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Performances::metadataAccessEvaluations')",
-            libraryTypeName = "Performances::metadataAccessEvaluations",
-            description = "A MetadataAccessExpression must directly or indirectly specialize Performances::metadataAccessEvaluations from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveMetadataAccessExpressionReferencedElement",
             type = ConstraintType.DERIVATION,
             expression = "let membership : Membership = ownedMembership->first() in if membership = null then null else membership.memberElement endif",
@@ -51,6 +47,14 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "referencedElement <> null",
             description = "A MetadataAccessExpression must have a non-null referencedElement."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "metadataAccessExpressionEvaluationsBinding",
+            baseConcept = "Performances::metadataAccessEvaluations",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     operations = listOf(

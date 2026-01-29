@@ -15,11 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.MetaOperation
 import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML MetadataFeature metaclass.
@@ -39,13 +42,6 @@ fun createMetadataFeatureMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "isSemantic() implies let annotatedTypes : Sequence(Type) = annotatedElement->selectAsKind(Type) in let baseTypes : Sequence(MetadataFeature) = evaluateFeature(resolveGlobal('Metaobjects::SemanticMetadata::baseType').memberElement.oclAsType(Feature))->selectAsKind(MetadataFeature) in annotatedTypes->notEmpty() and baseTypes()->notEmpty() and baseTypes()->first().isSyntactic() implies let annotatedType : Type = annotatedTypes->first() in let baseType : Element = baseTypes->first().syntaxElement() in if annotatedType.oclIsKindOf(Classifier) and baseType.oclIsKindOf(Feature) then baseType.oclAsType(Feature).type->forAll(t | annotatedType.specializes(t)) else if baseType.oclIsKindOf(Type) then annotatedType.specializes(baseType.oclAsType(Type)) else true endif",
             description = "If this MetadataFeature is an application of SemanticMetadata, then its annotatingElement must be a Type with appropriate specializations."
-        ),
-        MetaConstraint(
-            name = "checkMetadataFeatureSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Metaobjects::metaobjects')",
-            libraryTypeName = "Metaobjects::metaobjects",
-            description = "A MetadataFeature must directly or indirectly specialize the base MetadataFeature Metaobjects::metaobjects from the Kernel Semantic Library."
         ),
         MetaConstraint(
             name = "deriveMetadataFeatureMetaclass",
@@ -76,6 +72,14 @@ fun createMetadataFeatureMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "not metaclass.isAbstract",
             description = "The metaclass of a MetadataFeature must not be abstract."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "metadataFeatureMetaobjectsBinding",
+            baseConcept = "Metaobjects::metaobjects",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     operations = listOf(

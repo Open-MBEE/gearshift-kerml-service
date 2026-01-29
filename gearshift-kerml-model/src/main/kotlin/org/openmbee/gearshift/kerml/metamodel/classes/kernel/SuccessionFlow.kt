@@ -15,9 +15,10 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML SuccessionFlow metaclass.
@@ -31,13 +32,13 @@ fun createSuccessionFlowMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Flow", "Succession"),
     attributes = emptyList(),
-    constraints = listOf(
-        MetaConstraint(
-            name = "checkSuccessionFlowSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Transfers::flowTransfersBefore')",
-            libraryTypeName = "Transfers::flowTransfersBefore",
-            description = "A SuccessionFlow must directly or indirectly specialize the Step Transfers::flowTransfersBefore from the Kernel Semantic Library."
+    constraints = emptyList(),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "successionFlowTransfersBeforeBinding",
+            baseConcept = "Transfers::flowTransfersBefore",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.Default
         )
     ),
     description = "A SuccessionFlow is a Flow that also provides temporal ordering. It classifies Transfers that cannot start until the sourceOccurrence has completed and that must complete before the targetOccurrence can start."

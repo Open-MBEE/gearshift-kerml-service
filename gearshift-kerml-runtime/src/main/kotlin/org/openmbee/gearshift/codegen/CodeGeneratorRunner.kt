@@ -55,8 +55,9 @@ object CodeGeneratorRunner {
      */
     fun generate(outputDir: Path) {
         // Initialize engine with KerML metamodel
-        val engine = MDMEngine()
-        KerMLMetamodelLoader.initialize(engine.metamodelRegistry)
+        val schema = org.openmbee.gearshift.framework.runtime.MetamodelRegistry()
+        KerMLMetamodelLoader.initialize(schema)
+        val engine = MDMEngine(schema)
 
         // Configure the generator
         val config = CodeGenConfig(
