@@ -16,7 +16,7 @@
 
 package org.openmbee.gearshift.generated.impl
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 
@@ -25,7 +25,7 @@ import org.openmbee.gearshift.generated.interfaces.ModelElement
  */
 open class BaseModelElementImpl(
     internal val wrapped: MDMObject,
-    internal val engine: GearshiftEngine
+    internal val engine: MDMEngine
 ) : ModelElement {
 
     override val id: String?

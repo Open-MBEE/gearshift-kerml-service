@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Class metaclass.
@@ -31,13 +34,6 @@ fun createClassMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkClassSpecialization",
-            type = ConstraintType.IMPLICIT_SPECIALIZATION,
-            expression = "specializesFromLibrary('Occurrences::Occurrence')",
-            libraryTypeName = "Occurrences::Occurrence",
-            description = "A Class must directly or indirectly specialize the base Class Occurrences::Occurrence from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "validateClassSpecialization",
             type = ConstraintType.VERIFICATION,
             expression = """
@@ -46,6 +42,14 @@ fun createClassMetaClass() = MetaClass(
                     ownedSpecialization.general->forAll(not oclIsKindOf(Association))
             """.trimIndent(),
             description = "A Class must not specialize a DataType and it can only specialize an Association if it is also itself a kind of Association (such as an AssociationStructure or Interaction)."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "classOccurrenceBinding",
+            baseConcept = "Occurrences::Occurrence",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
         )
     ),
     description = "A classifier that represents a class"

@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift
 
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.Wrappers
 import org.openmbee.gearshift.generated.interfaces.ModelElement
@@ -56,7 +57,7 @@ data class ProjectMetadata(
  * - created: Creation timestamp
  */
 abstract class MDMModelFactory(
-    val engine: GearshiftEngine = GearshiftEngine(),
+    val engine: MDMEngine,
     projectId: String? = null,
     projectName: String = "Untitled Project",
     projectDescription: String? = null
@@ -90,7 +91,8 @@ abstract class MDMModelFactory(
      */
     protected fun initializeModelRoot() {
         // Create the root namespace with the project.id as its element ID
-        val (_, obj) = engine.createInstance("Namespace", id = project.id)
+        val obj = engine.createElement("Namespace")
+        obj.setProperty("elementId", project.id)
         modelRoot = Wrappers.wrap(obj, engine) as Namespace
     }
 
@@ -101,7 +103,7 @@ abstract class MDMModelFactory(
      * @return The typed wrapper or null if not found
      */
     fun getAsElement(id: String): ModelElement? {
-        val obj = engine.getInstance(id) ?: return null
+        val obj = engine.getElement(id) ?: return null
         return Wrappers.wrap(obj, engine)
     }
 
@@ -112,7 +114,7 @@ abstract class MDMModelFactory(
      * @return The created element wrapped
      */
     fun createByName(typeName: String): ModelElement {
-        val (id, obj) = engine.createInstance(typeName)
+        val obj = engine.createElement(typeName)
         return Wrappers.wrap(obj, engine)
     }
 
@@ -123,29 +125,16 @@ abstract class MDMModelFactory(
      * @return List of all elements matching the type
      */
     fun allOfTypeByName(typeName: String): List<ModelElement> {
-        return engine.getInstancesByType(typeName).map { obj ->
+        return engine.getElementsByClass(typeName).map { obj ->
             Wrappers.wrap(obj, engine)
         }
-    }
-
-    /**
-     * Resolve a qualified name starting from the model root.
-     *
-     * @param qualifiedName The qualified name (e.g., "Package::Element")
-     * @return The resolved MDMObject or null if not found
-     */
-    fun resolveQualifiedName(qualifiedName: String): MDMObject? {
-        val modelRootId = (modelRoot as? org.openmbee.gearshift.generated.impl.BaseModelElementImpl)?.wrapped?.id
-            ?: return null
-        val result = engine.nameResolver.resolve(qualifiedName, modelRootId, false)
-        return result?.membership
     }
 
     /**
      * Clear all model data and reset.
      */
     open fun reset() {
-        engine.clearInstances()
+        engine.clear()
         initializeModelRoot()
     }
 }

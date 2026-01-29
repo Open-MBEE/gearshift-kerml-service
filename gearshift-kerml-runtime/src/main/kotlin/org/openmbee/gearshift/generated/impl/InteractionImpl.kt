@@ -16,7 +16,7 @@
 
 package org.openmbee.gearshift.generated.impl
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.Wrappers
@@ -29,7 +29,7 @@ import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
  */
 open class InteractionImpl(
     wrapped: MDMObject,
-    engine: GearshiftEngine
+    engine: MDMEngine
 ) : BehaviorImpl(wrapped, engine), Interaction {
 
     override var isImplied: Boolean

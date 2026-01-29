@@ -15,14 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.parser
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 
 /**
  * Visitor for Dependency elements.
  * Per KerML spec 8.2.3.2: Dependencies represent relationships between clients and suppliers.
  */
 class DependencyVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement dependency parsing
         // Extract: identification, clients, suppliers, relationshipBody
         val (instanceId, instance) = createInstance(engine, "Dependency")
@@ -41,7 +41,7 @@ class DependencyVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.3.4: Namespaces organize elements with qualified names.
  */
 class NamespaceVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement namespace parsing
         // Extract: prefixMetadataMember, namespaceDeclaration, namespaceBody
         val (instanceId, instance) = createInstance(engine, "Namespace")
@@ -59,7 +59,7 @@ class NamespaceVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Types define features and memberships.
  */
 class TypeVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement type parsing
         val (instanceId, instance) = createInstance(engine, "Type")
 
@@ -76,7 +76,7 @@ class TypeVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Classifiers extend Types with classification semantics.
  */
 class ClassifierVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement classifier parsing
         val (instanceId, instance) = createInstance(engine, "Classifier")
 
@@ -92,7 +92,7 @@ class ClassifierVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: DataTypes represent value types without identity.
  */
 class DataTypeVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement datatype parsing
         val (instanceId, instance) = createInstance(engine, "DataType")
 
@@ -108,7 +108,7 @@ class DataTypeVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Classes represent object types with identity.
  */
 class ClassVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement class parsing
         val (instanceId, instance) = createInstance(engine, "Class")
 
@@ -124,7 +124,7 @@ class ClassVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Structures are concrete classes.
  */
 class StructureVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement structure parsing
         val (instanceId, instance) = createInstance(engine, "Structure")
 
@@ -139,7 +139,7 @@ class StructureVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Metaclasses define the structure of other classes.
  */
 class MetaclassVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement metaclass parsing
         val (instanceId, instance) = createInstance(engine, "Metaclass")
 
@@ -154,7 +154,7 @@ class MetaclassVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Associations represent relationships between types.
  */
 class AssociationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement association parsing
         val (instanceId, instance) = createInstance(engine, "Association")
 
@@ -170,7 +170,7 @@ class AssociationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Association structures are concrete associations.
  */
 class AssociationStructureVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement association structure parsing
         val (instanceId, instance) = createInstance(engine, "AssociationStructure")
 
@@ -183,7 +183,7 @@ class AssociationStructureVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Interactions represent behavioral interactions between features.
  */
 class InteractionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement interaction parsing
         val (instanceId, instance) = createInstance(engine, "Interaction")
 
@@ -196,7 +196,7 @@ class InteractionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Behaviors define sequences of actions.
  */
 class BehaviorVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement behavior parsing
         val (instanceId, instance) = createInstance(engine, "Behavior")
 
@@ -212,7 +212,7 @@ class BehaviorVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Functions are behaviors that compute and return results.
  */
 class FunctionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement function parsing
         val (instanceId, instance) = createInstance(engine, "Function")
 
@@ -229,7 +229,7 @@ class FunctionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Predicates are boolean-valued functions.
  */
 class PredicateVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement predicate parsing
         val (instanceId, instance) = createInstance(engine, "Predicate")
 
@@ -244,7 +244,7 @@ class PredicateVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Multiplicities constrain the number of instances.
  */
 class MultiplicityVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement multiplicity parsing
         val (instanceId, instance) = createInstance(engine, "Multiplicity")
 
@@ -259,7 +259,7 @@ class MultiplicityVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Packages organize elements into namespaces.
  */
 class PackageVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement package parsing
         val (instanceId, instance) = createInstance(engine, "Package")
 
@@ -275,7 +275,7 @@ class PackageVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Library packages are standard or reusable packages.
  */
 class LibraryPackageVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement library package parsing
         val (instanceId, instance) = createInstance(engine, "LibraryPackage")
 
@@ -288,7 +288,7 @@ class LibraryPackageVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Specializations define subsumption between types.
  */
 class SpecializationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement specialization parsing
         val (instanceId, instance) = createInstance(engine, "Specialization")
 
@@ -303,7 +303,7 @@ class SpecializationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Conjugations reverse the direction of associations.
  */
 class ConjugationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement conjugation parsing
         val (instanceId, instance) = createInstance(engine, "Conjugation")
 
@@ -316,7 +316,7 @@ class ConjugationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Subclassifications relate classifiers.
  */
 class SubclassificationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement subclassification parsing
         val (instanceId, instance) = createInstance(engine, "Subclassification")
 
@@ -329,7 +329,7 @@ class SubclassificationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Disjoinings specify that types are disjoint.
  */
 class DisjoiningVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement disjoining parsing
         val (instanceId, instance) = createInstance(engine, "Disjoining")
 
@@ -342,7 +342,7 @@ class DisjoiningVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Feature invertings reverse feature directions.
  */
 class FeatureInvertingVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement feature inverting parsing
         val (instanceId, instance) = createInstance(engine, "FeatureInverting")
 
@@ -355,7 +355,7 @@ class FeatureInvertingVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Feature typings assign types to features.
  */
 class FeatureTypingVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement feature typing parsing
         val (instanceId, instance) = createInstance(engine, "FeatureTyping")
 
@@ -368,7 +368,7 @@ class FeatureTypingVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Subsettings specify subset relationships between features.
  */
 class SubsettingVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement subsetting parsing
         val (instanceId, instance) = createInstance(engine, "Subsetting")
 
@@ -381,7 +381,7 @@ class SubsettingVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Redefinitions redefine features from supertypes.
  */
 class RedefinitionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement redefinition parsing
         val (instanceId, instance) = createInstance(engine, "Redefinition")
 
@@ -394,7 +394,7 @@ class RedefinitionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Type featurings relate types to their features.
  */
 class TypeFeaturingVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement type featuring parsing
         val (instanceId, instance) = createInstance(engine, "TypeFeaturing")
 

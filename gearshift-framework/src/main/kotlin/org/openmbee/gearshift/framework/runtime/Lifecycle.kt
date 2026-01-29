@@ -128,12 +128,12 @@ sealed interface LifecycleEvent {
  * This is analogous to EMF's Adapter pattern but with:
  * - Typed events instead of generic notifications
  * - Priority ordering for deterministic execution
- * - Access to the engine for creating additional elements
+ * - Access to the model for creating additional elements
  *
  * Example usage:
  * ```kotlin
  * class MySemanticHandler : LifecycleHandler {
- *     override fun handle(event: LifecycleEvent, engine: MDMEngine) {
+ *     override fun handle(event: LifecycleEvent, model: MDMEngine) {
  *         when (event) {
  *             is LifecycleEvent.InstanceCreated -> {
  *                 // Create implied relationships
@@ -165,7 +165,7 @@ interface LifecycleHandler {
      * - Exceptions: Uncaught exceptions will propagate to the caller
      *
      * @param event The event that occurred
-     * @param engine The MDMEngine, for querying or modifying the model
+     * @param model The MDMEngine, for querying or modifying the model
      */
-    fun handle(event: LifecycleEvent, engine: MDMEngine)
+    fun handle(event: LifecycleEvent, model: MDMEngine)
 }

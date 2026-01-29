@@ -156,6 +156,9 @@ object KerMLSemanticLibraryLoader {
                 }
             }
 
+            // The library root namespace stays separate - resolveGlobal searches
+            // all root namespaces for top-level elements per KerML 7.2.5.3
+
             // Create a parse result for compatibility
             val parseResult = KerMLParseResult(
                 success = true,
@@ -172,14 +175,31 @@ object KerMLSemanticLibraryLoader {
 
     /**
      * Get the library path from environment or use default.
+     * Searches up the directory tree to find the library in multi-module projects.
      */
     fun getLibraryPath(): Path {
         val envPath = System.getenv("KERML_LIBRARY_PATH")
-        return if (envPath != null) {
-            Paths.get(envPath)
-        } else {
-            Paths.get(DEFAULT_LIBRARY_PATH)
+        if (envPath != null) {
+            return Paths.get(envPath)
         }
+
+        // Try the default path first
+        val defaultPath = Paths.get(DEFAULT_LIBRARY_PATH)
+        if (Files.exists(defaultPath.resolve("Base.kerml"))) {
+            return defaultPath
+        }
+
+        // Search up the directory tree (for multi-module projects)
+        var current = Paths.get("").toAbsolutePath()
+        repeat(5) {  // Check up to 5 levels up
+            val candidate = current.resolve(DEFAULT_LIBRARY_PATH)
+            if (Files.exists(candidate.resolve("Base.kerml"))) {
+                return candidate
+            }
+            current = current.parent ?: return defaultPath
+        }
+
+        return defaultPath
     }
 
     /**

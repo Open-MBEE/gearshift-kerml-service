@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors.base
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.generated.Wrappers
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
@@ -25,7 +25,7 @@ import org.openmbee.gearshift.kerml.antlr.KerMLParser
  * Contains the engine, parent element, namespace tracking, and reference collector.
  */
 data class ParseContext(
-    val engine: GearshiftEngine,
+    val engine: MDMEngine,
     val parent: ModelElement? = null,
     val parentQualifiedName: String = "",
     val namespaceStack: ArrayDeque<String> = ArrayDeque(),

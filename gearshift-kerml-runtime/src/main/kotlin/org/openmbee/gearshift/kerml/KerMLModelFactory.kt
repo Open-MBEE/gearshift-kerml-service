@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.MDMModelFactory
 import org.openmbee.gearshift.generated.Wrappers
 import org.openmbee.gearshift.generated.interfaces.Element
@@ -58,7 +58,7 @@ import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
  * ```
  */
 class KerMLModelFactory(
-    engine: GearshiftEngine = GearshiftEngine(),
+    engine: MDMEngine = createKerMLEngine(),
     projectId: String? = null,
     projectName: String = "Untitled KerML Project",
     projectDescription: String? = null
@@ -73,14 +73,22 @@ class KerMLModelFactory(
     private val semanticHandler = KerMLSemanticHandler(engine)
 
     init {
-        // Load the KerML metamodel
-        KerMLMetamodelLoader.initialize(engine.metamodelRegistry)
-
         // Initialize the model root (from base class)
         initializeModelRoot()
 
         // Register the KerML semantic handler for lifecycle events
-        engine.addLifecycleHandler(semanticHandler)
+        engine.registerLifecycleHandler(semanticHandler)
+    }
+
+    companion object {
+        /**
+         * Create an MDMEngine with the KerML metamodel loaded.
+         */
+        fun createKerMLEngine(): MDMEngine {
+            val schema = org.openmbee.gearshift.framework.runtime.MetamodelRegistry()
+            KerMLMetamodelLoader.initialize(schema)
+            return MDMEngine(schema)
+        }
     }
 
     // ===== Typed Helper Methods (inline with reified) =====
@@ -189,24 +197,14 @@ class KerMLModelFactory(
      * @return The element or null if not found
      */
     fun findByQualifiedName(qualifiedName: String): Element? {
-        // First try the coordinator's parsed elements map (for backward compatibility)
+        // Try the coordinator's parsed elements map
         val id = coordinator.getParsedElements()[qualifiedName]
         if (id != null) {
             return getAs<Element>(id)
         }
 
-        // Resolve using the model root
-        val membership = resolveQualifiedName(qualifiedName)
-        if (membership != null) {
-            // Get the memberElement from the membership
-            val memberElementValue = engine.mdmEngine.getProperty(membership, "memberElement")
-            return when (memberElementValue) {
-                is org.openmbee.gearshift.framework.runtime.MDMObject -> Wrappers.wrap(memberElementValue, engine) as? Element
-                is String -> getAs<Element>(memberElementValue)
-                else -> null
-            }
-        }
-
+        // TODO: Implement proper name resolution using KerML spec operations
+        // For now, return null - name resolution will be reimplemented
         return null
     }
 

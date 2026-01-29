@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.codegen
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.codegen.CodeGenConfig
 import org.openmbee.gearshift.framework.codegen.MetamodelCodeGenerator
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
@@ -55,7 +55,7 @@ object CodeGeneratorRunner {
      */
     fun generate(outputDir: Path) {
         // Initialize engine with KerML metamodel
-        val engine = GearshiftEngine()
+        val engine = MDMEngine()
         KerMLMetamodelLoader.initialize(engine.metamodelRegistry)
 
         // Configure the generator

@@ -26,7 +26,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import org.openmbee.gearshift.kerml.parser.KerMLParseCoordinator
@@ -68,7 +68,7 @@ data class ParseRequest(
  * Demo API server for the Gearshift KerML Service.
  */
 class DemoApi(private val port: Int = 8080) {
-    private val engine = GearshiftEngine()
+    private val engine = MDMEngine()
     private val coordinator: KerMLParseCoordinator
 
     init {

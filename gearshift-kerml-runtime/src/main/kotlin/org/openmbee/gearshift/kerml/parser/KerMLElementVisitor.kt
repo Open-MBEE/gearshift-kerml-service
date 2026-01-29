@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.parser
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 
 /**
@@ -30,14 +30,14 @@ interface KerMLElementVisitor<T> {
      * @param engine The Gearshift engine for creating instances
      * @return The constructed element (typically a MDMObject instance ID or the object itself)
      */
-    fun visit(ctx: T, engine: GearshiftEngine): Any?
+    fun visit(ctx: T, engine: MDMEngine): Any?
 }
 
 /**
  * Context for passing metadata during visitor traversal.
  */
 data class VisitorContext(
-    val engine: GearshiftEngine,
+    val engine: MDMEngine,
     val parentElement: String? = null,
     val metadata: MutableMap<String, Any> = mutableMapOf()
 )
@@ -51,7 +51,7 @@ abstract class BaseKerMLVisitor<T> : KerMLElementVisitor<T> {
      * Create an instance of a KerML element in the engine.
      */
     protected fun createInstance(
-        engine: GearshiftEngine,
+        engine: MDMEngine,
         metaclassName: String,
         elementId: String? = null
     ): Pair<String, MDMObject> {
@@ -62,7 +62,7 @@ abstract class BaseKerMLVisitor<T> : KerMLElementVisitor<T> {
      * Set a property on a KerML element instance.
      */
     protected fun setProperty(
-        engine: GearshiftEngine,
+        engine: MDMEngine,
         instanceId: String,
         propertyName: String,
         value: Any?
@@ -74,7 +74,7 @@ abstract class BaseKerMLVisitor<T> : KerMLElementVisitor<T> {
      * Get a property from a KerML element instance.
      */
     protected fun getProperty(
-        engine: GearshiftEngine,
+        engine: MDMEngine,
         instanceId: String,
         propertyName: String
     ): Any? {

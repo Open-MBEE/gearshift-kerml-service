@@ -16,7 +16,7 @@
 
 package org.openmbee.gearshift.generated
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.generated.impl.*
@@ -29,7 +29,7 @@ object Wrappers {
     /**
      * Wrap an MDMObject in its corresponding typed wrapper.
      */
-    fun wrap(obj: MDMObject, engine: GearshiftEngine): ModelElement {
+    fun wrap(obj: MDMObject, engine: MDMEngine): ModelElement {
         return when (obj.className) {
             "AnnotatingElement" -> AnnotatingElementImpl(obj, engine)
             "Annotation" -> AnnotationImpl(obj, engine)
@@ -116,7 +116,7 @@ object Wrappers {
     /**
      * Wrap an MDMObject with explicit type parameter.
      */
-    inline fun <reified T : ModelElement> wrapAs(obj: MDMObject, engine: GearshiftEngine): T {
+    inline fun <reified T : ModelElement> wrapAs(obj: MDMObject, engine: MDMEngine): T {
         return wrap(obj, engine) as T
     }
 }

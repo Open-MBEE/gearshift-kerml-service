@@ -16,7 +16,7 @@
 
 package org.openmbee.gearshift.generated.impl
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.Wrappers
@@ -31,7 +31,7 @@ or the result parameter of a ConstructorExpression.
  */
 open class ParameterMembershipImpl(
     wrapped: MDMObject,
-    engine: GearshiftEngine
+    engine: MDMEngine
 ) : FeatureMembershipImpl(wrapped, engine), ParameterMembership {
 
     override val ownedMemberParameter: Feature

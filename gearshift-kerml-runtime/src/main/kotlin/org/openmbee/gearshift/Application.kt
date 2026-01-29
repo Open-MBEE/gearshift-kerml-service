@@ -16,6 +16,7 @@
 package org.openmbee.gearshift
 
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
+import org.openmbee.gearshift.framework.runtime.MetamodelRegistry
 
 /**
  * Main application entry point for the GearShift KerML Service.
@@ -27,16 +28,14 @@ fun main(args: Array<String>) {
     println("=".repeat(70))
     println()
 
-    // Create the Gearshift engine
-    val engine = GearshiftEngine()
-
-    // Initialize KerML metamodel
+    // Initialize the schema (metamodel registry)
+    val schema = MetamodelRegistry()
     println("Initializing KerML Metamodel...")
-    KerMLMetamodelLoader.initialize(engine.metamodelRegistry)
+    KerMLMetamodelLoader.initialize(schema)
     println()
 
     // Validate metamodel
-    val errors = engine.validateMetamodel()
+    val errors = schema.validate()
     if (errors.isEmpty()) {
         println("✓ Metamodel is valid!")
     } else {
@@ -46,44 +45,48 @@ fun main(args: Array<String>) {
     println()
 
     // Show metamodel statistics
-    val allClasses = engine.metamodelRegistry.getAllClasses()
+    val allClasses = schema.getAllClasses()
     println("Metamodel Statistics:")
     println("  Total MetaClasses: ${allClasses.size}")
-    allClasses.forEach { metaClass ->
+    allClasses.take(10).forEach { metaClass ->
         println("  - ${metaClass.name}")
         println("      Superclasses: ${metaClass.superclasses.joinToString(", ")}")
         println("      Attributes: ${metaClass.attributes.size}")
         println("      Constraints: ${metaClass.constraints.size}")
     }
+    if (allClasses.size > 10) {
+        println("  ... and ${allClasses.size - 10} more")
+    }
+    println()
+
+    // Create session manager and a session
+    val sessionManager = SessionManager(schema)
+    val session = sessionManager.createSession("Demo Session", ModelLanguage.KERML)
+
+    println("Created session: ${session.name} (${session.id})")
     println()
 
     // Example: Create some instances
     println("Creating example instances...")
 
     // Create a Feature instance
-    val (featureId, feature) = engine.createInstance("Feature", "feature-1")
-    engine.setProperty(featureId, "name", "MyFeature")
-    engine.setProperty(featureId, "isAbstract", false)
+    val feature = session.createElement("Feature")
+    session.engine.setProperty(feature.id!!, "declaredName", "MyFeature")
 
-    println("Created Feature instance: $featureId")
-    println("  name = ${engine.getProperty(featureId, "name")}")
-    println("  isAbstract = ${engine.getProperty(featureId, "isAbstract")}")
+    println("Created Feature instance: ${feature.id}")
+    println("  declaredName = ${session.engine.getProperty(feature.id!!, "declaredName")}")
     println()
 
     // Query for all Features
-    val allFeatures = engine.getInstancesByType("Feature")
+    val allFeatures = session.getElementsByClass("Feature")
     println("Total Feature instances: ${allFeatures.size}")
     println()
 
-    // Repository statistics
-    val stats = engine.getStatistics()
-    println("Repository Statistics:")
-    println("  Total instances: ${stats.objects.totalObjects}")
-    println("  Type distribution: ${stats.objects.typeDistribution}")
-    println("  Total links: ${stats.links.totalLinks}")
+    // Show element count
+    println("Total elements in session: ${session.getAllElements().size}")
     println()
 
-    println("=".repeat(70))
-    println("Gearshift KerML Service initialized successfully!")
-    println("=".repeat(70))
+    // Cleanup
+    sessionManager.closeAll()
+    println("Session closed.")
 }

@@ -16,1204 +16,793 @@
 package org.openmbee.gearshift.framework.runtime
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.framework.constraints.ConstraintEngine
-import org.openmbee.gearshift.framework.constraints.ConstraintRegistry
-import org.openmbee.gearshift.framework.constraints.EngineAccessor
-import org.openmbee.gearshift.framework.constraints.ValidationResults
-import org.openmbee.gearshift.framework.constraints.ocl.OclExecutor
-import org.openmbee.gearshift.framework.constraints.ocl.OclExpression
-import org.openmbee.gearshift.framework.constraints.ocl.OclParser
-import org.openmbee.gearshift.framework.meta.*
-import org.openmbee.gearshift.framework.storage.LinkRepository
-import org.openmbee.gearshift.framework.storage.ModelRepository
-import java.util.*
+import org.openmbee.gearshift.framework.meta.MetaClass
+import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.gearshift.framework.meta.MetaConstraint
+import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
 /**
- * MDM (Model Data Management) Engine for managing metamodel-driven objects and their relationships.
- * Provides runtime support for:
- * - Object (node) creation and property management
- * - Link (edge) creation and traversal
- * - Constraint validation
- * - Operation invocation
+ * Expression language identifier.
+ */
+enum class ExpressionLanguage {
+    OCL,
+    GQL,
+    KOTLIN_DSL
+}
+
+/**
+ * Evaluator for expressions in a specific language.
+ * Implementations handle constraint evaluation, derived property computation, and operation execution.
+ */
+interface ExpressionEvaluator {
+    /** The language this evaluator handles */
+    val language: ExpressionLanguage
+
+    /**
+     * Evaluate an expression in the context of an element.
+     *
+     * @param expression The expression text
+     * @param element The context element (self)
+     * @param model The model for navigation and resolution
+     * @param args Additional arguments (for operations)
+     * @return The result of evaluation
+     */
+    fun evaluate(
+        expression: String,
+        element: MDMObject,
+        model: MDMEngine,
+        args: Map<String, Any?> = emptyMap()
+    ): Any?
+}
+
+/**
+ * The core runtime model container.
  *
- * In the graph model:
- * - MDMObject instances are nodes
- * - MDMLink instances are edges
- * - MetaClass defines node types
- * - MetaAssociation defines edge types
+ * MDMEngine is the single source of truth for:
+ * - Element storage and access
+ * - Association graph (links between elements)
+ * - Property access (stored, derived, and association-based)
+ * - Operation invocation
+ * - Validation
+ * - Lifecycle events
+ *
+ * This consolidates what was previously split across MDMEngine, GearshiftEngine,
+ * and various repositories.
+ *
+ * Expression evaluation is pluggable - register evaluators for different languages
+ * (OCL, GQL, Kotlin DSL) to support dynamic language extension.
  */
 class MDMEngine(
-    val registry: MetamodelRegistry,
-    val objectRepository: ModelRepository,
-    val linkRepository: LinkRepository
+    /** The schema (metamodel registry) this model uses for metaclass definitions */
+    val schema: MetamodelRegistry,
 ) {
-    private val instances = mutableMapOf<String, MDMObject>()
+    /** Element instances by ID */
+    private val elements: MutableMap<String, MDMObject> = mutableMapOf()
+
+    /** The association graph */
+    private val graph: MDMGraph = MDMGraph()
+
+    /** Registered lifecycle handlers */
+    private val lifecycleHandlers: MutableList<LifecycleHandler> = mutableListOf()
+
+    /** Registered expression evaluators by language */
+    private val evaluators: MutableMap<String, ExpressionEvaluator> = mutableMapOf()
+
+    // ===== Public API - Element Access =====
 
     /**
-     * Constraint registry for derived properties and validation constraints.
+     * Get an element by ID.
      */
-    val constraintRegistry = ConstraintRegistry()
+    fun getElement(id: String): MDMObject? = elements[id]
 
     /**
-     * Name resolver for qualified name lookups.
+     * Get all elements in the model.
      */
-    val nameResolver = NameResolver(objectRepository, registry).also {
-        // Set the engine reference after construction to enable proper property/link resolution
-        it.setEngine(this)
-    }
+    fun getAllElements(): List<MDMObject> = elements.values.toList()
 
     /**
-     * Engine accessor for constraint evaluation.
+     * Get all elements of a specific class (including subclasses).
      */
-    private val engineAccessor = object : EngineAccessor {
-        override fun getInstance(id: String): MDMObject? = objectRepository.get(id)
-
-        override fun getLinkedTargets(navigationName: String, sourceId: String): List<MDMObject> =
-            this@MDMEngine.navigateByEndName(navigationName, sourceId, forward = true)
-
-        override fun getLinkedSources(navigationName: String, targetId: String): List<MDMObject> =
-            this@MDMEngine.navigateByEndName(navigationName, targetId, forward = false)
-
-        override fun getProperty(instanceId: String, propertyName: String): Any? {
-            val instance = objectRepository.get(instanceId) ?: return null
-            return this@MDMEngine.getProperty(instance, propertyName)
-        }
-
-        override fun isSubclassOf(subclass: String, superclass: String): Boolean =
-            registry.isSubclassOf(subclass, superclass)
-
-        override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? {
-            val instance = objectRepository.get(instanceId) ?: return null
-            return this@MDMEngine.invokeOperation(instance, operationName, arguments)
-        }
-
-        override fun resolveGlobal(qualifiedName: String): MDMObject? {
-            // Find any root namespace to start resolution from
-            val rootNamespace = objectRepository.getAll().firstOrNull { obj ->
-                val owner = obj.getProperty("owner")
-                owner == null && (obj.className == "Namespace" || obj.className == "Package" ||
-                        obj.className == "LibraryPackage" || registry.isSubclassOf(obj.className, "Namespace"))
-            } ?: return null
-
-            // Use the NameResolver to resolve the qualified name
-            val result = nameResolver.resolve(qualifiedName, rootNamespace.id!!, false)
-            return result?.membership
-        }
-    }
+    fun getElementsByClass(className: String): List<MDMObject> =
+        elements.values.filter { isInstanceOf(it, className) }
 
     /**
-     * Constraint engine for evaluating derived properties and validation constraints.
+     * Get all element IDs.
      */
-    val constraintEngine = ConstraintEngine(constraintRegistry, registry, engineAccessor)
+    fun getElementIds(): Set<String> = elements.keys.toSet()
 
     /**
-     * Kotlin script executor for operations with inline Kotlin implementation.
+     * Get the count of elements.
      */
-    private val kotlinScriptExecutor by lazy { KotlinScriptExecutor(engineAccessor) }
-
-    // ===== Lifecycle Hooks =====
+    fun elementCount(): Int = elements.size
 
     /**
-     * Registered lifecycle handlers, sorted by priority.
+     * Create a new element of the specified class.
      */
-    private val lifecycleHandlers = mutableListOf<LifecycleHandler>()
-
-    /**
-     * Flag to prevent recursive event firing during handler execution.
-     * When true, events are still fired but handlers can check this to avoid infinite loops.
-     */
-    private var firingEvent = false
-
-    /**
-     * Register a lifecycle handler to receive model change events.
-     *
-     * Handlers are invoked in priority order (lower values first).
-     * Multiple handlers can be registered and will all be called for each event.
-     *
-     * @param handler The handler to register
-     */
-    fun addLifecycleHandler(handler: LifecycleHandler) {
-        lifecycleHandlers.add(handler)
-        lifecycleHandlers.sortBy { it.priority }
-        logger.debug { "Registered lifecycle handler: ${handler::class.simpleName} (priority=${handler.priority})" }
-    }
-
-    /**
-     * Remove a previously registered lifecycle handler.
-     *
-     * @param handler The handler to remove
-     * @return true if the handler was found and removed
-     */
-    fun removeLifecycleHandler(handler: LifecycleHandler): Boolean {
-        val removed = lifecycleHandlers.remove(handler)
-        if (removed) {
-            logger.debug { "Removed lifecycle handler: ${handler::class.simpleName}" }
-        }
-        return removed
-    }
-
-    /**
-     * Fire a lifecycle event to all registered handlers.
-     *
-     * Handlers are invoked synchronously in priority order.
-     * Exceptions from handlers are logged but do not prevent other handlers from running.
-     *
-     * @param event The event to fire
-     */
-    private fun fireEvent(event: LifecycleEvent) {
-        if (lifecycleHandlers.isEmpty()) return
-
-        val wasAlreadyFiring = firingEvent
-        firingEvent = true
-
-        try {
-            for (handler in lifecycleHandlers) {
-                try {
-                    handler.handle(event, this)
-                } catch (e: Exception) {
-                    logger.error(e) {
-                        "Lifecycle handler ${handler::class.simpleName} threw exception for ${event::class.simpleName}"
-                    }
-                }
-            }
-        } finally {
-            firingEvent = wasAlreadyFiring
-        }
-    }
-
-    /**
-     * Check if we're currently firing an event.
-     * Handlers can use this to avoid infinite recursion.
-     */
-    fun isFiringEvent(): Boolean = firingEvent
-
-    // ===== Instance Management =====
-
-    /**
-     * Create a new instance of a metaclass.
-     *
-     * @param className The name of the metaclass to instantiate
-     * @param id Optional custom ID for the instance. If not provided, a UUID will be generated.
-     */
-    fun createInstance(
-        className: String,
-        id: String? = null
-    ): MDMObject {
-        val metaClass = registry.getClass(className)
+    fun createElement(className: String): MDMObject {
+        val metaClass = schema.getClass(className)
             ?: throw IllegalArgumentException("Unknown class: $className")
 
-        if (metaClass.isAbstract) {
-            throw IllegalArgumentException("Cannot instantiate abstract class: $className")
-        }
+        val element = MDMObject(className, metaClass)
+        val id = UUID.randomUUID().toString()
+        element.id = id
+        elements[id] = element
 
-        val instance = MDMObject(className, metaClass)
-        val instanceId = id ?: UUID.randomUUID().toString()
-        instance.id = instanceId
-        instances[instanceId] = instance
-        objectRepository.store(instanceId, instance)
+        fireEvent(LifecycleEvent.InstanceCreated(element, metaClass))
 
-        logger.debug { "Created instance of $className: $instanceId" }
-
-        // Fire lifecycle event - handlers can create implied relationships
-        println("MDMEngine.createInstance: Firing InstanceCreated for $className, handlers=${lifecycleHandlers.size}")
-        fireEvent(LifecycleEvent.InstanceCreated(instance, metaClass))
-
-        return instance
+        return element
     }
 
     /**
-     * Set a property value on an instance.
-     * Handles both attributes and association ends uniformly.
-     *
-     * For attributes, sets the value directly on the instance.
-     *
-     * For non-derived association ends, the value can be:
-     * - MDMObject (for single-valued ends)
-     * - List<MDMObject> or Set<MDMObject> (for multi-valued ends)
-     * - null (to clear the association)
-     *
-     * Links are automatically created/removed based on the value.
-     * Derived association ends cannot be set (they are computed via OCL constraints).
+     * Remove an element and all its links.
      */
-    fun setProperty(instance: MDMObject, propertyName: String, value: Any?) {
-        // First try to find as an attribute
-        val property = findProperty(instance.metaClass, propertyName)
-
-        if (property != null) {
-            // It's an attribute - use existing logic
-            if (property.isReadOnly) {
-                throw IllegalStateException("Cannot set read-only property: $propertyName")
-            }
-
-            validatePropertyValue(property, value)
-
-            // Capture old value for event
-            val oldValue = instance.getProperty(propertyName)
-
-            instance.setProperty(propertyName, value)
-
-            logger.debug { "Set property $propertyName on ${instance.className} instance" }
-
-            // Fire lifecycle event if value actually changed
-            if (oldValue != value) {
-                fireEvent(LifecycleEvent.PropertyChanged(instance, propertyName, oldValue, value))
-            }
-            return
-        }
-
-        // Not an attribute - check if it's an association end
-        val associationEnd = findAssociationEnd(instance.metaClass, propertyName)
-        if (associationEnd != null) {
-            setAssociationEndValue(instance, associationEnd, value)
-            return
-        }
-
-        throw IllegalArgumentException(
-            "Property or association end '$propertyName' not found in class: ${instance.className}"
-        )
+    fun removeElement(id: String): Boolean {
+        val element = elements.remove(id) ?: return false
+        fireEvent(LifecycleEvent.InstanceDeleting(element))
+        graph.removeEdgesForElement(id)
+        return true
     }
 
     /**
-     * Set the value of an association end by creating/removing links.
-     *
-     * @param instance The instance to modify
-     * @param associationEnd Triple of (association, end, isTargetEnd)
-     * @param value The new value (MDMObject, Collection<MDMObject>, or null)
+     * Get all root namespaces (elements with no owner).
+     * Note: This is a convenience for KerML but implemented generically.
      */
-    private fun setAssociationEndValue(
-        instance: MDMObject,
-        associationEnd: Triple<MetaAssociation, MetaAssociationEnd, Boolean>,
-        value: Any?
-    ) {
-        val (association, end, isTargetEnd) = associationEnd
-        val instanceId = instance.id ?: throw IllegalStateException("Instance must have an ID")
-
-        if (end.isDerived) {
-            throw IllegalStateException("Cannot set derived association end: ${end.name}")
+    fun getRootNamespaces(): List<MDMObject> =
+        elements.values.filter { element ->
+            val owner = getPropertyValue(element, "owner")
+            owner == null && schema.isSubclassOf(element.className, "Namespace")
         }
 
-        // Normalize value to a list of MDMObjects
-        val newTargets: List<MDMObject> = when (value) {
-            null -> emptyList()
-            is MDMObject -> listOf(value)
-            is Collection<*> -> value.filterIsInstance<MDMObject>()
-            else -> throw IllegalArgumentException(
-                "Invalid value type for association end '${end.name}': ${value::class.simpleName}. " +
-                "Expected MDMObject, Collection<MDMObject>, or null."
-            )
-        }
+    /**
+     * Check if an element is an instance of a class (including inheritance).
+     */
+    fun isInstanceOf(element: MDMObject, className: String): Boolean =
+        element.className == className || schema.isSubclassOf(element.className, className)
 
-        // Get current linked objects
-        val currentLinked: List<MDMObject> = if (isTargetEnd) {
-            getLinkedTargets(association.name, instanceId)
-        } else {
-            getLinkedSources(association.name, instanceId)
-        }
-
-        // Compute what needs to be removed and added
-        val currentIds = currentLinked.mapNotNull { it.id }.toSet()
-        val newIds = newTargets.mapNotNull { it.id }.toSet()
-
-        val toRemove = currentIds - newIds
-        val toAdd = newIds - currentIds
-
-        logger.debug {
-            "Setting association end '${end.name}' on ${instance.className}: " +
-            "removing ${toRemove.size}, adding ${toAdd.size}"
-        }
-
-        // Remove old links
-        for (targetId in toRemove) {
-            if (isTargetEnd) {
-                removeLink(association.name, instanceId, targetId)
-            } else {
-                removeLink(association.name, targetId, instanceId)
-            }
-        }
-
-        // Add new links
-        for (target in newTargets) {
-            val targetId = target.id ?: continue
-            if (targetId in toAdd) {
-                if (isTargetEnd) {
-                    createLink(association.name, instanceId, targetId)
-                } else {
-                    createLink(association.name, targetId, instanceId)
-                }
-            }
-        }
+    /**
+     * Clear all elements and links.
+     */
+    fun clear() {
+        elements.clear()
+        graph.clear()
     }
 
+    // ===== Compatibility API (for generated code and migration) =====
+
+    /** Alias for schema */
+    val metamodelRegistry: MetamodelRegistry get() = schema
+
     /**
-     * Get a property value from an instance.
-     * Checks both attributes and association ends.
+     * Create instance with optional custom ID (GearshiftEngine compatibility).
+     * Returns Pair of (id, object) for compatibility with old API.
      */
-    fun getProperty(instance: MDMObject, propertyName: String): Any? {
-        // First try to find as a property (attribute)
-        val property = findProperty(instance.metaClass, propertyName)
+    fun createInstance(className: String, id: String? = null): Pair<String, MDMObject> {
+        val metaClass = schema.getClass(className)
+            ?: throw IllegalArgumentException("Unknown class: $className")
 
-        if (property != null) {
-            var value = instance.getProperty(propertyName)
+        val element = MDMObject(className, metaClass)
+        val elementId = id ?: UUID.randomUUID().toString()
+        element.id = elementId
+        elements[elementId] = element
 
-            // Handle derived properties - check if we have a registered evaluator or a derivation constraint
-            if (property.isDerived && value == null) {
-                val instanceId = instance.id
-                if (instanceId != null) {
-                    // Try registered evaluator first
-                    if (constraintEngine.hasDerivedPropertyEvaluator(instance.className, propertyName)) {
-                        value = constraintEngine.evaluateDerivedProperty(instance, instanceId, property)
-                    } else if (property.derivationConstraint != null) {
-                        // Fall back to OCL expression evaluation (placeholder)
-                        value = evaluateDerivedPropertyExpression(instance, property)
-                    }
-                }
-            }
+        fireEvent(LifecycleEvent.InstanceCreated(element, metaClass))
 
-            return value
-        }
-
-        // If not found as property, check for association end
-        val associationEnd = findAssociationEnd(instance.metaClass, propertyName)
-        if (associationEnd != null) {
-            val (association, end, isTargetEnd) = associationEnd
-
-            // Handle derived association ends
-            if (end.isDerived && end.derivationConstraint != null) {
-                return evaluateDerivedAssociationEnd(instance, end)
-            }
-
-            // Non-derived association end - traverse the links
-            val instanceId = instance.id ?: return null
-            return if (isTargetEnd) {
-                getLinkedTargets(association.name, instanceId)
-            } else {
-                getLinkedSources(association.name, instanceId)
-            }
-        }
-
-        throw IllegalArgumentException(
-            "Property or association end '$propertyName' not found in class: ${instance.className}"
-        )
+        return elementId to element
     }
 
-    /**
-     * Find an association end by name for a metaclass.
-     * Returns a triple of (Association, AssociationEnd, isTargetEnd) or null if not found.
-     */
-    private fun findAssociationEnd(
-        metaClass: MetaClass,
-        endName: String
-    ): Triple<MetaAssociation, MetaAssociationEnd, Boolean>? {
-        val className = metaClass.name
-        val allSuperclasses = registry.getAllSuperclasses(className) + className
-
-        for (association in registry.getAllAssociations()) {
-            // Check if this is the target end and the source type matches our class hierarchy
-            if (association.targetEnd.name == endName) {
-                if (allSuperclasses.contains(association.sourceEnd.type) ||
-                    registry.isSubclassOf(association.sourceEnd.type, className)
-                ) {
-                    return Triple(association, association.targetEnd, true)
-                }
-            }
-            // Check if this is the source end and the target type matches our class hierarchy
-            if (association.sourceEnd.name == endName && association.sourceEnd.isNavigable) {
-                if (allSuperclasses.contains(association.targetEnd.type) ||
-                    registry.isSubclassOf(association.targetEnd.type, className)
-                ) {
-                    return Triple(association, association.sourceEnd, false)
-                }
-            }
-        }
-
-        return null
-    }
+    /** Alias for getElement (GearshiftEngine compatibility) */
+    fun getInstance(id: String): MDMObject? = getElement(id)
 
     /**
-     * Evaluate a derived association end using its OCL derivation constraint expression.
-     */
-    private fun evaluateDerivedAssociationEnd(instance: MDMObject, end: MetaAssociationEnd): Any? {
-        val constraintName = end.derivationConstraint ?: return null
-        val instanceId = instance.id ?: return null
-
-        logger.debug { "Evaluating derived association end '${end.name}' via constraint '$constraintName'" }
-
-        // Look up the named constraint from the metaclass (with redefines support)
-        val constraint = findConstraint(instance.metaClass, constraintName)
-        if (constraint == null) {
-            logger.warn { "Constraint '$constraintName' not found for derived association end '${end.name}'" }
-            return null
-        }
-
-        // Parse and evaluate the OCL expression
-        return try {
-            val ast = OclParser.parse(constraint.expression)
-            val executor = OclExecutor(engineAccessor, instance, instanceId)
-            executor.evaluate(ast)
-        } catch (e: Exception) {
-            logger.error(e) { "Error evaluating constraint '$constraintName': ${constraint.expression}" }
-            null
-        }
-    }
-
-    /**
-     * Validate an instance against its metaclass constraints.
-     */
-    fun validate(instance: MDMObject): List<String> {
-        val errors = mutableListOf<String>()
-        val metaClass = instance.metaClass
-
-        // Validate required properties
-        getAllProperties(metaClass).forEach { property ->
-            if (!property.isDerived) {
-                val value = instance.getProperty(property.name)
-                if (value == null && property.isRequired) {
-                    errors.add("Required property '${property.name}' is not set")
-                }
-            }
-        }
-
-        // Evaluate only VERIFICATION constraints (not DERIVATION, IMPLICIT_SPECIALIZATION, etc.)
-        metaClass.constraints
-            .filter { it.type == ConstraintType.VERIFICATION }
-            .forEach { constraint ->
-                if (!evaluateConstraint(instance, constraint)) {
-                    errors.add(
-                        "Constraint '${constraint.name}' violated: ${constraint.description}"
-                    )
-                }
-            }
-
-        return errors
-    }
-
-    /**
-     * Find a property in a metaclass or its superclasses.
-     */
-    private fun findProperty(metaClass: MetaClass, propertyName: String): MetaProperty? {
-        // Check direct properties
-        metaClass.attributes.firstOrNull { it.name == propertyName }?.let { return it }
-
-        // Check inherited properties
-        metaClass.superclasses.forEach { superclassName ->
-            registry.getClass(superclassName)?.let { superclass ->
-                findProperty(superclass, propertyName)?.let { return it }
-            }
-        }
-
-        return null
-    }
-
-    /**
-     * Get all properties including inherited ones.
-     */
-    private fun getAllProperties(metaClass: MetaClass): List<MetaProperty> {
-        val allProps = metaClass.attributes.toMutableList()
-
-        metaClass.superclasses.forEach { superclassName ->
-            registry.getClass(superclassName)?.let { superclass ->
-                allProps.addAll(getAllProperties(superclass))
-            }
-        }
-
-        return allProps
-    }
-
-    /**
-     * Validate a property value against its metadata.
-     */
-    private fun validatePropertyValue(property: MetaProperty, value: Any?) {
-        if (value == null) return // Null checking handled elsewhere
-
-        // Additional validation for collections
-        if (property.isUnique && value is Collection<*>) {
-            if (value.size != value.toSet().size) {
-                throw IllegalArgumentException(
-                    "Property '${property.name}' must contain unique values"
-                )
-            }
-        }
-    }
-
-    /**
-     * Evaluate a derived property using its OCL derivation constraint expression.
-     * Looks up the named constraint and evaluates its OCL expression.
-     */
-    private fun evaluateDerivedPropertyExpression(instance: MDMObject, property: MetaProperty): Any? {
-        val constraintName = property.derivationConstraint ?: return null
-        val instanceId = instance.id ?: return null
-
-        logger.debug { "Evaluating derived property '${property.name}' via constraint '$constraintName'" }
-
-        // Look up the named constraint from the metaclass (including inherited constraints)
-        val constraint = findConstraint(instance.metaClass, constraintName)
-        if (constraint == null) {
-            logger.warn { "Constraint '$constraintName' not found for derived property '${property.name}'" }
-            return null
-        }
-
-        // Parse and evaluate the OCL expression
-        return try {
-            val ast = OclParser.parse(constraint.expression)
-            val executor = OclExecutor(engineAccessor, instance, instanceId)
-            executor.evaluate(ast)
-        } catch (e: Exception) {
-            logger.error(e) { "Error evaluating constraint '$constraintName': ${constraint.expression}" }
-            null
-        }
-    }
-
-    /**
-     * Find a constraint by name in a metaclass or its superclasses.
-     * First looks for a constraint that redefines the requested constraint (polymorphic dispatch),
-     * then falls back to finding the constraint by name.
-     */
-    private fun findConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
-        // First, look for a constraint that redefines the requested constraint
-        // This enables polymorphic constraint dispatch (e.g., MembershipImport redefines Import's constraint)
-        findRedefiningConstraint(metaClass, constraintName)?.let { return it }
-
-        // Fall back to finding constraint by name
-        return findConstraintByName(metaClass, constraintName)
-    }
-
-    /**
-     * Find a constraint that redefines the given constraint name, starting from the most specific class.
-     */
-    private fun findRedefiningConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
-        // Check if this class has a constraint that redefines the target
-        metaClass.constraints.firstOrNull { it.redefines == constraintName }?.let { return it }
-
-        // Check superclasses (in case of multi-level inheritance)
-        metaClass.superclasses.forEach { superclassName ->
-            registry.getClass(superclassName)?.let { superclass ->
-                findRedefiningConstraint(superclass, constraintName)?.let { return it }
-            }
-        }
-
-        return null
-    }
-
-    /**
-     * Find a constraint by exact name in a metaclass or its superclasses.
-     */
-    private fun findConstraintByName(metaClass: MetaClass, constraintName: String): MetaConstraint? {
-        // Check direct constraints
-        metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
-
-        // Check inherited constraints
-        metaClass.superclasses.forEach { superclassName ->
-            registry.getClass(superclassName)?.let { superclass ->
-                findConstraintByName(superclass, constraintName)?.let { return it }
-            }
-        }
-
-        return null
-    }
-
-    /**
-     * Evaluate a MetaConstraint on an instance.
-     * Uses registered evaluator if available, otherwise falls back to OCL parsing.
-     */
-    private fun evaluateConstraint(instance: MDMObject, constraint: MetaConstraint): Boolean {
-        val instanceId = instance.id
-
-        // Check for registered evaluator first
-        if (instanceId != null && constraintRegistry.hasValidationConstraint(instance.className, constraint.name)) {
-            val result = constraintEngine.validateConstraint(instance, instanceId, constraint.name)
-            return result.isValid
-        }
-
-        // Fall back to OCL expression evaluation
-        val expression = constraint.expression ?: return true
-        logger.debug { "Evaluating constraint expression: ${constraint.name} = $expression" }
-
-        return try {
-            val ast = OclParser.parse(expression)
-            val executor = OclExecutor(engineAccessor, instance, instanceId ?: "")
-            val result = executor.evaluate(ast)
-            result == true
-        } catch (e: Exception) {
-            logger.error(e) { "OCL constraint evaluation failed: ${constraint.name}" }
-            false
-        }
-    }
-
-    /**
-     * Evaluate an OCL expression string on an instance.
-     * Returns the result of the evaluation, or null if evaluation fails.
-     */
-    fun evaluateOclExpression(instance: MDMObject, expression: String): Any? {
-        return try {
-            val ast = OclParser.parse(expression)
-            val executor = OclExecutor(engineAccessor, instance, instance.id ?: "")
-            executor.evaluate(ast)
-        } catch (e: Exception) {
-            logger.error(e) { "OCL expression evaluation failed: $expression" }
-            null
-        }
-    }
-
-    /**
-     * Evaluate an OCL AST on an instance.
-     * Returns the result of the evaluation, or null if evaluation fails.
-     */
-    fun evaluateOclAst(instance: MDMObject, ast: OclExpression): Any? {
-        return try {
-            val executor = OclExecutor(engineAccessor, instance, instance.id ?: "")
-            executor.evaluate(ast)
-        } catch (e: Exception) {
-            logger.error(e) { "OCL AST evaluation failed" }
-            null
-        }
-    }
-
-    /**
-     * Validate an instance using both MetaConstraints and registered validation constraints.
-     *
-     * @param instanceId The instance ID
-     * @return Combined validation results from MetaConstraints and registered constraints
-     */
-    fun validateWithConstraints(instanceId: String): ValidationResults {
-        val instance = objectRepository.get(instanceId)
-            ?: return ValidationResults.fromResults(
-                listOf(
-                    org.openmbee.gearshift.framework.constraints.ValidationResult.invalid("Instance not found: $instanceId")
-                )
-            )
-
-        return constraintEngine.validateInstance(instance, instanceId)
-    }
-
-    /**
-     * Get all instances.
-     */
-    fun getAllInstances(): Collection<MDMObject> = instances.values
-
-    /**
-     * Invoke an operation on an instance.
-     *
-     * @param instance The instance to invoke the operation on
-     * @param operationName The name of the operation to invoke
-     * @param arguments Map of parameter names to values
-     * @return The result of the operation invocation
-     */
-    fun invokeOperation(
-        instance: MDMObject,
-        operationName: String,
-        arguments: Map<String, Any?> = emptyMap()
-    ): Any? {
-        val operation = findOperation(instance.metaClass, operationName)
-            ?: throw IllegalArgumentException(
-                "Operation '$operationName' not found in class: ${instance.className}"
-            )
-
-        // Validate arguments match parameters
-        validateArguments(operation, arguments)
-
-        // Execute the operation body
-        val result = evaluateOperation(instance, operation, arguments)
-
-        logger.debug { "Invoked operation $operationName on ${instance.className} instance" }
-        return result
-    }
-
-    /**
-     * Find an operation in a metaclass or its superclasses.
-     */
-    private fun findOperation(metaClass: MetaClass, operationName: String): MetaOperation? {
-        // Check direct operations
-        metaClass.operations.firstOrNull { it.name == operationName }?.let { return it }
-
-        // Check inherited operations
-        metaClass.superclasses.forEach { superclassName ->
-            registry.getClass(superclassName)?.let { superclass ->
-                findOperation(superclass, operationName)?.let { return it }
-            }
-        }
-
-        return null
-    }
-
-    /**
-     * Validate that provided arguments match the operation's parameters.
-     */
-    private fun validateArguments(operation: MetaOperation, arguments: Map<String, Any?>) {
-        // Check for required parameters
-        operation.parameters.forEach { param ->
-            if (param.defaultValue == null && !arguments.containsKey(param.name)) {
-                throw IllegalArgumentException(
-                    "Missing required parameter '${param.name}' for operation '${operation.name}'"
-                )
-            }
-        }
-
-        // Check for unknown arguments
-        arguments.keys.forEach { argName ->
-            if (operation.parameters.none { it.name == argName }) {
-                throw IllegalArgumentException(
-                    "Unknown parameter '$argName' for operation '${operation.name}'"
-                )
-            }
-        }
-    }
-
-    /**
-     * Evaluate an operation body.
-     * Supports simple property access expressions and will be extended for more complex bodies.
-     */
-    private fun evaluateOperation(
-        instance: MDMObject,
-        operation: MetaOperation,
-        arguments: Map<String, Any?>
-    ): Any? {
-        val body = operation.body ?: return null
-
-        return when (operation.bodyLanguage) {
-            BodyLanguage.PROPERTY_REF -> {
-                // Simple property reference - just return the property value
-                instance.getProperty(body)
-            }
-
-            BodyLanguage.OCL -> {
-                // Parse and evaluate OCL expression using ANTLR parser
-                try {
-                    val ast = OclParser.parse(body)
-                    val instanceId = instance.id
-                        ?: throw IllegalStateException("Instance must have an ID for OCL evaluation")
-                    val executor = OclExecutor(engineAccessor, instance, instanceId)
-
-                    // Add operation arguments to the executor's variable scope
-                    executor.evaluateWith(ast, arguments)
-                } catch (e: Exception) {
-                    logger.error(e) { "OCL evaluation failed for operation: ${operation.name}" }
-                    null
-                }
-            }
-
-            BodyLanguage.GQL -> {
-                // TODO: Integrate GQL evaluator
-                logger.warn { "GQL evaluation not yet implemented for operation: ${operation.name}" }
-                null
-            }
-
-            BodyLanguage.KOTLIN_DSL -> {
-                // Execute Kotlin DSL body using the script executor
-                try {
-                    kotlinScriptExecutor.execute(body, instance, arguments)
-                } catch (e: Exception) {
-                    logger.error(e) { "Kotlin DSL execution failed for operation: ${operation.name}" }
-                    throw e
-                }
-            }
-        }
-    }
-
-    // ===== Link (Edge) Management =====
-
-    /**
-     * Create a link between two instances via an association.
-     *
-     * @param associationName The name of the MetaAssociation defining this relationship
-     * @param sourceId ID of the source instance
-     * @param targetId ID of the target instance
-     * @return The created MDMLink
-     * @throws IllegalArgumentException if association not found, instances not found, or type mismatch
-     * @throws IllegalStateException if multiplicity constraints would be violated
+     * Create a link (GearshiftEngine compatibility - takes associationName first).
      */
     fun createLink(associationName: String, sourceId: String, targetId: String): MDMLink {
-        val association = registry.getAssociation(associationName)
+        val association = schema.getAssociation(associationName)
             ?: throw IllegalArgumentException("Unknown association: $associationName")
 
-        val source = objectRepository.get(sourceId)
-            ?: throw IllegalArgumentException("Source instance not found: $sourceId")
+        val linkId = UUID.randomUUID().toString()
+        val link = MDMLink(linkId, association, sourceId, targetId)
+        graph.addEdge(link)
 
-        val target = objectRepository.get(targetId)
-            ?: throw IllegalArgumentException("Target instance not found: $targetId")
-
-        // Validate types match association ends
-        validateLinkTypes(association, source, target)
-
-        // Check for duplicate link first (before multiplicity to give better error)
-        // Enforce uniqueness if EITHER end has isUnique=true:
-        // - targetEnd.isUnique: prevents duplicate targets when navigating source→target
-        // - sourceEnd.isUnique: prevents duplicate sources when navigating target→source
-        // When both ends have isUnique=false (Bag semantics), duplicate links are allowed
-        val requiresUniqueness = association.targetEnd.isUnique || association.sourceEnd.isUnique
-        if (requiresUniqueness && linkRepository.linkExists(associationName, sourceId, targetId)) {
-            throw IllegalStateException(
-                "Link already exists: $sourceId --[$associationName]--> $targetId " +
-                "(sourceEnd.isUnique=${association.sourceEnd.isUnique}, targetEnd.isUnique=${association.targetEnd.isUnique})"
-            )
+        val source = elements[sourceId]
+        val target = elements[targetId]
+        if (source != null && target != null) {
+            fireEvent(LifecycleEvent.LinkCreated(link, source, target, association))
         }
-
-        // Validate multiplicity constraints
-        validateLinkMultiplicity(association, sourceId, targetId)
-
-        val link = MDMLink(
-            id = UUID.randomUUID().toString(),
-            association = association,
-            sourceId = sourceId,
-            targetId = targetId
-        )
-
-        linkRepository.store(link)
-        logger.debug { "Created link: $sourceId --[$associationName]--> $targetId" }
-
-        // Fire lifecycle event - handlers can react to new relationships
-        fireEvent(LifecycleEvent.LinkCreated(link, source, target, association))
 
         return link
     }
 
     /**
-     * Navigate to related instances by association end name.
-     * This is the OCL-style navigation where property names refer to association ends.
-     *
-     * @param endName The name of the association end to navigate
-     * @param instanceId The instance to navigate from
-     * @param forward If true, navigate source->target; if false, navigate target->source
-     * @return List of related MDMObjects
-     */
-    fun navigateByEndName(endName: String, instanceId: String, forward: Boolean): List<MDMObject> {
-        val instance = objectRepository.get(instanceId) ?: return emptyList()
-        val metaClass = instance.metaClass
-
-        // Find the association by end name
-        val associationInfo = findAssociationEnd(metaClass, endName) ?: return emptyList()
-        val (association, end, isTargetEnd) = associationInfo
-
-        // Determine if we're navigating in the direction specified
-        val navigatingToTarget = if (forward) isTargetEnd else !isTargetEnd
-
-        // Check if the end is derived
-        if (end.isDerived && end.derivationConstraint != null) {
-            // Evaluate the derivation constraint
-            val result = evaluateDerivedAssociationEnd(instance, end)
-            return when (result) {
-                is Collection<*> -> result.filterIsInstance<MDMObject>()
-                is MDMObject -> listOf(result)
-                else -> emptyList()
-            }
-        }
-
-        // Non-derived: traverse actual links
-        // Also collect links from associations that subset this one (supporting subset chains)
-        val allAssociations = mutableListOf(association)
-        findSubsettingAssociations(endName, allAssociations, mutableSetOf())
-
-        val results = mutableListOf<MDMObject>()
-        for (assoc in allAssociations) {
-            val links = if (navigatingToTarget) {
-                linkRepository.getByAssociationAndSource(assoc.name, instanceId)
-            } else {
-                linkRepository.getByAssociationAndTarget(assoc.name, instanceId)
-            }
-            for (link in links) {
-                val targetObj = if (navigatingToTarget) {
-                    objectRepository.get(link.targetId)
-                } else {
-                    objectRepository.get(link.sourceId)
-                }
-                targetObj?.let { results.add(it) }
-            }
-        }
-
-        return results
-    }
-
-    /**
-     * Find all associations whose ends subset the given end name (recursively).
-     */
-    private fun findSubsettingAssociations(
-        endName: String,
-        result: MutableList<MetaAssociation>,
-        visited: MutableSet<String>
-    ) {
-        if (endName in visited) return
-        visited.add(endName)
-
-        logger.trace { "findSubsettingAssociations: looking for associations that subset '$endName'" }
-
-        for (assoc in registry.getAllAssociations()) {
-            // Check if target end subsets this end name
-            if (assoc.targetEnd.subsets.contains(endName) && assoc !in result) {
-                logger.trace { "  Found: ${assoc.name} (targetEnd '${assoc.targetEnd.name}' subsets '$endName')" }
-                result.add(assoc)
-                // Recursively find associations that subset this one
-                findSubsettingAssociations(assoc.targetEnd.name, result, visited)
-            }
-            // Check if source end subsets this end name
-            if (assoc.sourceEnd.subsets.contains(endName) && assoc !in result) {
-                logger.trace { "  Found: ${assoc.name} (sourceEnd '${assoc.sourceEnd.name}' subsets '$endName')" }
-                result.add(assoc)
-                findSubsettingAssociations(assoc.sourceEnd.name, result, visited)
-            }
-        }
-    }
-
-    /**
-     * Get all target instances linked from a source via an association.
-     * Traverses in the forward direction (source -> target).
-     *
-     * @param associationName The association to traverse
-     * @param sourceId The source instance ID
-     * @return List of target MDMObjects
+     * Get linked targets via association (GearshiftEngine compatibility).
      */
     fun getLinkedTargets(associationName: String, sourceId: String): List<MDMObject> {
-        val association = registry.getAssociation(associationName)
-            ?: throw IllegalArgumentException("Unknown association: $associationName")
-
-        if (!association.targetEnd.isNavigable) {
-            throw IllegalStateException(
-                "Association '$associationName' is not navigable from source to target"
-            )
-        }
-
-        return linkRepository.getByAssociationAndSource(associationName, sourceId)
-            .mapNotNull { objectRepository.get(it.targetId) }
+        return graph.getTargets(sourceId, associationName).mapNotNull { elements[it] }
     }
 
     /**
-     * Get all source instances linked to a target via an association.
-     * Traverses in the reverse direction (target -> source).
-     *
-     * @param associationName The association to traverse
-     * @param targetId The target instance ID
-     * @return List of source MDMObjects
+     * Get linked sources via association (GearshiftEngine compatibility).
      */
     fun getLinkedSources(associationName: String, targetId: String): List<MDMObject> {
-        val association = registry.getAssociation(associationName)
-            ?: throw IllegalArgumentException("Unknown association: $associationName")
-
-        if (!association.sourceEnd.isNavigable) {
-            throw IllegalStateException(
-                "Association '$associationName' is not navigable from target to source"
-            )
-        }
-
-        return linkRepository.getByAssociationAndTarget(associationName, targetId)
-            .mapNotNull { objectRepository.get(it.sourceId) }
+        return graph.getSources(targetId, associationName).mapNotNull { elements[it] }
     }
 
     /**
-     * Remove a link between two instances.
-     *
-     * @param associationName The association name
-     * @param sourceId Source instance ID
-     * @param targetId Target instance ID
-     * @return true if link was removed, false if not found
+     * Remove a link (GearshiftEngine compatibility).
      */
     fun removeLink(associationName: String, sourceId: String, targetId: String): Boolean {
-        val link = linkRepository.findLink(associationName, sourceId, targetId)
-            ?: return false
-
-        val association = registry.getAssociation(associationName)
-        val source = objectRepository.get(sourceId)
-        val target = objectRepository.get(targetId)
-
-        // Fire lifecycle event before deletion
-        if (association != null && source != null && target != null) {
-            fireEvent(LifecycleEvent.LinkDeleting(link, source, target, association))
-        }
-
-        linkRepository.delete(link.id)
-        logger.debug { "Removed link: $sourceId --[$associationName]--> $targetId" }
-
+        val link = graph.findEdge(sourceId, targetId, associationName) ?: return false
+        graph.removeEdge(link.id)
         return true
     }
 
     /**
-     * Remove all links involving an instance.
-     * Used for cascade delete when removing an instance.
-     *
-     * @param instanceId The instance ID
-     * @return List of removed links
-     */
-    fun removeAllLinks(instanceId: String): List<MDMLink> {
-        val removed = linkRepository.deleteByInstance(instanceId)
-        if (removed.isNotEmpty()) {
-            logger.debug { "Removed ${removed.size} links involving instance $instanceId" }
-        }
-        return removed
-    }
-
-    /**
-     * Get all links from/to an instance.
-     *
-     * @param instanceId The instance ID
-     * @return All links where instance is source or target
+     * Get all links for an element.
      */
     fun getLinks(instanceId: String): List<MDMLink> {
-        return linkRepository.getByInstance(instanceId)
+        return graph.getLinksForElement(instanceId)
     }
 
     /**
-     * Get all outgoing links from an instance.
+     * Remove all links for an element.
      */
-    fun getOutgoingLinks(instanceId: String): List<MDMLink> {
-        return linkRepository.getBySource(instanceId)
+    fun removeAllLinks(instanceId: String) {
+        graph.removeEdgesForElement(instanceId)
     }
 
     /**
-     * Get all incoming links to an instance.
+     * Get instances by exact type (GearshiftEngine compatibility).
      */
-    fun getIncomingLinks(instanceId: String): List<MDMLink> {
-        return linkRepository.getByTarget(instanceId)
-    }
+    fun getInstancesByType(className: String): List<MDMObject> =
+        elements.values.filter { it.className == className }
+
+    // ===== Public API - Property Access =====
 
     /**
-     * Delete an instance and handle composite aggregation cascading.
-     * If the instance owns composite parts, those are also deleted.
-     *
-     * @param instanceId The instance to delete
-     * @return List of all deleted instance IDs (including cascaded deletes)
+     * Get a property value (handles stored, derived, and association properties).
      */
-    fun deleteInstanceWithCascade(instanceId: String): List<String> {
-        val deleted = mutableListOf<String>()
-        deleteInstanceRecursive(instanceId, deleted)
-        return deleted
-    }
-
-    private fun deleteInstanceRecursive(instanceId: String, deleted: MutableList<String>) {
-        if (instanceId in deleted) return // Already deleted
-
-        val instance = objectRepository.get(instanceId)
-
-        // Fire lifecycle event before deletion
-        if (instance != null) {
-            fireEvent(LifecycleEvent.InstanceDeleting(instance))
-        }
-
-        // Find composite parts (where this instance is the composite owner)
-        val outgoingLinks = linkRepository.getBySource(instanceId)
-        val compositeParts = outgoingLinks.filter { it.isTargetComposite }
-
-        // Recursively delete composite parts first
-        compositeParts.forEach { link ->
-            deleteInstanceRecursive(link.targetId, deleted)
-        }
-
-        // Remove all links involving this instance
-        removeAllLinks(instanceId)
-
-        // Delete the instance itself
-        objectRepository.delete(instanceId)
-        instances.remove(instanceId)
-        deleted.add(instanceId)
-
-        logger.debug { "Deleted instance $instanceId (cascade)" }
-    }
+    fun getPropertyValue(element: MDMObject, propertyName: String): Any? =
+        getProperty(element, propertyName)
 
     /**
-     * Validate that source and target types match the association's expected types.
+     * Get a property value (handles stored, derived, and association properties).
+     * Alias for getPropertyValue for compatibility.
      */
-    private fun validateLinkTypes(
-        association: MetaAssociation,
-        source: MDMObject,
-        target: MDMObject
-    ) {
-        val sourceTypeValid = isInstanceOfType(source, association.sourceEnd.type)
-        if (!sourceTypeValid) {
-            throw IllegalArgumentException(
-                "Source instance type '${source.className}' is not compatible with " +
-                        "association source end type '${association.sourceEnd.type}'"
-            )
-        }
+    fun getProperty(element: MDMObject, propertyName: String): Any? {
+        val metaClass = element.metaClass
 
-        val targetTypeValid = isInstanceOfType(target, association.targetEnd.type)
-        if (!targetTypeValid) {
-            throw IllegalArgumentException(
-                "Target instance type '${target.className}' is not compatible with " +
-                        "association target end type '${association.targetEnd.type}'"
-            )
-        }
-    }
-
-    /**
-     * Check if an instance is of a given type (including subclasses).
-     */
-    private fun isInstanceOfType(instance: MDMObject, typeName: String): Boolean {
-        return instance.className == typeName ||
-                registry.isSubclassOf(instance.className, typeName)
-    }
-
-    /**
-     * Validate that creating this link won't violate multiplicity constraints.
-     */
-    private fun validateLinkMultiplicity(
-        association: MetaAssociation,
-        sourceId: String,
-        targetId: String
-    ) {
-        // Check source end multiplicity (how many sources can link to this target)
-        val sourceEnd = association.sourceEnd
-        if (sourceEnd.upperBound != -1) { // -1 means unbounded
-            val currentSourceCount = linkRepository.countByAssociationAndTarget(
-                association.name, targetId
-            )
-            if (currentSourceCount >= sourceEnd.upperBound) {
-                throw IllegalStateException(
-                    "Cannot create link: target '$targetId' already has maximum " +
-                            "${sourceEnd.upperBound} sources via '${association.name}'"
-                )
+        // Check if it's a stored property
+        val property = findProperty(metaClass, propertyName)
+        if (property != null) {
+            return if (property.isDerived) {
+                computeDerivedProperty(element, property)
+            } else {
+                element.getProperty(propertyName)
             }
         }
 
-        // Check target end multiplicity (how many targets can this source link to)
-        val targetEnd = association.targetEnd
-        if (targetEnd.upperBound != -1) {
-            val currentTargetCount = linkRepository.countByAssociationAndSource(
-                association.name, sourceId
-            )
-            if (currentTargetCount >= targetEnd.upperBound) {
-                throw IllegalStateException(
-                    "Cannot create link: source '$sourceId' already has maximum " +
-                            "${targetEnd.upperBound} targets via '${association.name}'"
-                )
+        // Check if it's an association end
+        val associationEnd = findAssociationEnd(metaClass, propertyName)
+        if (associationEnd != null) {
+            val results = navigateAssociation(element, propertyName)
+            return normalizeForMultiplicity(results, associationEnd.second.upperBound)
+        }
+
+        // Not found
+        return null
+    }
+
+    /**
+     * Set a stored property value.
+     */
+    fun setPropertyValue(element: MDMObject, propertyName: String, value: Any?) {
+        val metaClass = element.metaClass
+        val property = findProperty(metaClass, propertyName)
+
+        if (property != null) {
+            if (property.isDerived) {
+                throw IllegalStateException("Cannot set derived property: $propertyName")
             }
+            val oldValue = element.getProperty(propertyName)
+            element.setProperty(propertyName, value)
+            fireEvent(LifecycleEvent.PropertyChanged(element, propertyName, oldValue, value))
+            return
+        }
+
+        // Check if it's an association end - setting association means linking
+        val associationEnd = findAssociationEnd(metaClass, propertyName)
+        if (associationEnd != null) {
+            setAssociationEndValue(element, associationEnd, value)
+            return
+        }
+
+        throw IllegalArgumentException("Property '$propertyName' not found on class: ${element.className}")
+    }
+
+    /**
+     * Set a property by instance ID (for generated code compatibility).
+     */
+    fun setProperty(instanceId: String, propertyName: String, value: Any?) {
+        val element = elements[instanceId]
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+        setPropertyValue(element, propertyName, value)
+    }
+
+    /**
+     * Get a property by instance ID (for generated code compatibility).
+     */
+    fun getProperty(instanceId: String, propertyName: String): Any? {
+        val element = elements[instanceId]
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+        return getProperty(element, propertyName)
+    }
+
+    // ===== Public API - Links & Navigation =====
+
+    /**
+     * Create a link between two elements.
+     */
+    fun link(sourceId: String, targetId: String, associationName: String) {
+        val association = schema.getAssociation(associationName)
+            ?: throw IllegalArgumentException("Unknown association: $associationName")
+
+        val linkId = UUID.randomUUID().toString()
+        val link = MDMLink(linkId, association, sourceId, targetId)
+        graph.addEdge(link)
+
+        val source = elements[sourceId]
+        val target = elements[targetId]
+        if (source != null && target != null) {
+            fireEvent(LifecycleEvent.LinkCreated(link, source, target, association))
+        }
+
+        // Invalidate derived property caches
+        elements[sourceId]?.let { invalidateAssociationDependents(it, association.targetEnd.name) }
+        elements[targetId]?.let { invalidateAssociationDependents(it, association.sourceEnd.name) }
+    }
+
+    /**
+     * Remove a link between two elements.
+     */
+    fun unlink(sourceId: String, targetId: String, associationName: String) {
+        val link = graph.findEdge(sourceId, targetId, associationName)
+        if (link != null) {
+            graph.removeEdge(link.id)
+
+            val source = elements[sourceId]
+            val target = elements[targetId]
+            if (source != null && target != null) {
+                fireEvent(LifecycleEvent.LinkDeleting(link, source, target, link.association))
+            }
+
+            // Invalidate derived property caches
+            val association = link.association
+            elements[sourceId]?.let { invalidateAssociationDependents(it, association.targetEnd.name) }
+            elements[targetId]?.let { invalidateAssociationDependents(it, association.sourceEnd.name) }
         }
     }
 
     /**
-     * Validate all links for an instance against association constraints.
-     * Returns list of validation errors.
+     * Navigate an association from an element.
      */
-    fun validateLinks(instanceId: String): List<String> {
-        val errors = mutableListOf<String>()
-        val instance = objectRepository.get(instanceId)
-            ?: return listOf("Instance not found: $instanceId")
+    fun navigateAssociation(element: MDMElement, propertyName: String): List<MDMObject> {
+        val elementId = element.id ?: return emptyList()
+        val metaClass = element.metaClass
 
-        // Check required associations (lowerBound > 0)
-        registry.getAllAssociations().forEach { association ->
-            // Check if this instance type participates in this association
-            if (isInstanceOfType(instance, association.sourceEnd.type)) {
-                val targetCount = linkRepository.countByAssociationAndSource(
-                    association.name, instanceId
-                )
-                if (targetCount < association.targetEnd.lowerBound) {
-                    errors.add(
-                        "Instance '$instanceId' requires at least ${association.targetEnd.lowerBound} " +
-                                "target(s) via '${association.name}', but has $targetCount"
-                    )
+        val associationEnd = findAssociationEnd(metaClass, propertyName)
+            ?: return emptyList()
+
+        val (association, end, isTargetEnd) = associationEnd
+
+        return if (isTargetEnd) {
+            graph.getTargets(elementId, association.name).mapNotNull { elements[it] }
+        } else {
+            graph.getSources(elementId, association.name).mapNotNull { elements[it] }
+        }
+    }
+
+    // ===== Public API - Operations & Validation =====
+
+    /**
+     * Invoke an operation on an element.
+     */
+    fun invokeOperation(element: MDMObject, operationName: String, args: Map<String, Any?> = emptyMap()): Any? {
+        val metaClass = element.metaClass
+        val operation = findOperation(metaClass, operationName)
+            ?: throw IllegalArgumentException("Operation '$operationName' not found on class: ${element.className}")
+
+        val body = operation.body
+        if (body == null) {
+            logger.warn { "Operation $operationName has no body" }
+            return null
+        }
+
+        // Map BodyLanguage enum to evaluator key
+        val languageKey = when (operation.bodyLanguage) {
+            org.openmbee.gearshift.framework.meta.BodyLanguage.OCL -> "OCL"
+            org.openmbee.gearshift.framework.meta.BodyLanguage.GQL -> "GQL"
+            org.openmbee.gearshift.framework.meta.BodyLanguage.KOTLIN_DSL -> "KOTLIN_DSL"
+            org.openmbee.gearshift.framework.meta.BodyLanguage.PROPERTY_REF -> {
+                // Simple property reference - just get the property
+                return getPropertyValue(element, body)
+            }
+        }
+
+        val evaluator = evaluators[languageKey]
+        if (evaluator == null) {
+            logger.warn { "No evaluator registered for language: $languageKey" }
+            return null
+        }
+
+        logger.debug { "Invoking operation $operationName on ${element.className} using $languageKey" }
+        return evaluator.evaluate(body, element, this, args)
+    }
+
+    /**
+     * Invoke an operation by instance ID (for generated code compatibility).
+     */
+    fun invokeOperation(instanceId: String, operationName: String, args: Map<String, Any?> = emptyMap()): Any? {
+        val element = elements[instanceId]
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+        return invokeOperation(element, operationName, args)
+    }
+
+    /**
+     * Compute a derived property value.
+     */
+    fun computeDerivedProperty(element: MDMObject, property: MetaProperty): Any? {
+        // Check if it's a union property (computed from subsetters)
+        if (property.isUnion) {
+            return computeFromSubsetters(element, property)
+        }
+
+        // Check for derivation constraint
+        val derivationConstraintName = property.derivationConstraint
+        if (derivationConstraintName != null) {
+            // Look up the constraint by name to get the expression and language
+            val constraint = findConstraint(element.metaClass, derivationConstraintName)
+            if (constraint != null) {
+                val evaluator = evaluators[constraint.language.uppercase()]
+                if (evaluator != null) {
+                    logger.debug { "Computing derived property ${property.name} via ${constraint.language}" }
+                    return evaluator.evaluate(constraint.expression, element, this)
+                } else {
+                    logger.warn { "No evaluator for ${constraint.language} to compute ${property.name}" }
                 }
+            } else {
+                logger.warn { "Derivation constraint '$derivationConstraintName' not found for ${property.name}" }
             }
+        }
 
-            if (isInstanceOfType(instance, association.targetEnd.type)) {
-                val sourceCount = linkRepository.countByAssociationAndTarget(
-                    association.name, instanceId
-                )
-                if (sourceCount < association.sourceEnd.lowerBound) {
-                    errors.add(
-                        "Instance '$instanceId' requires at least ${association.sourceEnd.lowerBound} " +
-                                "source(s) via '${association.name}', but has $sourceCount"
-                    )
+        return null
+    }
+
+    /**
+     * Validate all elements (or filtered subset).
+     */
+    fun validateAll(
+        classFilter: String? = null,
+        constraintNames: List<String> = emptyList()
+    ): List<ValidationError> {
+        val errors = mutableListOf<ValidationError>()
+
+        val elementsToValidate = if (classFilter != null) {
+            getElementsByClass(classFilter)
+        } else {
+            getAllElements()
+        }
+
+        for (element in elementsToValidate) {
+            val constraints = getConstraintsForClass(element.metaClass, constraintNames)
+            for (constraint in constraints) {
+                val result = runValidationConstraint(element, constraint)
+                if (!result.isValid) {
+                    errors.add(ValidationError(element, constraint, result.message))
                 }
             }
         }
 
         return errors
     }
+
+    // ===== Public API - Lifecycle Handlers =====
+
+    /**
+     * Register a lifecycle handler.
+     */
+    fun registerLifecycleHandler(handler: LifecycleHandler) {
+        lifecycleHandlers.add(handler)
+        lifecycleHandlers.sortByDescending { it.priority }
+    }
+
+    /**
+     * Unregister a lifecycle handler.
+     */
+    fun unregisterLifecycleHandler(handler: LifecycleHandler) {
+        lifecycleHandlers.remove(handler)
+    }
+
+    // ===== Public API - Expression Evaluators =====
+
+    /**
+     * Register an expression evaluator for a language.
+     */
+    fun registerEvaluator(language: String, evaluator: ExpressionEvaluator) {
+        evaluators[language.uppercase()] = evaluator
+    }
+
+    /**
+     * Unregister an expression evaluator.
+     */
+    fun unregisterEvaluator(language: String) {
+        evaluators.remove(language.uppercase())
+    }
+
+    /**
+     * Get an evaluator for a language.
+     */
+    fun getEvaluator(language: String): ExpressionEvaluator? = evaluators[language.uppercase()]
+
+    // ===== Public API - Serialization =====
+
+    /**
+     * Serialize the model to JSON.
+     */
+    fun toJson(): String {
+        // TODO: Implement JSON serialization
+        return "{}"
+    }
+
+    /**
+     * Load model from JSON.
+     */
+    fun fromJson(json: String) {
+        // TODO: Implement JSON deserialization
+    }
+
+    // ===== Internal - Property Access Helpers =====
+
+    private fun findProperty(metaClass: MetaClass, propertyName: String): MetaProperty? {
+        metaClass.attributes.firstOrNull { it.name == propertyName }?.let { return it }
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                findProperty(superclass, propertyName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun findAssociationEnd(
+        metaClass: MetaClass,
+        propertyName: String
+    ): Triple<org.openmbee.gearshift.framework.meta.MetaAssociation,
+              org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
+              Boolean>? {
+        // Check all associations for matching end name
+        for (association in schema.getAllAssociations()) {
+            if (association.targetEnd.name == propertyName &&
+                (association.sourceEnd.type == metaClass.name ||
+                 schema.isSubclassOf(metaClass.name, association.sourceEnd.type))) {
+                return Triple(association, association.targetEnd, true)
+            }
+            if (association.sourceEnd.name == propertyName &&
+                (association.targetEnd.type == metaClass.name ||
+                 schema.isSubclassOf(metaClass.name, association.targetEnd.type))) {
+                return Triple(association, association.sourceEnd, false)
+            }
+        }
+        return null
+    }
+
+    private fun findOperation(metaClass: MetaClass, operationName: String): org.openmbee.gearshift.framework.meta.MetaOperation? {
+        metaClass.operations.firstOrNull { it.name == operationName }?.let { return it }
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                findOperation(superclass, operationName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun findConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
+        metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                findConstraint(superclass, constraintName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun computeFromSubsetters(element: MDMObject, property: MetaProperty): List<Any> {
+        // TODO: Aggregate values from all subsetting properties
+        return emptyList()
+    }
+
+    private fun normalizeForMultiplicity(values: List<Any>, upperBound: Int): Any? {
+        return if (upperBound == 1) {
+            values.firstOrNull()
+        } else {
+            values
+        }
+    }
+
+    private fun setAssociationEndValue(
+        element: MDMObject,
+        associationEnd: Triple<org.openmbee.gearshift.framework.meta.MetaAssociation,
+                              org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
+                              Boolean>,
+        value: Any?
+    ) {
+        val (association, end, isTargetEnd) = associationEnd
+        val elementId = element.id ?: return
+
+        // Normalize value to list of target IDs
+        val newTargetIds: List<String> = when (value) {
+            null -> emptyList()
+            is MDMObject -> listOfNotNull(value.id)
+            is Collection<*> -> value.filterIsInstance<MDMObject>().mapNotNull { it.id }
+            else -> throw IllegalArgumentException("Invalid value for association end")
+        }
+
+        // Get current targets
+        val currentTargetIds = if (isTargetEnd) {
+            graph.getTargets(elementId, association.name)
+        } else {
+            graph.getSources(elementId, association.name)
+        }
+
+        // Compute diff
+        val toRemove = currentTargetIds - newTargetIds.toSet()
+        val toAdd = newTargetIds.toSet() - currentTargetIds.toSet()
+
+        // Apply changes
+        for (targetId in toRemove) {
+            if (isTargetEnd) {
+                unlink(elementId, targetId, association.name)
+            } else {
+                unlink(targetId, elementId, association.name)
+            }
+        }
+        for (targetId in toAdd) {
+            if (isTargetEnd) {
+                link(elementId, targetId, association.name)
+            } else {
+                link(targetId, elementId, association.name)
+            }
+        }
+    }
+
+    // ===== Internal - Validation =====
+
+    private fun getConstraintsForClass(metaClass: MetaClass, filterNames: List<String>): List<MetaConstraint> {
+        val constraints = mutableListOf<MetaConstraint>()
+        constraints.addAll(metaClass.constraints)
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                constraints.addAll(getConstraintsForClass(superclass, filterNames))
+            }
+        }
+        return if (filterNames.isEmpty()) {
+            constraints
+        } else {
+            constraints.filter { it.name in filterNames }
+        }
+    }
+
+    private fun runValidationConstraint(element: MDMObject, constraint: MetaConstraint): ValidationResult {
+        return when (constraint.type) {
+            org.openmbee.gearshift.framework.meta.ConstraintType.VERIFICATION -> {
+                // Dispatch to evaluator based on constraint.language
+                val evaluator = evaluators[constraint.language.uppercase()]
+                if (evaluator == null) {
+                    logger.warn { "No evaluator registered for language: ${constraint.language}" }
+                    return ValidationResult(true, null) // Skip if no evaluator
+                }
+
+                try {
+                    val result = evaluator.evaluate(constraint.expression, element, this)
+                    when (result) {
+                        is Boolean -> ValidationResult(result, if (!result) "Constraint ${constraint.name} failed" else null)
+                        is ValidationResult -> result
+                        else -> ValidationResult(true, null)
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "Error evaluating constraint ${constraint.name}" }
+                    ValidationResult(false, "Evaluation error: ${e.message}")
+                }
+            }
+            else -> ValidationResult(true, null)
+        }
+    }
+
+    // ===== Internal - Events =====
+
+    private fun fireEvent(event: LifecycleEvent) {
+        for (handler in lifecycleHandlers) {
+            try {
+                handler.handle(event, this)
+            } catch (e: Exception) {
+                logger.error(e) { "Lifecycle handler ${handler::class.simpleName} failed" }
+            }
+        }
+    }
+
+    // ===== Internal - Cache =====
+
+    private fun invalidateAssociationDependents(element: MDMObject, associationEndName: String) {
+        // TODO: Implement cache invalidation for derived properties
+    }
 }
+
+/**
+ * Graph structure for storing links between elements.
+ */
+class MDMGraph {
+    private val edges: MutableMap<String, MDMLink> = mutableMapOf()
+    private val sourceIndex: MutableMap<String, MutableList<MDMLink>> = mutableMapOf()
+    private val targetIndex: MutableMap<String, MutableList<MDMLink>> = mutableMapOf()
+
+    fun addEdge(link: MDMLink) {
+        edges[link.id] = link
+        sourceIndex.getOrPut(link.sourceId) { mutableListOf() }.add(link)
+        targetIndex.getOrPut(link.targetId) { mutableListOf() }.add(link)
+    }
+
+    fun removeEdge(linkId: String) {
+        val link = edges.remove(linkId) ?: return
+        sourceIndex[link.sourceId]?.remove(link)
+        targetIndex[link.targetId]?.remove(link)
+    }
+
+    fun removeEdgesForElement(elementId: String) {
+        val linksToRemove = (sourceIndex[elementId].orEmpty() + targetIndex[elementId].orEmpty())
+            .map { it.id }
+            .toSet()
+        for (linkId in linksToRemove) {
+            removeEdge(linkId)
+        }
+    }
+
+    fun findEdge(sourceId: String, targetId: String, associationName: String): MDMLink? =
+        sourceIndex[sourceId]?.find { it.targetId == targetId && it.associationName == associationName }
+
+    fun getTargets(sourceId: String, associationName: String): List<String> =
+        sourceIndex[sourceId]?.filter { it.associationName == associationName }?.map { it.targetId } ?: emptyList()
+
+    fun getSources(targetId: String, associationName: String): List<String> =
+        targetIndex[targetId]?.filter { it.associationName == associationName }?.map { it.sourceId } ?: emptyList()
+
+    fun getLinksForElement(elementId: String): List<MDMLink> =
+        (sourceIndex[elementId].orEmpty() + targetIndex[elementId].orEmpty()).distinct()
+
+    fun clear() {
+        edges.clear()
+        sourceIndex.clear()
+        targetIndex.clear()
+    }
+}
+
+/**
+ * Result of running a validation constraint.
+ */
+data class ValidationResult(
+    val isValid: Boolean,
+    val message: String?
+)
+
+/**
+ * A validation error.
+ */
+data class ValidationError(
+    val element: MDMObject,
+    val constraint: MetaConstraint,
+    val message: String?
+)
+
+/**
+ * Type alias for element (using MDMObject for now, may change to MDMElement later)
+ */
+typealias MDMElement = MDMObject

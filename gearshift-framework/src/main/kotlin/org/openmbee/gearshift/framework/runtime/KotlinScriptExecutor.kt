@@ -55,7 +55,8 @@ class KotlinScriptExecutor(
             put("__engine__", engineAccessor)
         }
 
-        // Wrap the script to provide imports and typed variables
+        // Wrap the script to provide imports, typed variables, and a labeled lambda
+        // The labeled lambda allows scripts to use `return@kotlinBody` for early returns
         val wrappedScript = """
             import org.openmbee.gearshift.framework.runtime.*
             import org.openmbee.gearshift.framework.constraints.EngineAccessor
@@ -66,7 +67,10 @@ class KotlinScriptExecutor(
             val args = bindings["__args__"] as Map<String, Any?>
             val engine = bindings["__engine__"] as EngineAccessor
 
-            $script
+            val kotlinBody: () -> Any? = kotlinBody@{
+                $script
+            }
+            kotlinBody()
         """.trimIndent()
 
         return try {

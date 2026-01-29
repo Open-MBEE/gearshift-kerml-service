@@ -81,8 +81,9 @@ interface EngineAccessor {
     fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?> = emptyMap()): Any?
 
     /**
-     * Resolve a qualified name globally using the NameResolver.
+     * Resolve a qualified name globally.
      * Returns the membership MDMObject or null if not found.
+     * This is a KerML-specific operation that must be implemented by the language runtime.
      */
     fun resolveGlobal(qualifiedName: String): MDMObject?
 }

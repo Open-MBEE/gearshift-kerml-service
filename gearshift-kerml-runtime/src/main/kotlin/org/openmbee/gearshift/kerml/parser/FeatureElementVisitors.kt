@@ -15,14 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.parser
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 
 /**
  * Visitor for Feature elements.
  * Per KerML spec 8.2.5: Features are the fundamental elements that can be typed.
  */
 class FeatureVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement feature parsing
         // Extract: identification, feature modifiers, feature specializations, feature typing
         val (instanceId, instance) = createInstance(engine, "Feature")
@@ -44,7 +44,7 @@ class FeatureVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Steps are features that represent behavioral actions or occurrences.
  */
 class StepVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement step parsing
         val (instanceId, instance) = createInstance(engine, "Step")
 
@@ -60,7 +60,7 @@ class StepVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.5.8: Expressions are features that compute values.
  */
 class ExpressionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement expression parsing
         val (instanceId, instance) = createInstance(engine, "Expression")
 
@@ -77,7 +77,7 @@ class ExpressionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Boolean expressions evaluate to true or false.
  */
 class BooleanExpressionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement boolean expression parsing
         val (instanceId, instance) = createInstance(engine, "BooleanExpression")
 
@@ -93,7 +93,7 @@ class BooleanExpressionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Invariants are boolean expressions that must be true.
  */
 class InvariantVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement invariant parsing
         val (instanceId, instance) = createInstance(engine, "Invariant")
 
@@ -109,7 +109,7 @@ class InvariantVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Connectors relate features.
  */
 class ConnectorVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement connector parsing
         val (instanceId, instance) = createInstance(engine, "Connector")
 
@@ -125,7 +125,7 @@ class ConnectorVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Binding connectors assert equality between features.
  */
 class BindingConnectorVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement binding connector parsing
         val (instanceId, instance) = createInstance(engine, "BindingConnector")
 
@@ -140,7 +140,7 @@ class BindingConnectorVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Successions define temporal ordering between steps.
  */
 class SuccessionVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement succession parsing
         val (instanceId, instance) = createInstance(engine, "Succession")
 
@@ -155,7 +155,7 @@ class SuccessionVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Flows represent transfer between features.
  */
 class FlowVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement flow parsing
         val (instanceId, instance) = createInstance(engine, "Flow")
 
@@ -171,7 +171,7 @@ class FlowVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Succession flows combine succession and flow.
  */
 class SuccessionFlowVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement succession flow parsing
         val (instanceId, instance) = createInstance(engine, "SuccessionFlow")
 

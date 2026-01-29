@@ -16,9 +16,6 @@
 package org.openmbee.gearshift.kerml.parser.visitors.base
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.GearshiftEngine
-import org.openmbee.gearshift.framework.runtime.NameResolver
-import org.openmbee.gearshift.generated.Wrappers
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 
@@ -98,118 +95,6 @@ class ReferenceCollector {
 }
 
 /**
- * Resolves all pending references after parsing completes.
- *
- * Uses the NameResolver to resolve qualified names and sets the resolved
- * elements on the source elements' properties.
- */
-class ReferenceResolver(
-    private val engine: GearshiftEngine
-) {
-    /**
-     * Result of reference resolution.
-     */
-    data class ResolutionReport(
-        val totalReferences: Int,
-        val resolvedCount: Int,
-        val failedCount: Int,
-        val failures: List<ResolutionFailure>
-    )
-
-    data class ResolutionFailure(
-        val reference: PendingReference,
-        val reason: String
-    )
-
-    /**
-     * Resolve all pending references collected during parsing.
-     *
-     * @param collector The ReferenceCollector containing pending references
-     * @return ResolutionReport with results
-     */
-    fun resolveAll(collector: ReferenceCollector): ResolutionReport {
-        val references = collector.getReferences()
-        val failures = mutableListOf<ResolutionFailure>()
-        var resolvedCount = 0
-
-        for (ref in references) {
-            try {
-                if (resolveReference(ref)) {
-                    resolvedCount++
-                } else {
-                    failures.add(ResolutionFailure(ref, "Name not found: ${ref.qualifiedName}"))
-                }
-            } catch (e: Exception) {
-                failures.add(ResolutionFailure(ref, "Error: ${e.message}"))
-                logger.warn(e) { "Failed to resolve reference: ${ref.qualifiedName}" }
-            }
-        }
-
-        val report = ResolutionReport(
-            totalReferences = references.size,
-            resolvedCount = resolvedCount,
-            failedCount = failures.size,
-            failures = failures
-        )
-
-        logger.info { "Reference resolution complete: ${report.resolvedCount}/${report.totalReferences} resolved" }
-        if (failures.isNotEmpty()) {
-            logger.warn { "Failed to resolve ${failures.size} references" }
-        }
-
-        return report
-    }
-
-    /**
-     * Resolve a single pending reference.
-     *
-     * @return true if resolved successfully, false otherwise
-     */
-    private fun resolveReference(ref: PendingReference): Boolean {
-        // Get the source element
-        val sourceObj = engine.getInstance(ref.sourceElementId)
-        if (sourceObj == null) {
-            logger.warn { "Source element not found: ${ref.sourceElementId}" }
-            return false
-        }
-
-        // Resolve the qualified name
-        val result = engine.resolveName(
-            ref.qualifiedName,
-            ref.localNamespaceId,
-            ref.isRedefinitionContext
-        )
-
-        if (result == null) {
-            logger.debug { "Could not resolve: ${ref.qualifiedName} in namespace ${ref.localNamespaceId}" }
-            return false
-        }
-
-        // Set the property on the source element
-        setProperty(sourceObj, ref.targetProperty, result.memberElement)
-
-        logger.debug { "Resolved ${ref.qualifiedName} -> ${result.memberElement.id}" }
-        return true
-    }
-
-    /**
-     * Set a property on a source element to reference the resolved element.
-     */
-    private fun setProperty(
-        sourceObj: org.openmbee.gearshift.framework.runtime.MDMObject,
-        propertyName: String,
-        resolvedElement: org.openmbee.gearshift.framework.runtime.MDMObject
-    ) {
-        // Use the engine to set the property/link
-        engine.mdmEngine.setProperty(sourceObj, propertyName, resolvedElement.id)
-    }
-}
-
-/**
- * Extension functions for ParseContext to support reference collection.
- */
-
-/**
  * Register a pending reference to be resolved after parsing.
  *
  * @param sourceElement The element containing the reference
@@ -231,7 +116,7 @@ fun ParseContext.registerReference(
 
     // Get the local namespace ID for resolution context
     val localNamespaceId = (this.parent as? Element)?.elementId
-        ?: return
+        ?: ""
 
     collector.addReference(
         sourceElementId = sourceId,

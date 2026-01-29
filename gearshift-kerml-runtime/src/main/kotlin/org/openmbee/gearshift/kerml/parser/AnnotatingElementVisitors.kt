@@ -15,14 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.parser
 
-import org.openmbee.gearshift.GearshiftEngine
+import org.openmbee.gearshift.framework.runtime.MDMEngine
 
 /**
  * Visitor for Comment elements.
  * Per KerML spec 8.2.3.3.2: Comments provide textual annotations about elements.
  */
 class CommentVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement comment parsing
         // Extract: identification, about annotations, locale, body (REGULAR_COMMENT)
         val (instanceId, instance) = createInstance(engine, "Comment")
@@ -41,7 +41,7 @@ class CommentVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.3.3.2: Documentation provides descriptive comments.
  */
 class DocumentationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement documentation parsing
         // Extract: identification, locale, body
         val (instanceId, instance) = createInstance(engine, "Documentation")
@@ -59,7 +59,7 @@ class DocumentationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.3.3.3: Textual representations define alternative syntax.
  */
 class TextualRepresentationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement textual representation parsing
         // Extract: identification, language, body
         val (instanceId, instance) = createInstance(engine, "TextualRepresentation")
@@ -77,7 +77,7 @@ class TextualRepresentationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.5.12: Metadata features provide annotations with structured metadata.
  */
 class MetadataFeatureVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement metadata feature parsing
         val (instanceId, instance) = createInstance(engine, "MetadataFeature")
 
@@ -94,7 +94,7 @@ class MetadataFeatureVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec 8.2.3.3.1: Annotations reference annotated elements.
  */
 class AnnotationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement annotation parsing
         // Extract: annotatedElement (QualifiedName)
         val (instanceId, instance) = createInstance(engine, "Annotation")
@@ -110,7 +110,7 @@ class AnnotationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Owned annotations contain annotating elements.
  */
 class OwnedAnnotationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement owned annotation parsing
         // Extract: annotatingElement
         val (instanceId, instance) = createInstance(engine, "OwnedAnnotation")
@@ -126,7 +126,7 @@ class OwnedAnnotationVisitor : BaseKerMLVisitor<Any>() {
  * Per KerML spec: Prefix metadata annotations appear before element declarations.
  */
 class PrefixMetadataAnnotationVisitor : BaseKerMLVisitor<Any>() {
-    override fun visit(ctx: Any, engine: GearshiftEngine): Any? {
+    override fun visit(ctx: Any, engine: MDMEngine): Any? {
         // TODO: Implement prefix metadata annotation parsing
         val (instanceId, instance) = createInstance(engine, "PrefixMetadataAnnotation")
 

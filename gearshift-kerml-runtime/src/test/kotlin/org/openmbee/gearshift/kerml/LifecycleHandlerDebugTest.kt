@@ -79,15 +79,15 @@ class LifecycleHandlerDebugTest : DescribeSpec({
             eventFired shouldBe true
         }
 
-        it("should have SemanticBinding on Classifier metaclass") {
+        it("should have SemanticBinding on Type metaclass") {
             val factory = KerMLModelFactory()
 
-            // Get the Classifier metaclass
-            val classifierMetaClass = factory.engine.getMetaClass("Classifier")!!
-            println("Classifier semanticBindings: ${classifierMetaClass.semanticBindings.map { it.name to it.baseConcept }}")
+            // Get the Type metaclass (Base::Anything binding is defined on Type, inherited by Classifier)
+            val typeMetaClass = factory.engine.getMetaClass("Type")!!
+            println("Type semanticBindings: ${typeMetaClass.semanticBindings.map { it.name to it.baseConcept }}")
 
-            // Check that Classifier has a SemanticBinding to Base::Anything
-            val hasAnythingBinding = classifierMetaClass.semanticBindings.any {
+            // Check that Type has a SemanticBinding to Base::Anything
+            val hasAnythingBinding = typeMetaClass.semanticBindings.any {
                 it.baseConcept == "Base::Anything"
             }
             hasAnythingBinding shouldBe true
@@ -99,8 +99,32 @@ class LifecycleHandlerDebugTest : DescribeSpec({
             // Load the Base library
             KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
 
+            // Debug: Print all root namespaces
+            val engine = factory.engine
+            val allObjects = engine.mdmEngine.objectRepository.getAll()
+            val rootNamespaces = allObjects.filter { obj ->
+                val owner = obj.getProperty("owner")
+                owner == null && engine.metamodelRegistry.isSubclassOf(obj.className, "Namespace")
+            }
+            println("=== DEBUG: Root namespaces found: ${rootNamespaces.size} ===")
+            for (root in rootNamespaces) {
+                println("  Root: ${root.className} id=${root.id}")
+                // Check ownedMembership
+                val memberships = engine.mdmEngine.getProperty(root, "ownedMembership")
+                val memberList = (memberships as? List<*>) ?: emptyList<Any>()
+                println("    ownedMembership count: ${memberList.size}")
+                for (m in memberList.take(5)) {
+                    if (m is org.openmbee.gearshift.framework.runtime.MDMObject) {
+                        val memberName = engine.mdmEngine.getProperty(m, "memberName")
+                        val memberElement = engine.mdmEngine.getProperty(m, "memberElement")
+                        println("      memberName=$memberName memberElement=$memberElement")
+                    }
+                }
+            }
+
             // Try to find Base::Anything
             val anything = factory.findByQualifiedName("Base::Anything")
+            println("=== DEBUG: findByQualifiedName result: $anything ===")
 
             anything shouldNotBe null
             anything?.id shouldNotBe null
