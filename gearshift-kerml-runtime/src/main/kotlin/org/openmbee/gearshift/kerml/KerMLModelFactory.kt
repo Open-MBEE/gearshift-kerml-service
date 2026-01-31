@@ -30,6 +30,7 @@ import org.openmbee.gearshift.kerml.parser.KerMLParseError
 import org.openmbee.gearshift.kerml.parser.visitors.TypedVisitorFactory
 import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.ReferenceCollector
+import org.openmbee.gearshift.kerml.parser.visitors.base.ReferenceResolver
 import java.nio.file.Path
 import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
 
@@ -101,7 +102,7 @@ class KerMLModelFactory(
         fun createKerMLEngine(): MDMEngine {
             val schema = org.openmbee.gearshift.framework.runtime.MetamodelRegistry()
             KerMLMetamodelLoader.initialize(schema)
-            return MDMEngine(schema)
+            return MDMEngine(schema, KerMLElementFactory())
         }
     }
 
@@ -156,6 +157,9 @@ class KerMLModelFactory(
             return null
         }
 
+        // Process any pending implied relationships after parsing
+        semanticHandler.processAllPending()
+
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
     }
@@ -176,6 +180,9 @@ class KerMLModelFactory(
         if (!lastParseResult!!.success) {
             return null
         }
+
+        // Process any pending implied relationships after parsing
+        semanticHandler.processAllPending()
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
@@ -218,8 +225,9 @@ class KerMLModelFactory(
         // Use the typed visitor to parse the tree
         val rootNamespace = TypedVisitorFactory.Core.rootNamespace.visit(tree, parseContext)
 
-        // TODO: Resolve collected references after parsing
-        // For now, references are collected but resolution is deferred
+        // Resolve collected references after parsing
+        val resolver = ReferenceResolver(engine)
+        resolver.resolveAll(referenceCollector)
 
         return KerMLParseResult(
             success = true,

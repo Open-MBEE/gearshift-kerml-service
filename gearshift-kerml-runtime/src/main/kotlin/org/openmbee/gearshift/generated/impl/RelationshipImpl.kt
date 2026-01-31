@@ -18,10 +18,10 @@ package org.openmbee.gearshift.generated.impl
 
 import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
-import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.Wrappers
-import org.openmbee.gearshift.generated.interfaces.Annotation as KerMLAnnotation
-import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
+import org.openmbee.gearshift.generated.interfaces.Element
+import org.openmbee.gearshift.generated.interfaces.Namespace
+import org.openmbee.gearshift.generated.interfaces.Relationship
 
 /**
  * Implementation of Relationship.
@@ -57,12 +57,26 @@ abstract class RelationshipImpl(
     override var owningRelatedElement: Element?
         get() {
             val rawValue = engine.getProperty(wrapped.id!!, "owningRelatedElement")
-            val linked = (rawValue as? List<*>)?.filterIsInstance<MDMObject>()?.firstOrNull()
+            // Handle both single value (when upperBound=1) and list cases
+            val linked = when (rawValue) {
+                is MDMObject -> rawValue
+                is List<*> -> rawValue.filterIsInstance<MDMObject>().firstOrNull()
+                else -> null
+            }
             return linked?.let { Wrappers.wrap(it, engine) as Element }
         }
         set(value) {
-            val rawValue = (value as? BaseModelElementImpl)?.wrapped
-            engine.setProperty(wrapped.id!!, "owningRelatedElement", rawValue)
+            // Use link-based association for setting ownership
+            if (value != null) {
+                val targetObj = value as? MDMObject
+                    ?: (value as? BaseModelElementImpl)?.wrapped
+                    ?: throw IllegalArgumentException("owningRelatedElement must be an MDMObject")
+                engine.link(
+                    sourceId = targetObj.id!!,
+                    targetId = wrapped.id!!,
+                    associationName = "owningRelatedElementOwnedRelationshipAssociation"
+                )
+            }
         }
 
     override val relatedElement: List<Element>

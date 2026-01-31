@@ -16,32 +16,44 @@
 
 package org.openmbee.gearshift.generated.impl
 
+import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 
 /**
- * Base implementation for all generated model element wrappers.
+ * Base implementation for all generated model elements.
+ * Extends MDMObject directly - the impl IS the model object.
+ *
+ * MDMObject already provides id and className, satisfying ModelElement.
  */
-open class BaseModelElementImpl(
-    internal val wrapped: MDMObject,
+open class BaseModelElementImpl : MDMObject, ModelElement {
+
     internal val engine: MDMEngine
-) : ModelElement {
 
-    override val id: String?
-        get() = wrapped.id
-
-    override val className: String
-        get() = wrapped.className
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is BaseModelElementImpl) return false
-        return wrapped.id == other.wrapped.id
+    /**
+     * Primary constructor - creates a new instance with the given class info.
+     */
+    constructor(className: String, metaClass: MetaClass, engine: MDMEngine) : super(className, metaClass) {
+        this.engine = engine
     }
 
-    override fun hashCode(): Int = wrapped.id?.hashCode() ?: 0
+    /**
+     * Migration constructor - for backward compatibility with existing Impl code.
+     * Takes an MDMObject and copies its properties to this instance.
+     *
+     * Note: In the new architecture, you should use the primary constructor
+     * and create typed instances directly via the factory.
+     */
+    constructor(wrapped: MDMObject, engine: MDMEngine) : super(wrapped.className, wrapped.metaClass) {
+        this.engine = engine
+        // Copy all properties from the wrapped object
+        wrapped.getAllProperties().forEach { (k, v) -> setProperty(k, v) }
+        this.id = wrapped.id
+    }
 
-    override fun toString(): String = "${className}(${id})"
+    /**
+     * Alias for backward compatibility - returns this since impl IS the object.
+     */
+    internal val wrapped: MDMObject get() = this
 }
-

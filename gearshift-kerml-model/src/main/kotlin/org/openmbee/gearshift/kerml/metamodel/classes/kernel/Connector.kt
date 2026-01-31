@@ -15,9 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.gearshift.framework.meta.BindingCondition
+import org.openmbee.gearshift.framework.meta.BindingKind
 import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
  * KerML Connector metaclass.
@@ -30,34 +33,6 @@ fun createConnectorMetaClass() = MetaClass(
     superclasses = listOf("Feature", "Relationship"),
     attributes = emptyList(),
     constraints = listOf(
-        MetaConstraint(
-            name = "checkConnectorBinaryObjectSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "connectorEnd->size() = 2 and association->exists(oclIsKindOf(AssociationStructure))",
-            libraryTypeName = "Objects::binaryLinkObjects",
-            description = "A binary Connector for an AssociationStructure must directly or indirectly specialize the base Connector Objects::binaryLinkObjects from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkConnectorBinarySpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "connectorEnd->size() = 2 and not association->exists(oclIsKindOf(AssociationStructure))",
-            libraryTypeName = "Links::binaryLinks",
-            description = "A binary Connector must directly or indirectly specialize the base Connector Links::binaryLinks from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkConnectorObjectSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "connectorEnd->size() <> 2 and association->exists(oclIsKindOf(AssociationStructure))",
-            libraryTypeName = "Objects::linkObjects",
-            description = "A Connector for an AssociationStructure must directly or indirectly specialize the base Connector Objects::linkObjects from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
-            name = "checkConnectorSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "connectorEnd->size() <> 2 and not association->exists(oclIsKindOf(AssociationStructure))",
-            libraryTypeName = "Links::links",
-            description = "A Connector must directly or indirectly specialize the base Connector Links::links from the Kernel Semantic Library."
-        ),
         MetaConstraint(
             name = "checkConnectorTypeFeaturing",
             type = ConstraintType.IMPLICIT_TYPE_FEATURING,
@@ -130,6 +105,48 @@ fun createConnectorMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "if relatedFeature->size() < 2 then OrderedSet{} else relatedFeature->subSequence(2, relatedFeature->size())->asOrderedSet() endif",
             description = "The targetFeatures of a Connector are the relatedFeatures other than the sourceFeature."
+        )
+    ),
+    semanticBindings = listOf(
+        // Binary connector (2 ends) for AssociationStructure -> binaryLinkObjects
+        SemanticBinding(
+            name = "connectorBinaryObjectBinding",
+            baseConcept = "Objects::binaryLinkObjects",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.CollectionSizeEquals("connectorEnd", 2),
+                BindingCondition.HasElementOfType("association", "AssociationStructure")
+            ))
+        ),
+        // Binary connector (2 ends) NOT for AssociationStructure -> binaryLinks
+        SemanticBinding(
+            name = "connectorBinaryBinding",
+            baseConcept = "Links::binaryLinks",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.CollectionSizeEquals("connectorEnd", 2),
+                BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
+            ))
+        ),
+        // Non-binary connector (<> 2 ends) for AssociationStructure -> linkObjects
+        SemanticBinding(
+            name = "connectorObjectBinding",
+            baseConcept = "Objects::linkObjects",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
+                BindingCondition.HasElementOfType("association", "AssociationStructure")
+            ))
+        ),
+        // Non-binary connector (<> 2 ends) NOT for AssociationStructure -> links
+        SemanticBinding(
+            name = "connectorLinksBinding",
+            baseConcept = "Links::links",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.And(listOf(
+                BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
+                BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
+            ))
         )
     ),
     description = "A feature and relationship that represents a connector"

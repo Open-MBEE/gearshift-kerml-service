@@ -31,7 +31,7 @@ import org.openmbee.gearshift.framework.constraints.ocl.antlr.OCLParser
 object OclParser {
 
     /**
-     * Parse an OCL expression string and return the AST.
+     * Parse an OCL expression Convstring and return the AST.
      */
     fun parse(input: String): OclExpression {
         val lexer = OCLLexer(CharStreams.fromString(input))
@@ -315,7 +315,8 @@ object OclParser {
         }
 
         private fun applyClosure(source: OclExpression, ctx: OCLParser.ClosureSuffixContext): OclExpression {
-            val iterVar = ctx.iteratorVar.text
+            // Support both full form (x | body) and shorthand form (body)
+            val iterVar = ctx.iteratorVar?.text ?: "_it"
             val body = visit(ctx.body)
             return IteratorExp(source, "closure", iterVar, body)
         }
@@ -473,17 +474,19 @@ object OclParser {
             while (i < s.length) {
                 if (s[i] == '\\' && i + 1 < s.length) {
                     i++
-                    sb.append(when (s[i]) {
-                        'n' -> '\n'
-                        't' -> '\t'
-                        'r' -> '\r'
-                        'b' -> '\b'
-                        'f' -> '\u000C'
-                        '\'' -> '\''
-                        '"' -> '"'
-                        '\\' -> '\\'
-                        else -> s[i]
-                    })
+                    sb.append(
+                        when (s[i]) {
+                            'n' -> '\n'
+                            't' -> '\t'
+                            'r' -> '\r'
+                            'b' -> '\b'
+                            'f' -> '\u000C'
+                            '\'' -> '\''
+                            '"' -> '"'
+                            '\\' -> '\\'
+                            else -> s[i]
+                        }
+                    )
                 } else {
                     sb.append(s[i])
                 }

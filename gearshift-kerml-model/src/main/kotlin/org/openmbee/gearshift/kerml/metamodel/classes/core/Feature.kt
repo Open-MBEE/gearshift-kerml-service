@@ -629,11 +629,7 @@ fun createFeatureMetaClass() = MetaClass(
         MetaConstraint(
             name = "deriveFeatureType",
             type = ConstraintType.DERIVATION,
-            expression = """
-                let types: OrderedSet(Type) = OrderedSet{self}->
-                    closure(typingFeatures()).typing.type->asOrderedSet() in
-                types->reject(t1 | types->exists(t2 | t2 <> t1 and t2.specializes(t1)))
-            """.trimIndent(),
+            expression = "let types: OrderedSet(Type) = OrderedSet{self}->closure(typingFeatures()).typing.type->asOrderedSet() in types->reject(t1 | types->exists(t2 | t2 <> t1 and t2.specializes(t1)))",
             description = "The types of a Feature are the union of the types of its typings and the types of the Features it subsets, with all redundant supertypes removed. If the Feature has chainingFeatures, then the union also includes the types of the last chainingFeature."
         ),
         MetaConstraint(

@@ -18,6 +18,7 @@ package org.openmbee.gearshift.codegen
 import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.codegen.CodeGenConfig
 import org.openmbee.gearshift.framework.codegen.MetamodelCodeGenerator
+import org.openmbee.gearshift.kerml.KerMLElementFactory
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -57,7 +58,7 @@ object CodeGeneratorRunner {
         // Initialize engine with KerML metamodel
         val schema = org.openmbee.gearshift.framework.runtime.MetamodelRegistry()
         KerMLMetamodelLoader.initialize(schema)
-        val engine = MDMEngine(schema)
+        val engine = MDMEngine(schema, KerMLElementFactory())
 
         // Configure the generator
         val config = CodeGenConfig(

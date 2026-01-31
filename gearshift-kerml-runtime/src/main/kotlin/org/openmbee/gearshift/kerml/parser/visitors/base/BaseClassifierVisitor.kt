@@ -62,7 +62,8 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
 
         // Parse multiplicity
         decl.ownedMultiplicity()?.let { mult ->
-            org.openmbee.gearshift.kerml.parser.visitors.MultiplicityVisitor().parseOwnedMultiplicity(mult, parseContext)
+            org.openmbee.gearshift.kerml.parser.visitors.MultiplicityVisitor()
+                .parseOwnedMultiplicity(mult, parseContext)
         }
 
         // Parse superclassing (subclassification relationships)
@@ -120,6 +121,25 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
     ) {
         val subclassification = parseContext.create<Subclassification>()
         subclassification.subclassifier = classifier
+
+        // Establish ownership - link Subclassification as owned by the Classifier
+        // This makes it accessible via classifier.ownedSpecialization
+        parseContext.engine.link(
+            sourceId = classifier.id!!,
+            targetId = subclassification.id!!,
+            associationName = "owningClassifierOwnedSubclassificationAssociation"
+        )
+        // Also link via base associations for Type and Element ownership
+        parseContext.engine.link(
+            sourceId = classifier.id!!,
+            targetId = subclassification.id!!,
+            associationName = "owningTypeOwnedSpecializationAssociation"
+        )
+        parseContext.engine.link(
+            sourceId = classifier.id!!,
+            targetId = subclassification.id!!,
+            associationName = "owningRelatedElementOwnedRelationshipAssociation"
+        )
 
         ctx.qualifiedName()?.let { qnCtx ->
             val superclassName = extractQualifiedName(qnCtx)

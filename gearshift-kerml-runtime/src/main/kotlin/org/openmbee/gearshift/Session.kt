@@ -16,8 +16,10 @@
 package org.openmbee.gearshift
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.framework.runtime.ElementFactory
 import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MetamodelRegistry
+import org.openmbee.gearshift.kerml.KerMLElementFactory
 import java.time.Instant
 import java.util.UUID
 
@@ -103,7 +105,13 @@ class Session private constructor(
          * Create a new session with the given name and language.
          */
         fun create(name: String, language: ModelLanguage, schema: MetamodelRegistry): Session {
-            val engine = MDMEngine(schema)
+            // Use language-specific element factory
+            val factory: ElementFactory = when (language) {
+                ModelLanguage.KERML -> KerMLElementFactory()
+                ModelLanguage.SYSML -> KerMLElementFactory() // SysML extends KerML
+            }
+
+            val engine = MDMEngine(schema, factory)
 
             // Register language-specific lifecycle handlers
             // TODO: Register handlers based on language

@@ -40,13 +40,6 @@ fun createAssociationMetaClass() = MetaClass(
             description = "A binary Association must directly or indirectly specialize the base Association Links::binaryLink from the Kernel Semantic Library."
         ),
         MetaConstraint(
-            name = "conditionalImplicitBinaryLink",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "associationEnd->size() = 2",
-            libraryTypeName = "Links::BinaryLink",
-            description = "Binary associations implicitly specialize Links::BinaryLink."
-        ),
-        MetaConstraint(
             name = "deriveAssociationAssociationEnd",
             type = ConstraintType.DERIVATION,
             expression = "feature->select(isEnd)",
@@ -101,9 +94,14 @@ fun createAssociationMetaClass() = MetaClass(
             baseConcept = "Links::Link",
             bindingKind = BindingKind.SPECIALIZES,
             condition = BindingCondition.Default
+        ),
+        // Binary associations (2 ends) specialize BinaryLink
+        SemanticBinding(
+            name = "associationBinaryLinkBinding",
+            baseConcept = "Links::BinaryLink",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.CollectionSizeEquals("associationEnd", 2)
         )
-        // Note: conditionalImplicitBinaryLink for Links::BinaryLink requires collection size checking,
-        // which is not yet supported by BindingCondition
     ),
     description = "A classifier and relationship that represents an association"
 )

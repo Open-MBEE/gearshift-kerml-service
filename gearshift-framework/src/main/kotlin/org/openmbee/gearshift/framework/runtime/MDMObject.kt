@@ -26,18 +26,17 @@ import org.openmbee.gearshift.framework.meta.MetaClass
  * - MDMLink instances are edges
  * - MetaClass defines the node type/schema
  */
-class MDMObject(
+open class MDMObject(
     val className: String,
     val metaClass: MetaClass
 ) {
-    private val properties = mutableMapOf<String, Any?>()
+    protected val properties = mutableMapOf<String, Any?>()
 
     /**
      * The ID of this object in the repository.
      * Set when the object is stored in a repository.
      */
     var id: String? = null
-        internal set
 
     /**
      * Set a property value.

@@ -31,7 +31,7 @@ import org.openmbee.gearshift.framework.meta.SemanticBinding
  */
 fun createLiteralExpressionMetaClass() = MetaClass(
     name = "LiteralExpression",
-    isAbstract = true,
+    isAbstract = false,
     superclasses = listOf("Expression"),
     attributes = emptyList(),
     constraints = listOf(

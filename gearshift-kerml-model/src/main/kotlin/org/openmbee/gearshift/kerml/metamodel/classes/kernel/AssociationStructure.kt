@@ -17,9 +17,7 @@ package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.gearshift.framework.meta.BindingCondition
 import org.openmbee.gearshift.framework.meta.BindingKind
-import org.openmbee.gearshift.framework.meta.ConstraintType
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
 import org.openmbee.gearshift.framework.meta.SemanticBinding
 
 /**
@@ -32,23 +30,20 @@ fun createAssociationStructureMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Association", "Structure"),
     attributes = emptyList(),
-    constraints = listOf(
-        // Note: checkAssociationStructureBinarySpecialization for Objects::BinaryLinkObject requires collection size checking,
-        // which is not yet supported by BindingCondition
-        MetaConstraint(
-            name = "checkAssociationStructureBinarySpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "endFeature->size() = 2",
-            libraryTypeName = "Objects::BinaryLinkObject",
-            description = "A binary AssociationStructure must directly or indirectly specialize the base AssociationStructure Objects::BinaryLinkObject from the Kernel Semantic Library."
-        )
-    ),
+    constraints = emptyList(),
     semanticBindings = listOf(
         SemanticBinding(
             name = "associationStructureLinkObjectBinding",
             baseConcept = "Objects::LinkObject",
             bindingKind = BindingKind.SPECIALIZES,
             condition = BindingCondition.Default
+        ),
+        // Binary AssociationStructure (2 ends) specializes BinaryLinkObject
+        SemanticBinding(
+            name = "associationStructureBinaryLinkObjectBinding",
+            baseConcept = "Objects::BinaryLinkObject",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.CollectionSizeEquals("endFeature", 2)
         )
     ),
     description = "An association that is also a structure"

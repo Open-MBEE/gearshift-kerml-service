@@ -322,7 +322,8 @@ anySuffix
     ;
 
 closureSuffix
-    : ARROW_CLOSURE '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'
+    : ARROW_CLOSURE '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'  // Full form: ->closure(x | x.parent)
+    | ARROW_CLOSURE '(' body=expression ')'  // Shorthand form: ->closure(parent)
     ;
 
 sortedBySuffix

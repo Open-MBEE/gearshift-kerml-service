@@ -67,14 +67,23 @@ open class MembershipImpl(
 
     override var memberElement: Element
         get() {
-            val rawValue = engine.getProperty(wrapped.id!!, "memberElement")
-            val linked = (rawValue as? List<*>)?.filterIsInstance<MDMObject>()?.firstOrNull()
+            // Get linked targets via the association
+            val linkedTargets = engine.getLinkedTargets("owningMembershipOwnedMemberElementAssociation", wrapped.id!!)
+            val linked = linkedTargets.firstOrNull()
             return linked?.let { Wrappers.wrap(it, engine) as Element }
                 ?: throw IllegalStateException("Required association end 'memberElement' has no linked target")
         }
         set(value) {
-            val rawValue = (value as? BaseModelElementImpl)?.wrapped
-            engine.setProperty(wrapped.id!!, "memberElement", rawValue)
+            val targetObj = value as? MDMObject
+                ?: (value as? BaseModelElementImpl)?.let { it as MDMObject }
+                ?: throw IllegalArgumentException("memberElement must be an MDMObject")
+
+            // Create link from membership to element
+            engine.link(
+                sourceId = wrapped.id!!,
+                targetId = targetObj.id!!,
+                associationName = "owningMembershipOwnedMemberElementAssociation"
+            )
         }
 
     override val membershipNamespace: Set<Namespace>

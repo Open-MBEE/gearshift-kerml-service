@@ -25,7 +25,9 @@ import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
 
 /**
  * Implementation of Element.
- * Abstract root of the KerML element hierarchy
+ * Abstract root of the KerML element hierarchy.
+ *
+ * Now extends MDMObject via BaseModelElementImpl - the impl IS the model object.
  */
 abstract class ElementImpl(
     wrapped: MDMObject,
@@ -236,4 +238,3 @@ abstract class ElementImpl(
         return (result as? String) ?: ""
     }
 }
-

@@ -228,4 +228,40 @@ class MetamodelRegistry {
         subclassIndex.clear()
         logger.debug { "Registry cleared" }
     }
+
+    /**
+     * Find all association ends that redefine the given property name.
+     * E.g., if `subclassifier` redefines `specific`, calling this with "specific"
+     * returns the association end for `subclassifier`.
+     */
+    fun findRedefiningEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
+        val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
+        for (association in associations.values) {
+            if (association.sourceEnd.redefines.contains(propertyName)) {
+                result.add(association to association.sourceEnd)
+            }
+            if (association.targetEnd.redefines.contains(propertyName)) {
+                result.add(association to association.targetEnd)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Find all association ends that subset the given property name.
+     * E.g., if `ownedMembership` subsets `ownedRelationship`, calling this with "ownedRelationship"
+     * returns the association end for `ownedMembership`.
+     */
+    fun findSubsettingEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
+        val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
+        for (association in associations.values) {
+            if (association.sourceEnd.subsets.contains(propertyName)) {
+                result.add(association to association.sourceEnd)
+            }
+            if (association.targetEnd.subsets.contains(propertyName)) {
+                result.add(association to association.targetEnd)
+            }
+        }
+        return result
+    }
 }

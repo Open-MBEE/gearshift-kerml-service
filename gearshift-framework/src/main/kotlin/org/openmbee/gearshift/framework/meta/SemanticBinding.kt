@@ -97,6 +97,32 @@ sealed class BindingCondition {
     data class And(val conditions: List<BindingCondition>) : BindingCondition()
 
     /**
+     * Binding applies when a collection property is not empty.
+     * Used for conditions like `ownedEndFeature->notEmpty()`.
+     *
+     * @property property The collection property name to check
+     */
+    data class CollectionNotEmpty(val property: String) : BindingCondition()
+
+    /**
+     * Binding applies when a collection property has a specific size.
+     * Used for conditions like `connectorEnd->size() = 2`.
+     *
+     * @property property The collection property name to check
+     * @property size The expected size
+     */
+    data class CollectionSizeEquals(val property: String, val size: Int) : BindingCondition()
+
+    /**
+     * Binding applies when a collection property does NOT have a specific size.
+     * Used for conditions like `connectorEnd->size() <> 2`.
+     *
+     * @property property The collection property name to check
+     * @property size The size that should NOT match
+     */
+    data class CollectionSizeNotEquals(val property: String, val size: Int) : BindingCondition()
+
+    /**
      * Binding applies when any sub-condition is true.
      *
      * @property conditions The conditions where at least one must be true
@@ -109,6 +135,15 @@ sealed class BindingCondition {
      * @property condition The condition to negate
      */
     data class Not(val condition: BindingCondition) : BindingCondition()
+
+    /**
+     * Binding applies when a collection property contains any element that is a kind of
+     * the specified metaclass. Used for conditions like `association->exists(oclIsKindOf(AssociationStructure))`.
+     *
+     * @property property The collection property name to check
+     * @property metaclass The metaclass name to check for
+     */
+    data class HasElementOfType(val property: String, val metaclass: String) : BindingCondition()
 
     /**
      * Binding applies when the element is an end feature (isEnd = true).

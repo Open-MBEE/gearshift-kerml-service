@@ -27,7 +27,7 @@ import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
  * Implementation of LiteralExpression.
  * A LiteralExpression is an Expression that provides a basic DataValue as a result.
  */
-abstract class LiteralExpressionImpl(
+open class LiteralExpressionImpl(
     wrapped: MDMObject,
     engine: MDMEngine
 ) : ExpressionImpl(wrapped, engine), LiteralExpression {

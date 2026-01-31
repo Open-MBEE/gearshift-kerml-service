@@ -83,6 +83,24 @@ class OclParserTest : DescribeSpec({
         }
     }
 
+    describe("collection literals with arrow operations") {
+
+        it("should parse Set literal with arrow") {
+            val ast = OclParser.parse("Set{1, 2, 3}->size()")
+            ast.shouldBeInstanceOf<ArrowCallExp>()
+        }
+
+        it("should parse OrderedSet literal with arrow") {
+            val ast = OclParser.parse("OrderedSet{self}->closure(x | x.parent)")
+            ast.shouldBeInstanceOf<IteratorExp>()
+        }
+
+        it("should parse let with typed OrderedSet") {
+            val ast = OclParser.parse("let types: OrderedSet(Type) = OrderedSet{self} in types")
+            ast.shouldBeInstanceOf<LetExp>()
+        }
+    }
+
     describe("type operations") {
 
         it("should parse oclType arrow operation") {

@@ -16,46 +16,14 @@
 package org.openmbee.gearshift.framework.runtime
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.framework.meta.AggregationKind
 import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaProperty
 import org.openmbee.gearshift.framework.meta.MetaConstraint
+import org.openmbee.gearshift.framework.meta.MetaProperty
 import java.util.UUID
+import kotlin.collections.ArrayDeque
 
 private val logger = KotlinLogging.logger {}
-
-/**
- * Expression language identifier.
- */
-enum class ExpressionLanguage {
-    OCL,
-    GQL,
-    KOTLIN_DSL
-}
-
-/**
- * Evaluator for expressions in a specific language.
- * Implementations handle constraint evaluation, derived property computation, and operation execution.
- */
-interface ExpressionEvaluator {
-    /** The language this evaluator handles */
-    val language: ExpressionLanguage
-
-    /**
-     * Evaluate an expression in the context of an element.
-     *
-     * @param expression The expression text
-     * @param element The context element (self)
-     * @param model The model for navigation and resolution
-     * @param args Additional arguments (for operations)
-     * @return The result of evaluation
-     */
-    fun evaluate(
-        expression: String,
-        element: MDMObject,
-        model: MDMEngine,
-        args: Map<String, Any?> = emptyMap()
-    ): Any?
-}
 
 /**
  * The core runtime model container.
@@ -77,6 +45,8 @@ interface ExpressionEvaluator {
 class MDMEngine(
     /** The schema (metamodel registry) this model uses for metaclass definitions */
     val schema: MetamodelRegistry,
+    /** The factory used to create element instances (allows typed implementations) */
+    elementFactory: ElementFactory = DefaultElementFactory
 ) {
     /** Element instances by ID */
     private val elements: MutableMap<String, MDMObject> = mutableMapOf()
@@ -89,6 +59,22 @@ class MDMEngine(
 
     /** Registered expression evaluators by language */
     private val evaluators: MutableMap<String, ExpressionEvaluator> = mutableMapOf()
+
+    /** The element factory - can be changed at runtime */
+    var factory: ElementFactory = elementFactory
+        private set
+
+    init {
+        // Register default expression evaluators
+        registerEvaluator("OCL", OclExpressionEvaluator())
+    }
+
+    /**
+     * Set a new element factory.
+     */
+    fun setElementFactory(factory: ElementFactory) {
+        this.factory = factory
+    }
 
     // ===== Public API - Element Access =====
 
@@ -120,12 +106,13 @@ class MDMEngine(
 
     /**
      * Create a new element of the specified class.
+     * Uses the registered ElementFactory to create the appropriate typed instance.
      */
     fun createElement(className: String): MDMObject {
         val metaClass = schema.getClass(className)
             ?: throw IllegalArgumentException("Unknown class: $className")
 
-        val element = MDMObject(className, metaClass)
+        val element = factory.createInstance(className, metaClass, this)
         val id = UUID.randomUUID().toString()
         element.id = id
         elements[id] = element
@@ -143,6 +130,43 @@ class MDMEngine(
         fireEvent(LifecycleEvent.InstanceDeleting(element))
         graph.removeEdgesForElement(id)
         return true
+    }
+
+    /**
+     * Delete an instance and cascade delete all owned/composite elements.
+     * Follows composite associations to find elements that should be deleted.
+     *
+     * @param id The ID of the element to delete
+     * @return List of IDs that were deleted (including the original)
+     */
+    fun deleteInstanceWithCascade(id: String): List<String> {
+        val deleted = mutableListOf<String>()
+        val toDelete = ArrayDeque<String>()
+        toDelete.add(id)
+
+        while (toDelete.isNotEmpty()) {
+            val currentId = toDelete.removeFirst()
+            if (currentId in deleted) continue
+
+            val element = elements[currentId] ?: continue
+
+            // Find all outgoing composite links (owned elements)
+            val outgoingLinks = graph.getLinksForElement(currentId).filter { it.sourceId == currentId }
+            for (link in outgoingLinks) {
+                // Check if this is a composite/owning association
+                val association = schema.getAssociation(link.associationName)
+                if (association != null && association.targetEnd.aggregation == AggregationKind.COMPOSITE) {
+                    toDelete.add(link.targetId)
+                }
+            }
+
+            // Delete the element
+            if (removeElement(currentId)) {
+                deleted.add(currentId)
+            }
+        }
+
+        return deleted
     }
 
     /**
@@ -177,12 +201,13 @@ class MDMEngine(
     /**
      * Create instance with optional custom ID (GearshiftEngine compatibility).
      * Returns Pair of (id, object) for compatibility with old API.
+     * Uses the registered ElementFactory to create the appropriate typed instance.
      */
     fun createInstance(className: String, id: String? = null): Pair<String, MDMObject> {
         val metaClass = schema.getClass(className)
             ?: throw IllegalArgumentException("Unknown class: $className")
 
-        val element = MDMObject(className, metaClass)
+        val element = factory.createInstance(className, metaClass, this)
         val elementId = id ?: UUID.randomUUID().toString()
         element.id = elementId
         elements[elementId] = element
@@ -286,8 +311,13 @@ class MDMEngine(
         // Check if it's an association end
         val associationEnd = findAssociationEnd(metaClass, propertyName)
         if (associationEnd != null) {
+            val (_, end, _) = associationEnd
+            // Check if it's a derived association end
+            if (end.isDerived && end.derivationConstraint != null) {
+                return computeDerivedAssociationEnd(element, end)
+            }
             val results = navigateAssociation(element, propertyName)
-            return normalizeForMultiplicity(results, associationEnd.second.upperBound)
+            return normalizeForMultiplicity(results, end.upperBound)
         }
 
         // Not found
@@ -346,10 +376,14 @@ class MDMEngine(
      */
     fun link(sourceId: String, targetId: String, associationName: String) {
         val association = schema.getAssociation(associationName)
-            ?: throw IllegalArgumentException("Unknown association: $associationName")
+        if (association == null) {
+            println("DEBUG MDMEngine.link: Unknown association '$associationName'")
+            throw IllegalArgumentException("Unknown association: $associationName")
+        }
 
         val linkId = UUID.randomUUID().toString()
         val link = MDMLink(linkId, association, sourceId, targetId)
+        System.err.println("DEBUG MDMEngine.link: $sourceId --[$associationName]--> $targetId")
         graph.addEdge(link)
 
         val source = elements[sourceId]
@@ -386,21 +420,71 @@ class MDMEngine(
 
     /**
      * Navigate an association from an element.
+     *
+     * This handles both `redefines` and `subsets` relationships:
+     * - If we navigate `specific` but the actual links are stored via a redefining property
+     *   (e.g., `subclassifier` redefines `specific`), we collect those links.
+     * - If we navigate `ownedRelationship` and `ownedMembership` subsets it, we collect
+     *   links from `ownedMembership` as well (since subsets implies inclusion in the superset).
      */
     fun navigateAssociation(element: MDMElement, propertyName: String): List<MDMObject> {
         val elementId = element.id ?: return emptyList()
         val metaClass = element.metaClass
 
         val associationEnd = findAssociationEnd(metaClass, propertyName)
-            ?: return emptyList()
+        if (associationEnd == null) {
+            System.err.println("DEBUG navigateAssociation: No association found for ${metaClass.name}.$propertyName")
+            return emptyList()
+        }
 
         val (association, end, isTargetEnd) = associationEnd
 
-        return if (isTargetEnd) {
-            graph.getTargets(elementId, association.name).mapNotNull { elements[it] }
+        // Collect target IDs from the primary association
+        val allTargetIds = mutableSetOf<String>()
+        val directResults = if (isTargetEnd) {
+            graph.getTargets(elementId, association.name)
         } else {
-            graph.getSources(elementId, association.name).mapNotNull { elements[it] }
+            graph.getSources(elementId, association.name)
         }
+        allTargetIds.addAll(directResults)
+        System.err.println("DEBUG navigateAssociation: ${metaClass.name}.$propertyName via ${association.name} -> ${directResults.size} direct results")
+
+        // Also collect from redefining associations (e.g., subclassifier redefines specific)
+        val redefiningEnds = schema.findRedefiningEnds(propertyName)
+        for ((redefiningAssoc, redefiningEnd) in redefiningEnds) {
+            // Check if the redefining association applies to this element's class hierarchy
+            val redefiningIsTargetEnd = redefiningEnd == redefiningAssoc.targetEnd
+            val applicableType = if (redefiningIsTargetEnd) redefiningAssoc.sourceEnd.type else redefiningAssoc.targetEnd.type
+            if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
+                val redefiningResults = if (redefiningIsTargetEnd) {
+                    graph.getTargets(elementId, redefiningAssoc.name)
+                } else {
+                    graph.getSources(elementId, redefiningAssoc.name)
+                }
+                System.err.println("DEBUG navigateAssociation: + redefining ${redefiningEnd.name} via ${redefiningAssoc.name} -> ${redefiningResults.size} results")
+                allTargetIds.addAll(redefiningResults)
+            }
+        }
+
+        // Also collect from subsetting associations (e.g., ownedMembership subsets ownedRelationship)
+        val subsettingEnds = schema.findSubsettingEnds(propertyName)
+        for ((subsettingAssoc, subsettingEnd) in subsettingEnds) {
+            // Check if the subsetting association applies to this element's class hierarchy
+            val subsettingIsTargetEnd = subsettingEnd == subsettingAssoc.targetEnd
+            val applicableType = if (subsettingIsTargetEnd) subsettingAssoc.sourceEnd.type else subsettingAssoc.targetEnd.type
+            if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
+                val subsettingResults = if (subsettingIsTargetEnd) {
+                    graph.getTargets(elementId, subsettingAssoc.name)
+                } else {
+                    graph.getSources(elementId, subsettingAssoc.name)
+                }
+                System.err.println("DEBUG navigateAssociation: + subsetting ${subsettingEnd.name} via ${subsettingAssoc.name} -> ${subsettingResults.size} results")
+                allTargetIds.addAll(subsettingResults)
+            }
+        }
+
+        System.err.println("DEBUG navigateAssociation: Total results: ${allTargetIds.size}")
+        return allTargetIds.mapNotNull { elements[it] }
     }
 
     // ===== Public API - Operations & Validation =====
@@ -447,6 +531,41 @@ class MDMEngine(
         val element = elements[instanceId]
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return invokeOperation(element, operationName, args)
+    }
+
+    /**
+     * Compute a derived association end value.
+     */
+    private fun computeDerivedAssociationEnd(
+        element: MDMObject,
+        end: org.openmbee.gearshift.framework.meta.MetaAssociationEnd
+    ): Any? {
+        val derivationConstraintName = end.derivationConstraint ?: return null
+
+        // Look up the constraint by name to get the expression and language
+        val constraint = findConstraint(element.metaClass, derivationConstraintName)
+        if (constraint != null) {
+            val evaluator = evaluators[constraint.language.uppercase()]
+            if (evaluator != null) {
+                logger.debug { "Computing derived association end ${end.name} via ${constraint.language}" }
+                System.err.println("DEBUG MDMEngine: Computing ${end.name} with OCL: ${constraint.expression}")
+                val result = evaluator.evaluate(constraint.expression, element, this)
+                return normalizeForMultiplicity(
+                    when (result) {
+                        null -> emptyList()
+                        is Collection<*> -> result.filterNotNull()
+                        else -> listOf(result)
+                    },
+                    end.upperBound
+                )
+            } else {
+                logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
+            }
+        } else {
+            logger.warn { "Derivation constraint '$derivationConstraintName' not found for association end ${end.name}" }
+        }
+
+        return null
     }
 
     /**
@@ -506,6 +625,37 @@ class MDMEngine(
 
         return errors
     }
+
+    /**
+     * Validate a single element.
+     * Compatibility method - validates all constraints on the given element.
+     */
+    fun validate(element: MDMObject): List<ValidationError> {
+        val errors = mutableListOf<ValidationError>()
+        val constraints = getConstraintsForClass(element.metaClass, emptyList())
+        for (constraint in constraints) {
+            val result = runValidationConstraint(element, constraint)
+            if (!result.isValid) {
+                errors.add(ValidationError(element, constraint, result.message))
+            }
+        }
+        return errors
+    }
+
+    /**
+     * Validate links for a given element.
+     * Compatibility method - validates association cardinality constraints.
+     */
+    fun validateLinks(elementId: String): List<ValidationError> {
+        val element = getElement(elementId) ?: return emptyList()
+        // For now, return empty - full link validation can be added later
+        return emptyList()
+    }
+
+    /**
+     * Get all instances. Alias for getAllElements().
+     */
+    fun getAllInstances(): List<MDMObject> = getAllElements()
 
     // ===== Public API - Lifecycle Handlers =====
 
@@ -578,25 +728,30 @@ class MDMEngine(
         metaClass: MetaClass,
         propertyName: String
     ): Triple<org.openmbee.gearshift.framework.meta.MetaAssociation,
-              org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
-              Boolean>? {
+            org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
+            Boolean>? {
         // Check all associations for matching end name
         for (association in schema.getAllAssociations()) {
             if (association.targetEnd.name == propertyName &&
                 (association.sourceEnd.type == metaClass.name ||
-                 schema.isSubclassOf(metaClass.name, association.sourceEnd.type))) {
+                        schema.isSubclassOf(metaClass.name, association.sourceEnd.type))
+            ) {
                 return Triple(association, association.targetEnd, true)
             }
             if (association.sourceEnd.name == propertyName &&
                 (association.targetEnd.type == metaClass.name ||
-                 schema.isSubclassOf(metaClass.name, association.targetEnd.type))) {
+                        schema.isSubclassOf(metaClass.name, association.targetEnd.type))
+            ) {
                 return Triple(association, association.sourceEnd, false)
             }
         }
         return null
     }
 
-    private fun findOperation(metaClass: MetaClass, operationName: String): org.openmbee.gearshift.framework.meta.MetaOperation? {
+    private fun findOperation(
+        metaClass: MetaClass,
+        operationName: String
+    ): org.openmbee.gearshift.framework.meta.MetaOperation? {
         metaClass.operations.firstOrNull { it.name == operationName }?.let { return it }
         for (superclassName in metaClass.superclasses) {
             schema.getClass(superclassName)?.let { superclass ->
@@ -622,18 +777,16 @@ class MDMEngine(
     }
 
     private fun normalizeForMultiplicity(values: List<Any>, upperBound: Int): Any? {
-        return if (upperBound == 1) {
-            values.firstOrNull()
-        } else {
-            values
-        }
+        // Always return a list - the generated Impl code expects to cast to List
+        // and extract the first element for single-valued associations
+        return values
     }
 
     private fun setAssociationEndValue(
         element: MDMObject,
         associationEnd: Triple<org.openmbee.gearshift.framework.meta.MetaAssociation,
-                              org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
-                              Boolean>,
+                org.openmbee.gearshift.framework.meta.MetaAssociationEnd,
+                Boolean>,
         value: Any?
     ) {
         val (association, end, isTargetEnd) = associationEnd
@@ -658,7 +811,8 @@ class MDMEngine(
         val toRemove = currentTargetIds - newTargetIds.toSet()
         val toAdd = newTargetIds.toSet() - currentTargetIds.toSet()
 
-        // Apply changes
+        // Apply changes to this association
+        // Navigation will handle redefines/subsets collection automatically
         for (targetId in toRemove) {
             if (isTargetEnd) {
                 unlink(elementId, targetId, association.name)
@@ -705,7 +859,11 @@ class MDMEngine(
                 try {
                     val result = evaluator.evaluate(constraint.expression, element, this)
                     when (result) {
-                        is Boolean -> ValidationResult(result, if (!result) "Constraint ${constraint.name} failed" else null)
+                        is Boolean -> ValidationResult(
+                            result,
+                            if (!result) "Constraint ${constraint.name} failed" else null
+                        )
+
                         is ValidationResult -> result
                         else -> ValidationResult(true, null)
                     }
@@ -714,6 +872,7 @@ class MDMEngine(
                     ValidationResult(false, "Evaluation error: ${e.message}")
                 }
             }
+
             else -> ValidationResult(true, null)
         }
     }

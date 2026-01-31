@@ -146,6 +146,24 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
             connEnd.ownedReferenceSubsetting()?.let { refSubsetting ->
                 val subsetting = parseContext.create<Subsetting>()
                 subsetting.subsettingFeature = endFeature
+
+                // Establish ownership - link Subsetting as owned by the Feature
+                parseContext.engine.link(
+                    sourceId = endFeature.id!!,
+                    targetId = subsetting.id!!,
+                    associationName = "owningFeatureOwnedSubsettingAssociation"
+                )
+                parseContext.engine.link(
+                    sourceId = endFeature.id!!,
+                    targetId = subsetting.id!!,
+                    associationName = "owningTypeOwnedSpecializationAssociation"
+                )
+                parseContext.engine.link(
+                    sourceId = endFeature.id!!,
+                    targetId = subsetting.id!!,
+                    associationName = "owningRelatedElementOwnedRelationshipAssociation"
+                )
+
                 refSubsetting.generalType()?.qualifiedName()?.let { qn ->
                     val name = extractQualifiedName(qn)
                     parseContext.registerReference(subsetting, "subsettedFeature", name)

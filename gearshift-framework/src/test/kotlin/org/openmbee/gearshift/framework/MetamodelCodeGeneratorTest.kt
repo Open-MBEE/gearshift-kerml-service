@@ -368,7 +368,7 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
             val code = generator.generateWrappers(classes)
 
             code shouldContain "object Wrappers"
-            code shouldContain "fun wrap(obj: MDMObject, engine: GearshiftEngine): ModelElement"
+            code shouldContain "fun wrap(obj: MDMObject, engine: MDMEngine): ModelElement"
         }
 
         it("should generate cases for concrete classes only") {
@@ -408,7 +408,7 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
 
             implCode shouldContain "open class BaseModelElementImpl"
             implCode shouldContain "internal val wrapped: MDMObject"
-            implCode shouldContain "internal val engine: GearshiftEngine"
+            implCode shouldContain "internal val engine: MDMEngine"
             implCode shouldContain "override val id: String?"
             implCode shouldContain "override fun equals(other: Any?): Boolean"
             implCode shouldContain "override fun hashCode(): Int"

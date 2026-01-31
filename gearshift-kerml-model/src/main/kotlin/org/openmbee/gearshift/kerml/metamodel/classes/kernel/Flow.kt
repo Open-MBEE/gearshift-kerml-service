@@ -35,13 +35,6 @@ fun createFlowMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "checkFlowWithEndsSpecialization",
-            type = ConstraintType.CONDITIONAL_IMPLICIT_SPECIALIZATION,
-            expression = "ownedEndFeature->notEmpty() implies specializesFromLibrary('Transfers::flowTransfers')",
-            libraryTypeName = "Transfers::flowTransfers",
-            description = "A Flow with ownedEndFeatures must specialize the Step Transfers::flowTransfers from the Kernel Semantic Library."
-        ),
-        MetaConstraint(
             name = "deriveFlowFlowEnd",
             type = ConstraintType.DERIVATION,
             expression = "connectorEnd->selectByKind(FlowEnd)",
@@ -84,9 +77,14 @@ fun createFlowMetaClass() = MetaClass(
             baseConcept = "Transfers::transfers",
             bindingKind = BindingKind.SUBSETS,
             condition = BindingCondition.Default
+        ),
+        // Flow with ownedEndFeatures subsets flowTransfers
+        SemanticBinding(
+            name = "flowWithEndsBinding",
+            baseConcept = "Transfers::flowTransfers",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.CollectionNotEmpty("ownedEndFeature")
         )
-        // Note: checkFlowWithEndsSpecialization for Transfers::flowTransfers requires collection non-empty checking,
-        // which is not yet supported by BindingCondition
     ),
     description = "A Flow is a Step that represents the transfer of values from one Feature to another. Flows can take non-zero time to complete."
 )

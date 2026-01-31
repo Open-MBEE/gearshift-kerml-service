@@ -19,105 +19,38 @@ package org.openmbee.gearshift.generated
 import org.openmbee.gearshift.framework.runtime.MDMEngine
 import org.openmbee.gearshift.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.ModelElement
-import org.openmbee.gearshift.generated.impl.*
 
 /**
- * Factory for wrapping MDMObject instances in typed wrappers.
+ * Factory for typed model element access.
+ *
+ * In the new architecture where Impl extends MDMObject, this is primarily
+ * a cast operation - the MDMObject IS already the typed Impl.
  */
 object Wrappers {
 
     /**
-     * Wrap an MDMObject in its corresponding typed wrapper.
+     * Get a typed view of an MDMObject.
+     *
+     * If the object is already a ModelElement (which it should be in the new
+     * architecture where Impl extends MDMObject), simply returns it.
      */
     fun wrap(obj: MDMObject, engine: MDMEngine): ModelElement {
-        return when (obj.className) {
-            "AnnotatingElement" -> AnnotatingElementImpl(obj, engine)
-            "Annotation" -> AnnotationImpl(obj, engine)
-            "Association" -> AssociationImpl(obj, engine)
-            "AssociationStructure" -> AssociationStructureImpl(obj, engine)
-            "Behavior" -> BehaviorImpl(obj, engine)
-            "BindingConnector" -> BindingConnectorImpl(obj, engine)
-            "BooleanExpression" -> BooleanExpressionImpl(obj, engine)
-            "Class" -> ClassImpl(obj, engine)
-            "Classifier" -> ClassifierImpl(obj, engine)
-            "CollectExpression" -> CollectExpressionImpl(obj, engine)
-            "Comment" -> CommentImpl(obj, engine)
-            "Conjugation" -> ConjugationImpl(obj, engine)
-            "Connector" -> ConnectorImpl(obj, engine)
-            "ConstructorExpression" -> ConstructorExpressionImpl(obj, engine)
-            "CrossSubsetting" -> CrossSubsettingImpl(obj, engine)
-            "DataType" -> DataTypeImpl(obj, engine)
-            "Dependency" -> DependencyImpl(obj, engine)
-            "Differencing" -> DifferencingImpl(obj, engine)
-            "Disjoining" -> DisjoiningImpl(obj, engine)
-            "Documentation" -> DocumentationImpl(obj, engine)
-            "ElementFilterMembership" -> ElementFilterMembershipImpl(obj, engine)
-            "EndFeatureMembership" -> EndFeatureMembershipImpl(obj, engine)
-            "Expression" -> ExpressionImpl(obj, engine)
-            "Feature" -> FeatureImpl(obj, engine)
-            "FeatureChainExpression" -> FeatureChainExpressionImpl(obj, engine)
-            "FeatureChaining" -> FeatureChainingImpl(obj, engine)
-            "FeatureInverting" -> FeatureInvertingImpl(obj, engine)
-            "FeatureMembership" -> FeatureMembershipImpl(obj, engine)
-            "FeatureReferenceExpression" -> FeatureReferenceExpressionImpl(obj, engine)
-            "FeatureTyping" -> FeatureTypingImpl(obj, engine)
-            "FeatureValue" -> FeatureValueImpl(obj, engine)
-            "Featuring" -> FeaturingImpl(obj, engine)
-            "Flow" -> FlowImpl(obj, engine)
-            "FlowEnd" -> FlowEndImpl(obj, engine)
-            "Function" -> FunctionImpl(obj, engine)
-            "IndexExpression" -> IndexExpressionImpl(obj, engine)
-            "Interaction" -> InteractionImpl(obj, engine)
-            "Intersecting" -> IntersectingImpl(obj, engine)
-            "Invariant" -> InvariantImpl(obj, engine)
-            "InvocationExpression" -> InvocationExpressionImpl(obj, engine)
-            "LibraryPackage" -> LibraryPackageImpl(obj, engine)
-            "LiteralBoolean" -> LiteralBooleanImpl(obj, engine)
-            "LiteralInfinity" -> LiteralInfinityImpl(obj, engine)
-            "LiteralInteger" -> LiteralIntegerImpl(obj, engine)
-            "LiteralRational" -> LiteralRationalImpl(obj, engine)
-            "LiteralString" -> LiteralStringImpl(obj, engine)
-            "Membership" -> MembershipImpl(obj, engine)
-            "MembershipImport" -> MembershipImportImpl(obj, engine)
-            "Metaclass" -> MetaclassImpl(obj, engine)
-            "MetadataAccessExpression" -> MetadataAccessExpressionImpl(obj, engine)
-            "MetadataFeature" -> MetadataFeatureImpl(obj, engine)
-            "Multiplicity" -> MultiplicityImpl(obj, engine)
-            "MultiplicityRange" -> MultiplicityRangeImpl(obj, engine)
-            "Namespace" -> NamespaceImpl(obj, engine)
-            "NamespaceImport" -> NamespaceImportImpl(obj, engine)
-            "NullExpression" -> NullExpressionImpl(obj, engine)
-            "OperatorExpression" -> OperatorExpressionImpl(obj, engine)
-            "OwningMembership" -> OwningMembershipImpl(obj, engine)
-            "Package" -> PackageImpl(obj, engine)
-            "ParameterMembership" -> ParameterMembershipImpl(obj, engine)
-            "PayloadFeature" -> PayloadFeatureImpl(obj, engine)
-            "Predicate" -> PredicateImpl(obj, engine)
-            "Redefinition" -> RedefinitionImpl(obj, engine)
-            "ReferenceSubsetting" -> ReferenceSubsettingImpl(obj, engine)
-            "ResultExpressionMembership" -> ResultExpressionMembershipImpl(obj, engine)
-            "ReturnParameterMembership" -> ReturnParameterMembershipImpl(obj, engine)
-            "SelectExpression" -> SelectExpressionImpl(obj, engine)
-            "Specialization" -> SpecializationImpl(obj, engine)
-            "Step" -> StepImpl(obj, engine)
-            "Structure" -> StructureImpl(obj, engine)
-            "Subclassification" -> SubclassificationImpl(obj, engine)
-            "Subsetting" -> SubsettingImpl(obj, engine)
-            "Succession" -> SuccessionImpl(obj, engine)
-            "SuccessionFlow" -> SuccessionFlowImpl(obj, engine)
-            "TextualRepresentation" -> TextualRepresentationImpl(obj, engine)
-            "Type" -> TypeImpl(obj, engine)
-            "TypeFeaturing" -> TypeFeaturingImpl(obj, engine)
-            "Unioning" -> UnioningImpl(obj, engine)
-            else -> BaseModelElementImpl(obj, engine)
+        // In the new architecture, MDMObjects ARE ModelElements (Impls extend MDMObject)
+        if (obj is ModelElement) {
+            return obj
         }
+
+        // Fallback for any legacy code paths - shouldn't happen in normal use
+        throw IllegalStateException(
+            "MDMObject '${obj.className}' is not a typed ModelElement. " +
+            "Use the factory to create typed instances."
+        )
     }
 
     /**
-     * Wrap an MDMObject with explicit type parameter.
+     * Get a typed view with explicit type parameter.
      */
     inline fun <reified T : ModelElement> wrapAs(obj: MDMObject, engine: MDMEngine): T {
         return wrap(obj, engine) as T
     }
 }
-

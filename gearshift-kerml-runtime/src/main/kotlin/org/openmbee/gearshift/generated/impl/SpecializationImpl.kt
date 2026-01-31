@@ -34,32 +34,53 @@ open class SpecializationImpl(
 
     override var general: Type
         get() {
-            val rawValue = engine.getProperty(wrapped.id!!, "general")
-            val linked = (rawValue as? List<*>)?.filterIsInstance<MDMObject>()?.firstOrNull()
+            // Navigate via generalizationGeneralAssociation
+            val linkedTargets = engine.getLinkedTargets("generalizationGeneralAssociation", wrapped.id!!)
+            val linked = linkedTargets.firstOrNull()
             return linked?.let { Wrappers.wrap(it, engine) as Type }
                 ?: throw IllegalStateException("Required association end 'general' has no linked target")
         }
         set(value) {
-            val rawValue = (value as? BaseModelElementImpl)?.wrapped
-            engine.setProperty(wrapped.id!!, "general", rawValue)
+            val targetObj = value as? MDMObject
+                ?: (value as? BaseModelElementImpl)?.let { it.wrapped }
+                ?: throw IllegalArgumentException("general must be an MDMObject")
+            engine.link(
+                sourceId = wrapped.id!!,
+                targetId = targetObj.id!!,
+                associationName = "generalizationGeneralAssociation"
+            )
         }
 
     override val owningType: Type?
         get() {
-            val rawValue = engine.getProperty(wrapped.id!!, "owningType")
-            return (rawValue as? MDMObject)?.let { Wrappers.wrap(it, engine) as Type }
+            // Navigate via owningTypeOwnedSpecializationAssociation (inverse direction)
+            // Find the type that owns this specialization
+            return engine.getAllElements()
+                .filter { it.className == "Type" || engine.schema.getClass(it.className)?.superclasses?.contains("Type") == true }
+                .firstOrNull { type ->
+                    val targets = engine.getLinkedTargets("owningTypeOwnedSpecializationAssociation", type.id!!)
+                    targets.any { it.id == wrapped.id }
+                }
+                ?.let { Wrappers.wrap(it, engine) as Type }
         }
 
     override var specific: Type
         get() {
-            val rawValue = engine.getProperty(wrapped.id!!, "specific")
-            val linked = (rawValue as? List<*>)?.filterIsInstance<MDMObject>()?.firstOrNull()
+            // Navigate via specializationSpecificAssociation
+            val linkedTargets = engine.getLinkedTargets("specializationSpecificAssociation", wrapped.id!!)
+            val linked = linkedTargets.firstOrNull()
             return linked?.let { Wrappers.wrap(it, engine) as Type }
                 ?: throw IllegalStateException("Required association end 'specific' has no linked target")
         }
         set(value) {
-            val rawValue = (value as? BaseModelElementImpl)?.wrapped
-            engine.setProperty(wrapped.id!!, "specific", rawValue)
+            val targetObj = value as? MDMObject
+                ?: (value as? BaseModelElementImpl)?.let { it.wrapped }
+                ?: throw IllegalArgumentException("specific must be an MDMObject")
+            engine.link(
+                sourceId = wrapped.id!!,
+                targetId = targetObj.id!!,
+                associationName = "specializationSpecificAssociation"
+            )
         }
 }
 

@@ -15,16 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors.base
 
-import org.openmbee.gearshift.generated.interfaces.Conjugation
-import org.openmbee.gearshift.generated.interfaces.EndFeatureMembership
-import org.openmbee.gearshift.generated.interfaces.Feature
-import org.openmbee.gearshift.generated.interfaces.FeatureChaining
-import org.openmbee.gearshift.generated.interfaces.FeatureTyping
-import org.openmbee.gearshift.generated.interfaces.FeatureValue
-import org.openmbee.gearshift.generated.interfaces.MultiplicityRange
-import org.openmbee.gearshift.generated.interfaces.Redefinition
-import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
-import org.openmbee.gearshift.generated.interfaces.Subsetting
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 
 /**
@@ -169,7 +160,11 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     /**
      * Parse multiplicity part.
      */
-    protected fun parseMultiplicityPart(ctx: KerMLParser.MultiplicityPartContext, feature: Feature, parseContext: ParseContext? = null) {
+    protected fun parseMultiplicityPart(
+        ctx: KerMLParser.MultiplicityPartContext,
+        feature: Feature,
+        parseContext: ParseContext? = null
+    ) {
         ctx.isOrdered?.let { feature.isOrdered = true }
         ctx.isNonunique?.let { feature.isNonunique = true }
         parseContext?.let { pc ->
@@ -270,6 +265,25 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     ) {
         val subsetting = parseContext.create<Subsetting>()
         subsetting.subsettingFeature = feature
+
+        // Establish ownership - link Subsetting as owned by the Feature
+        // This makes it accessible via feature.ownedSubsetting
+        parseContext.engine.link(
+            sourceId = feature.id!!,
+            targetId = subsetting.id!!,
+            associationName = "owningFeatureOwnedSubsettingAssociation"
+        )
+        // Also link via base associations for Type and Element ownership
+        parseContext.engine.link(
+            sourceId = feature.id!!,
+            targetId = subsetting.id!!,
+            associationName = "owningTypeOwnedSpecializationAssociation"
+        )
+        parseContext.engine.link(
+            sourceId = feature.id!!,
+            targetId = subsetting.id!!,
+            associationName = "owningRelatedElementOwnedRelationshipAssociation"
+        )
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val featureName = extractQualifiedName(qnCtx)

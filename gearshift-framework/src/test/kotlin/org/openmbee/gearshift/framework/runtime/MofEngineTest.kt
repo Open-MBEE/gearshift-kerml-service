@@ -41,8 +41,8 @@ class MDMEngineTest : DescribeSpec({
                 val metaClass = MetaClass(name = "Element")
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
                 instance shouldNotBe null
                 instance.className shouldBe "Element"
@@ -50,7 +50,7 @@ class MDMEngineTest : DescribeSpec({
 
             it("should throw when creating instance of non-existent class") {
                 val registry = MetamodelRegistry()
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val engine = MDMEngine(registry)
 
                 val exception = shouldThrow<IllegalArgumentException> {
                     engine.createInstance("NonExistent")
@@ -67,7 +67,7 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val engine = MDMEngine(registry)
 
                 val exception = shouldThrow<IllegalArgumentException> {
                     engine.createInstance("AbstractElement")
@@ -89,10 +89,10 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
-                engine.setProperty(instance, "name", "TestElement")
+                engine.setPropertyValue(instance, "name", "TestElement")
                 val value = engine.getProperty(instance, "name")
 
                 value shouldBe "TestElement"
@@ -103,11 +103,11 @@ class MDMEngineTest : DescribeSpec({
                 val metaClass = MetaClass(name = "Element")
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
                 val exception = shouldThrow<IllegalArgumentException> {
-                    engine.setProperty(instance, "nonExistent", "value")
+                    engine.setPropertyValue(instance, "nonExistent", "value")
                 }
 
                 exception.message shouldContain "'nonExistent' not found"
@@ -128,11 +128,11 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
                 val exception = shouldThrow<IllegalStateException> {
-                    engine.setProperty(instance, "qualifiedName", "value")
+                    engine.setPropertyValue(instance, "qualifiedName", "value")
                 }
 
                 exception.message shouldContain "Cannot set read-only property"
@@ -148,10 +148,10 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
-                engine.setProperty(instance, "name", null)
+                engine.setPropertyValue(instance, "name", null)
                 val value = engine.getProperty(instance, "name")
 
                 value shouldBe null
@@ -181,11 +181,11 @@ class MDMEngineTest : DescribeSpec({
                 registry.registerClass(baseClass)
                 registry.registerClass(derivedClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Derived")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Derived")
 
-                engine.setProperty(instance, "baseProp", "baseValue")
-                engine.setProperty(instance, "derivedProp", "derivedValue")
+                engine.setPropertyValue(instance, "baseProp", "baseValue")
+                engine.setPropertyValue(instance, "derivedProp", "derivedValue")
 
                 engine.getProperty(instance, "baseProp") shouldBe "baseValue"
                 engine.getProperty(instance, "derivedProp") shouldBe "derivedValue"
@@ -208,13 +208,13 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
 
                 val errors = engine.validate(instance)
 
                 errors shouldHaveSize 1
-                errors.first() shouldContain "Required property 'elementId' is not set"
+                errors.first().message shouldContain "Required property 'elementId' is not set"
             }
 
             it("should pass validation when all required properties are set") {
@@ -231,9 +231,9 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Element")
-                engine.setProperty(instance, "elementId", "elem-123")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Element")
+                engine.setPropertyValue(instance, "elementId", "elem-123")
 
                 val errors = engine.validate(instance)
 
@@ -256,11 +256,11 @@ class MDMEngineTest : DescribeSpec({
                 )
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
-                val instance = engine.createInstance("Container")
+                val engine = MDMEngine(registry)
+                val (_, instance) = engine.createInstance("Container")
 
                 val exception = shouldThrow<IllegalArgumentException> {
-                    engine.setProperty(instance, "items", listOf("A", "B", "A"))
+                    engine.setPropertyValue(instance, "items", listOf("A", "B", "A"))
                 }
 
                 exception.message shouldContain "must contain unique values"
@@ -274,7 +274,7 @@ class MDMEngineTest : DescribeSpec({
                 val metaClass = MetaClass(name = "Element")
                 registry.registerClass(metaClass)
 
-                val engine = MDMEngine(registry, ModelRepository(), LinkRepository())
+                val engine = MDMEngine(registry)
                 engine.createInstance("Element")
                 engine.createInstance("Element")
                 engine.createInstance("Element")
