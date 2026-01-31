@@ -4,6 +4,7 @@
 #Local Stuff
 .claude
 .gradle
+.kotlin
 
 #ANTLR
 .antlr
