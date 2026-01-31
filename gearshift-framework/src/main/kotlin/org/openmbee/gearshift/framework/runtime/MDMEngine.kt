@@ -447,7 +447,7 @@ class MDMEngine(
             graph.getSources(elementId, association.name)
         }
         allTargetIds.addAll(directResults)
-        System.err.println("DEBUG navigateAssociation: ${metaClass.name}.$propertyName via ${association.name} -> ${directResults.size} direct results")
+        java.io.File("/tmp/nav-debug.log").appendText("navigateAssociation: ${metaClass.name}.$propertyName via ${association.name}, isTargetEnd=$isTargetEnd -> ${directResults.size} direct results\n")
 
         // Also collect from redefining associations (e.g., subclassifier redefines specific)
         val redefiningEnds = schema.findRedefiningEnds(propertyName)
@@ -468,18 +468,23 @@ class MDMEngine(
 
         // Also collect from subsetting associations (e.g., ownedMembership subsets ownedRelationship)
         val subsettingEnds = schema.findSubsettingEnds(propertyName)
+        java.io.File("/tmp/nav-debug.log").appendText("navigateAssociation: ${metaClass.name}.$propertyName - found ${subsettingEnds.size} subsetting ends\n")
         for ((subsettingAssoc, subsettingEnd) in subsettingEnds) {
+            java.io.File("/tmp/nav-debug.log").appendText("  checking subsetting: ${subsettingEnd.name} via ${subsettingAssoc.name}\n")
             // Check if the subsetting association applies to this element's class hierarchy
             val subsettingIsTargetEnd = subsettingEnd == subsettingAssoc.targetEnd
             val applicableType = if (subsettingIsTargetEnd) subsettingAssoc.sourceEnd.type else subsettingAssoc.targetEnd.type
+            java.io.File("/tmp/nav-debug.log").appendText("  subsettingIsTargetEnd=$subsettingIsTargetEnd, applicableType=$applicableType, metaClass=${metaClass.name}\n")
             if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
                 val subsettingResults = if (subsettingIsTargetEnd) {
                     graph.getTargets(elementId, subsettingAssoc.name)
                 } else {
                     graph.getSources(elementId, subsettingAssoc.name)
                 }
-                System.err.println("DEBUG navigateAssociation: + subsetting ${subsettingEnd.name} via ${subsettingAssoc.name} -> ${subsettingResults.size} results")
+                java.io.File("/tmp/nav-debug.log").appendText("  -> ${subsettingResults.size} results\n")
                 allTargetIds.addAll(subsettingResults)
+            } else {
+                java.io.File("/tmp/nav-debug.log").appendText("  -> not applicable\n")
             }
         }
 
