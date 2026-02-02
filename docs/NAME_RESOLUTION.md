@@ -1,6 +1,6 @@
 # KerML Name Resolution Implementation
 
-This document describes the implementation of KerML Name Resolution (Section 8.2.3.5) in the Gearshift framework.
+This document describes the implementation of KerML Name Resolution (Section 8.2.3.5) in the Mdm framework.
 
 ## Overview
 

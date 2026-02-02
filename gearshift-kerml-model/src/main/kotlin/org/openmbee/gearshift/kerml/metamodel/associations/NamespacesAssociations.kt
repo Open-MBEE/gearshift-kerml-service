@@ -15,9 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
-import org.openmbee.gearshift.framework.meta.AggregationKind
-import org.openmbee.gearshift.framework.meta.MetaAssociation
-import org.openmbee.gearshift.framework.meta.MetaAssociationEnd
+import org.openmbee.mdm.framework.meta.AggregationKind
+import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 7: Namespaces
@@ -84,7 +84,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("namespace")
+            subsets = listOf("namespace"),
+            derivationConstraint = "deriveElementOwningNamespace"
         )
     )
 

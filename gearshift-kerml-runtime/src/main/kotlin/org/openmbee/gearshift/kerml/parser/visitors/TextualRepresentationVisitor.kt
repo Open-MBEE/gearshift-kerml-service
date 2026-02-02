@@ -19,8 +19,8 @@ import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.generated.interfaces.TextualRepresentation
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for TextualRepresentation elements.
@@ -38,10 +38,14 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  *
  * TextualRepresentation extends AnnotatingElement.
  */
-class TextualRepresentationVisitor : BaseTypedVisitor<KerMLParser.TextualRepresentationContext, TextualRepresentation>() {
+class TextualRepresentationVisitor :
+    BaseTypedVisitor<KerMLParser.TextualRepresentationContext, TextualRepresentation>() {
 
-    override fun visit(ctx: KerMLParser.TextualRepresentationContext, parseContext: ParseContext): TextualRepresentation {
-        val textRep = parseContext.create<TextualRepresentation>()
+    override fun visit(
+        ctx: KerMLParser.TextualRepresentationContext,
+        kermlParseContext: KermlParseContext
+    ): TextualRepresentation {
+        val textRep = kermlParseContext.create<TextualRepresentation>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), textRep)
@@ -57,7 +61,7 @@ class TextualRepresentationVisitor : BaseTypedVisitor<KerMLParser.TextualReprese
         }
 
         // Create membership with parent namespace
-        createAnnotatingElementMembership(textRep, parseContext)
+        createAnnotatingElementMembership(textRep, kermlParseContext)
 
         return textRep
     }
@@ -85,12 +89,13 @@ class TextualRepresentationVisitor : BaseTypedVisitor<KerMLParser.TextualReprese
      */
     private fun createAnnotatingElementMembership(
         textRep: TextualRepresentation,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = textRep
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = textRep
                 textRep.declaredName?.let { membership.memberName = it }
                 textRep.declaredShortName?.let { membership.memberShortName = it }
                 membership.membershipOwningNamespace = parent

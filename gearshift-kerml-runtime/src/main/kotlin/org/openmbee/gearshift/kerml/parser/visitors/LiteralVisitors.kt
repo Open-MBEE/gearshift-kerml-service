@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for LiteralExpression elements.
@@ -36,30 +36,33 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class LiteralExpressionVisitor : BaseFeatureVisitor<KerMLParser.LiteralExpressionContext, LiteralExpression>() {
 
-    override fun visit(ctx: KerMLParser.LiteralExpressionContext, parseContext: ParseContext): LiteralExpression {
+    override fun visit(
+        ctx: KerMLParser.LiteralExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): LiteralExpression {
         // Dispatch to specific literal type
         ctx.literalBoolean()?.let { boolCtx ->
-            return LiteralBooleanVisitor().visit(boolCtx, parseContext)
+            return LiteralBooleanVisitor().visit(boolCtx, kermlParseContext)
         }
 
         ctx.literalString()?.let { stringCtx ->
-            return LiteralStringVisitor().visit(stringCtx, parseContext)
+            return LiteralStringVisitor().visit(stringCtx, kermlParseContext)
         }
 
         ctx.literalInteger()?.let { intCtx ->
-            return LiteralIntegerVisitor().visit(intCtx, parseContext)
+            return LiteralIntegerVisitor().visit(intCtx, kermlParseContext)
         }
 
         ctx.literalReal()?.let { realCtx ->
-            return LiteralRealVisitor().visit(realCtx, parseContext)
+            return LiteralRealVisitor().visit(realCtx, kermlParseContext)
         }
 
         ctx.literalInfinity()?.let { infCtx ->
-            return LiteralInfinityVisitor().visit(infCtx, parseContext)
+            return LiteralInfinityVisitor().visit(infCtx, kermlParseContext)
         }
 
         // Fallback - shouldn't reach here
-        return parseContext.create<LiteralExpression>()
+        return kermlParseContext.create<LiteralExpression>()
     }
 }
 
@@ -78,15 +81,15 @@ class LiteralExpressionVisitor : BaseFeatureVisitor<KerMLParser.LiteralExpressio
  */
 class LiteralBooleanVisitor : BaseFeatureVisitor<KerMLParser.LiteralBooleanContext, LiteralBoolean>() {
 
-    override fun visit(ctx: KerMLParser.LiteralBooleanContext, parseContext: ParseContext): LiteralBoolean {
-        val literal = parseContext.create<LiteralBoolean>()
+    override fun visit(ctx: KerMLParser.LiteralBooleanContext, kermlParseContext: KermlParseContext): LiteralBoolean {
+        val literal = kermlParseContext.create<LiteralBoolean>()
 
         ctx.value?.let { boolValue ->
             literal.value = boolValue.TRUE() != null
         }
 
         // Create membership with parent
-        createFeatureMembership(literal, parseContext)
+        createFeatureMembership(literal, kermlParseContext)
 
         return literal
     }
@@ -104,8 +107,8 @@ class LiteralBooleanVisitor : BaseFeatureVisitor<KerMLParser.LiteralBooleanConte
  */
 class LiteralStringVisitor : BaseFeatureVisitor<KerMLParser.LiteralStringContext, LiteralString>() {
 
-    override fun visit(ctx: KerMLParser.LiteralStringContext, parseContext: ParseContext): LiteralString {
-        val literal = parseContext.create<LiteralString>()
+    override fun visit(ctx: KerMLParser.LiteralStringContext, kermlParseContext: KermlParseContext): LiteralString {
+        val literal = kermlParseContext.create<LiteralString>()
 
         ctx.value?.let { stringValue ->
             // Remove surrounding quotes from the string value
@@ -118,7 +121,7 @@ class LiteralStringVisitor : BaseFeatureVisitor<KerMLParser.LiteralStringContext
         }
 
         // Create membership with parent
-        createFeatureMembership(literal, parseContext)
+        createFeatureMembership(literal, kermlParseContext)
 
         return literal
     }
@@ -136,15 +139,15 @@ class LiteralStringVisitor : BaseFeatureVisitor<KerMLParser.LiteralStringContext
  */
 class LiteralIntegerVisitor : BaseFeatureVisitor<KerMLParser.LiteralIntegerContext, LiteralInteger>() {
 
-    override fun visit(ctx: KerMLParser.LiteralIntegerContext, parseContext: ParseContext): LiteralInteger {
-        val literal = parseContext.create<LiteralInteger>()
+    override fun visit(ctx: KerMLParser.LiteralIntegerContext, kermlParseContext: KermlParseContext): LiteralInteger {
+        val literal = kermlParseContext.create<LiteralInteger>()
 
         ctx.value?.let { intValue ->
             literal.value = intValue.text.toIntOrNull() ?: 0
         }
 
         // Create membership with parent
-        createFeatureMembership(literal, parseContext)
+        createFeatureMembership(literal, kermlParseContext)
 
         return literal
     }
@@ -166,15 +169,15 @@ class LiteralIntegerVisitor : BaseFeatureVisitor<KerMLParser.LiteralIntegerConte
  */
 class LiteralRealVisitor : BaseFeatureVisitor<KerMLParser.LiteralRealContext, LiteralRational>() {
 
-    override fun visit(ctx: KerMLParser.LiteralRealContext, parseContext: ParseContext): LiteralRational {
-        val literal = parseContext.create<LiteralRational>()
+    override fun visit(ctx: KerMLParser.LiteralRealContext, kermlParseContext: KermlParseContext): LiteralRational {
+        val literal = kermlParseContext.create<LiteralRational>()
 
         ctx.value?.let { realValue ->
             literal.value = realValue.text.toDoubleOrNull() ?: 0.0
         }
 
         // Create membership with parent
-        createFeatureMembership(literal, parseContext)
+        createFeatureMembership(literal, kermlParseContext)
 
         return literal
     }
@@ -194,11 +197,11 @@ class LiteralRealVisitor : BaseFeatureVisitor<KerMLParser.LiteralRealContext, Li
  */
 class LiteralInfinityVisitor : BaseFeatureVisitor<KerMLParser.LiteralInfinityContext, LiteralInfinity>() {
 
-    override fun visit(ctx: KerMLParser.LiteralInfinityContext, parseContext: ParseContext): LiteralInfinity {
-        val literal = parseContext.create<LiteralInfinity>()
+    override fun visit(ctx: KerMLParser.LiteralInfinityContext, kermlParseContext: KermlParseContext): LiteralInfinity {
+        val literal = kermlParseContext.create<LiteralInfinity>()
 
         // Create membership with parent
-        createFeatureMembership(literal, parseContext)
+        createFeatureMembership(literal, kermlParseContext)
 
         return literal
     }

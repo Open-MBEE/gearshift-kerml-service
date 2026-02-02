@@ -15,13 +15,13 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.framework.meta.BodyLanguage
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.MetaOperation
-import org.openmbee.gearshift.framework.meta.MetaParameter
-import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.BodyLanguage
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaParameter
+import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
  * KerML Membership metaclass.

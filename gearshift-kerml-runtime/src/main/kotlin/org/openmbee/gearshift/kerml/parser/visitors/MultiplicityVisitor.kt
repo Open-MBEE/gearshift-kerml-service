@@ -19,8 +19,8 @@ import org.openmbee.gearshift.generated.interfaces.LiteralInfinity
 import org.openmbee.gearshift.generated.interfaces.LiteralInteger
 import org.openmbee.gearshift.generated.interfaces.MultiplicityRange
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypeVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Multiplicity elements.
@@ -43,18 +43,18 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, MultiplicityRange>() {
 
-    override fun visit(ctx: KerMLParser.MultiplicityContext, parseContext: ParseContext): MultiplicityRange {
+    override fun visit(ctx: KerMLParser.MultiplicityContext, kermlParseContext: KermlParseContext): MultiplicityRange {
         // Dispatch to specific multiplicity type
         ctx.multiplicitySubset()?.let { subset ->
-            return parseMultiplicitySubset(subset, parseContext)
+            return parseMultiplicitySubset(subset, kermlParseContext)
         }
 
         ctx.multiplicityRange()?.let { range ->
-            return parseMultiplicityRange(range, parseContext)
+            return parseMultiplicityRange(range, kermlParseContext)
         }
 
         // Fallback
-        return parseContext.create<MultiplicityRange>()
+        return kermlParseContext.create<MultiplicityRange>()
     }
 
     /**
@@ -67,9 +67,9 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
      */
     private fun parseMultiplicitySubset(
         ctx: KerMLParser.MultiplicitySubsetContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): MultiplicityRange {
-        val mult = parseContext.create<MultiplicityRange>()
+        val mult = kermlParseContext.create<MultiplicityRange>()
 
         // Parse identification
         ctx.identification()?.let { id ->
@@ -77,10 +77,10 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(mult, mult.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(mult, mult.declaredName ?: "")
 
         // Create ownership membership with parent namespace
-        createOwnershipMembership(mult, parseContext)
+        createOwnershipMembership(mult, kermlParseContext)
 
         // Parse type body
         ctx.typeBody()?.let { body ->
@@ -100,9 +100,9 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
      */
     private fun parseMultiplicityRange(
         ctx: KerMLParser.MultiplicityRangeContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): MultiplicityRange {
-        val mult = parseContext.create<MultiplicityRange>()
+        val mult = kermlParseContext.create<MultiplicityRange>()
 
         // Parse identification
         ctx.identification()?.let { id ->
@@ -110,10 +110,10 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(mult, mult.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(mult, mult.declaredName ?: "")
 
         // Create ownership membership with parent namespace
-        createOwnershipMembership(mult, parseContext)
+        createOwnershipMembership(mult, kermlParseContext)
 
         // Parse multiplicity bounds
         ctx.multiplicityBounds()?.let { bounds ->
@@ -136,10 +136,10 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
      */
     fun parseOwnedMultiplicity(
         ctx: KerMLParser.OwnedMultiplicityContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): MultiplicityRange {
-        val mult = parseContext.create<MultiplicityRange>()
-        val childContext = parseContext.withParent(mult, "")
+        val mult = kermlParseContext.create<MultiplicityRange>()
+        val childContext = kermlParseContext.withParent(mult, "")
         ctx.ownedMultiplicityRange()?.multiplicityBounds()?.let { bounds ->
             parseMultiplicityBounds(bounds, mult, childContext)
         }
@@ -157,20 +157,21 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
     private fun parseMultiplicityBounds(
         ctx: KerMLParser.MultiplicityBoundsContext,
         mult: MultiplicityRange,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         val expressions = ctx.multiplicityExpressionMember()
 
         when (expressions.size) {
             1 -> {
                 // Single bound: [n] means exactly n (lower = upper = n)
-                val expr = parseMultiplicityExpression(expressions[0], parseContext)
+                val expr = parseMultiplicityExpression(expressions[0], kermlParseContext)
                 // Both bounds are the same
             }
+
             2 -> {
                 // Range: [lower..upper]
-                val lowerExpr = parseMultiplicityExpression(expressions[0], parseContext)
-                val upperExpr = parseMultiplicityExpression(expressions[1], parseContext)
+                val lowerExpr = parseMultiplicityExpression(expressions[0], kermlParseContext)
+                val upperExpr = parseMultiplicityExpression(expressions[1], kermlParseContext)
             }
         }
     }
@@ -185,15 +186,15 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
      */
     private fun parseMultiplicityExpression(
         ctx: KerMLParser.MultiplicityExpressionMemberContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): Any? {
         ctx.literalExpression()?.let { literal ->
-            return parseLiteralForMultiplicity(literal, parseContext)
+            return parseLiteralForMultiplicity(literal, kermlParseContext)
         }
 
         ctx.featureReferenceExpression()?.let { ref ->
             // Feature reference - e.g., referencing another multiplicity
-            return FeatureReferenceExpressionVisitor().visit(ref, parseContext)
+            return FeatureReferenceExpressionVisitor().visit(ref, kermlParseContext)
         }
 
         return null
@@ -204,20 +205,20 @@ class MultiplicityVisitor : BaseTypeVisitor<KerMLParser.MultiplicityContext, Mul
      */
     private fun parseLiteralForMultiplicity(
         ctx: KerMLParser.LiteralExpressionContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): Any? {
         ctx.literalInteger()?.let { intLit ->
-            val literal = parseContext.create<LiteralInteger>()
+            val literal = kermlParseContext.create<LiteralInteger>()
             intLit.value?.let { value ->
                 literal.value = value.text.toIntOrNull() ?: 0
             }
-            createFeatureMembership(literal, parseContext)
+            createFeatureMembership(literal, kermlParseContext)
             return literal
         }
 
         ctx.literalInfinity()?.let { _ ->
-            val literal = parseContext.create<LiteralInfinity>()
-            createFeatureMembership(literal, parseContext)
+            val literal = kermlParseContext.create<LiteralInfinity>()
+            createFeatureMembership(literal, kermlParseContext)
             return literal
         }
 

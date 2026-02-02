@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Classifier
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for generic Classifier elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class ClassifierVisitor : BaseClassifierVisitor<KerMLParser.ClassifierContext, Classifier>() {
 
-    override fun visit(ctx: KerMLParser.ClassifierContext, parseContext: ParseContext): Classifier {
-        val classifier = parseContext.create<Classifier>()
+    override fun visit(ctx: KerMLParser.ClassifierContext, kermlParseContext: KermlParseContext): Classifier {
+        val classifier = kermlParseContext.create<Classifier>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), classifier)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, classifier, parseContext)
+            parseClassifierDeclaration(decl, classifier, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(classifier, classifier.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(classifier, classifier.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(classifier, parseContext)
+        createOwnershipMembership(classifier, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

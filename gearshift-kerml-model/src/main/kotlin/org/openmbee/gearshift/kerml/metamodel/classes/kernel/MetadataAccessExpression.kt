@@ -15,14 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.BindingCondition
-import org.openmbee.gearshift.framework.meta.BindingKind
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.MetaOperation
-import org.openmbee.gearshift.framework.meta.MetaParameter
-import org.openmbee.gearshift.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaParameter
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
  * KerML MetadataAccessExpression metaclass.

@@ -16,9 +16,10 @@
 package org.openmbee.gearshift.kerml.parser.visitors.base
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.ModelElement
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.memberProperties
 
@@ -67,13 +68,15 @@ class ReferenceCollector {
         localNamespaceId: String,
         isRedefinitionContext: Boolean = false
     ) {
-        references.add(PendingReference(
-            sourceElementId = sourceElementId,
-            targetProperty = targetProperty,
-            qualifiedName = qualifiedName,
-            localNamespaceId = localNamespaceId,
-            isRedefinitionContext = isRedefinitionContext
-        ))
+        references.add(
+            PendingReference(
+                sourceElementId = sourceElementId,
+                targetProperty = targetProperty,
+                qualifiedName = qualifiedName,
+                localNamespaceId = localNamespaceId,
+                isRedefinitionContext = isRedefinitionContext
+            )
+        )
     }
 
     /**
@@ -105,7 +108,7 @@ class ReferenceCollector {
  * @param qualifiedName The qualified name to resolve
  * @param isRedefinitionContext Whether this is a redefinition context
  */
-fun ParseContext.registerReference(
+fun KermlParseContext.registerReference(
     sourceElement: ModelElement,
     targetProperty: String,
     qualifiedName: String,

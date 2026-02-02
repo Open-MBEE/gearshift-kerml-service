@@ -18,8 +18,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 import org.openmbee.gearshift.generated.interfaces.Expression
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Expression elements.
@@ -40,22 +40,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class ExpressionVisitor : BaseFeatureVisitor<KerMLParser.ExpressionContext, Expression>() {
 
-    override fun visit(ctx: KerMLParser.ExpressionContext, parseContext: ParseContext): Expression {
-        val expression = parseContext.create<Expression>()
+    override fun visit(ctx: KerMLParser.ExpressionContext, kermlParseContext: KermlParseContext): Expression {
+        val expression = kermlParseContext.create<Expression>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), expression)
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, expression, parseContext)
+            parseFeatureDeclaration(decl, expression, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(expression, expression.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(expression, expression.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(expression, parseContext)
+        createFeatureMembership(expression, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), expression, childContext)
@@ -73,21 +73,21 @@ class ExpressionVisitor : BaseFeatureVisitor<KerMLParser.ExpressionContext, Expr
      */
     private fun parseFunctionBody(
         ctx: KerMLParser.FunctionBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.functionBodyPart()?.let { bodyPart ->
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
-                parseTypeBodyElement(bodyElement, parseContext)
+                parseTypeBodyElement(bodyElement, kermlParseContext)
             }
 
             bodyPart.returnFeatureMember()?.forEach { returnMember ->
                 returnMember.featureElement()?.let { fe ->
-                    parseFeatureElement(fe, parseContext)
+                    parseFeatureElement(fe, kermlParseContext)
                 }
             }
 
             bodyPart.resultExpressionMember()?.let { _ ->
-                parseContext.create<ResultExpressionMembership>()
+                kermlParseContext.create<ResultExpressionMembership>()
             }
         }
     }

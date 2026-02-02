@@ -15,12 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.framework.meta.BodyLanguage
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.MetaOperation
-import org.openmbee.gearshift.framework.meta.MetaParameter
+import org.openmbee.mdm.framework.meta.BodyLanguage
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaParameter
 
 /**
  * KerML Namespace metaclass.
@@ -143,7 +143,8 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody("""
+            body = MetaOperation.kotlinBody(
+                """
                 val qn = args["qualifiedName"] as? String ?: return@kotlinBody null
                 // Parse the qualified name segments (handling both :: and single names)
                 val segments = qn.split("::")
@@ -153,7 +154,8 @@ fun createNamespaceMetaClass() = MetaClass(
                     // Return all segments except the last, joined by ::
                     segments.dropLast(1).joinToString("::")
                 }
-            """),
+            """
+            ),
             bodyLanguage = BodyLanguage.KOTLIN_DSL,
             isQuery = true,
             description = """
@@ -201,12 +203,14 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody("""
+            body = MetaOperation.kotlinBody(
+                """
                 val qn = args["qualifiedName"] as? String ?: return@kotlinBody null
                 // Delegate to engine's resolveGlobal which finds the root namespace
                 // and resolves the qualified name from there
                 engine.resolveGlobal(qn)
-            """),
+            """
+            ),
             bodyLanguage = BodyLanguage.KOTLIN_DSL,
             isQuery = true,
             description = """
@@ -265,7 +269,8 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody("""
+            body = MetaOperation.kotlinBody(
+                """
                 val qn = args["qualifiedName"] as? String ?: return@kotlinBody ""
                 // Get the last segment of the qualified name
                 val segments = qn.split("::")
@@ -280,7 +285,8 @@ fun createNamespaceMetaClass() = MetaClass(
                 } else {
                     lastSegment
                 }
-            """),
+            """
+            ),
             bodyLanguage = BodyLanguage.KOTLIN_DSL,
             isQuery = true,
             description = """

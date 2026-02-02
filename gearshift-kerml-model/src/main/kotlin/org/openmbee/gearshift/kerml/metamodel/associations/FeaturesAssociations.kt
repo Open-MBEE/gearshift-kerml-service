@@ -15,9 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
-import org.openmbee.gearshift.framework.meta.AggregationKind
-import org.openmbee.gearshift.framework.meta.MetaAssociation
-import org.openmbee.gearshift.framework.meta.MetaAssociationEnd
+import org.openmbee.mdm.framework.meta.AggregationKind
+import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 17: Features

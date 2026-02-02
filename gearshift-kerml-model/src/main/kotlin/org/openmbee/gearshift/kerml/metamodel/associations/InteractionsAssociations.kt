@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.associations
 
-import org.openmbee.gearshift.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociation
 
 /**
  * Figure 35: Interactions

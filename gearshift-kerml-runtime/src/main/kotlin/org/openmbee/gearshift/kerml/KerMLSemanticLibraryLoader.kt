@@ -15,16 +15,25 @@
  */
 package org.openmbee.gearshift.kerml
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
+import org.openmbee.gearshift.generated.KerMLElementFactory
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.kerml.antlr.KerMLLexer
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.RootNamespaceVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
+import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.Mount
+import org.openmbee.mdm.framework.runtime.MountRegistry
+import org.openmbee.mdm.framework.runtime.StandardMount
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Loads the KerML Kernel Semantic Library into the model.
@@ -130,9 +139,10 @@ object KerMLSemanticLibraryLoader {
             val tree = parser.rootNamespace()
             println("DEBUG: Parsed tree, namespace body elements: ${tree.namespaceBodyElement().size}")
 
-            // Use the new typed visitor with ParseContext
-            val parseContext = ParseContext(factory.engine)
-            val rootNamespace = RootNamespaceVisitor().visit(tree, parseContext)
+            // Use the new typed visitor with KermlParseContext
+            val elementFactory = factory.engine.factory as KerMLElementFactory
+            val kermlParseContext = KermlParseContext(factory.engine, elementFactory)
+            val rootNamespace = RootNamespaceVisitor().visit(tree, kermlParseContext)
             println("DEBUG: Root namespace created with id: ${rootNamespace.id}")
 
             // Check what memberships we have
@@ -207,6 +217,83 @@ object KerMLSemanticLibraryLoader {
     fun isLibraryAvailable(): Boolean {
         val libraryPath = getLibraryPath()
         return Files.exists(libraryPath.resolve("Base.kerml"))
+    }
+
+    /**
+     * Load the Kernel Semantic Library into a dedicated engine for mounting.
+     *
+     * This creates a new engine, loads the library files into it, and returns
+     * the engine ready for registration as a mount.
+     *
+     * @param libraryPath Optional custom path to the library directory
+     * @return Pair of (engine, loadResults) or null if library not available
+     */
+    fun loadToSeparateEngine(
+        libraryPath: Path = getLibraryPath()
+    ): Pair<MDMEngine, List<LibraryLoadResult>>? {
+        if (!isLibraryAvailable()) {
+            logger.warn { "KerML library not available at $libraryPath" }
+            return null
+        }
+
+        // Create a dedicated engine
+        val schema = MetamodelRegistry()
+        KerMLMetamodelLoader.initialize(schema)
+        val factory = KerMLElementFactory()
+        val engine = MDMEngine(schema, factory)
+
+        // Create a temporary model for parsing
+        val tempModel = KerMLModel(
+            engine = engine,
+            projectName = "KerML Kernel Semantic Library"
+        )
+
+        // Load all library files
+        val results = loadLibrary(tempModel, libraryPath)
+
+        val successCount = results.count { it.success }
+        logger.info { "Loaded $successCount/${results.size} library files into separate engine (${engine.elementCount()} elements)" }
+
+        return engine to results
+    }
+
+    /**
+     * Load the library and register it as an implicit mount.
+     *
+     * This is a convenience method that combines loadToSeparateEngine()
+     * and MountRegistry.register() into one call.
+     *
+     * @param mountId The ID to use for the mount (default: "kerml-kernel-semantic-library")
+     * @param libraryPath Optional custom path to the library directory
+     * @return The registered Mount, or null if loading failed
+     */
+    fun loadAndRegisterAsMount(
+        mountId: String = "kerml-kernel-semantic-library",
+        libraryPath: Path = getLibraryPath()
+    ): Mount? {
+        // Check if already registered
+        if (MountRegistry.isRegistered(mountId)) {
+            logger.info { "Mount '$mountId' already registered" }
+            return MountRegistry.get(mountId)
+        }
+
+        // Load to separate engine
+        val (engine, results) = loadToSeparateEngine(libraryPath) ?: return null
+
+        val successCount = results.count { it.success }
+        if (successCount == 0) {
+            logger.error { "Failed to load any library files" }
+            return null
+        }
+
+        // Register as implicit mount
+        return MountRegistry.register(
+            id = mountId,
+            name = "KerML Kernel Semantic Library",
+            engine = engine,
+            priority = StandardMount.IMPLICIT_LIBRARY_PRIORITY,
+            isImplicit = true
+        )
     }
 }
 

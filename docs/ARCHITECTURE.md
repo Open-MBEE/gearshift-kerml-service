@@ -2,7 +2,9 @@
 
 ## Overview
 
-The Gearshift KerML Service is a metadata-driven implementation of the KerML (Kernel Modeling Language) metamodel, built on the **Gearshift Framework** - a next-generation MOF (Meta-Object Facility) combined with modern model data management capabilities.
+The Gearshift KerML Service is a metadata-driven implementation of the KerML (Kernel Modeling Language) metamodel, built
+on the **Mdm Framework** - a next-generation MOF (Meta-Object Facility) combined with modern model data management
+capabilities.
 
 ## Design Philosophy
 
@@ -32,7 +34,7 @@ The system combines:
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
-│                  Gearshift Framework                             │
+│                  Mdm Framework                             │
 │                    GearshiftEngine                               │
 │            (Unified API / Single Entry Point)                    │
 └─────────────────────────────────────────────────────────────────┘
@@ -150,7 +152,8 @@ val element = MetaClass(
 )
 ```
 
-**Key principle**: All non-primitive-typed properties are association ends defined separately. Only primitives (String, Boolean, Integer) go in `attributes`.
+**Key principle**: All non-primitive-typed properties are association ends defined separately. Only primitives (String,
+Boolean, Integer) go in `attributes`.
 
 ### MetaAssociation (`metamodel/MetaAssociation.kt`)
 
@@ -200,14 +203,14 @@ Evaluates constraints on instances:
 
 ### Constraint Types (`constraints/ConstraintTypes.kt`)
 
-| Type | Prefix | Purpose |
-|------|--------|---------|
-| `DERIVATION` | `derive` | Compute derived property values |
-| `VERIFICATION` | `check`/`verify` | Validate invariants |
-| `NON_NAVIGABLE_END` | `compute` | Calculate reverse association ends |
-| `IMPLICIT_REDEFINITION` | - | Create inferred Redefinition relationships |
-| `IMPLICIT_TYPE_FEATURING` | - | Create inferred TypeFeaturing |
-| `IMPLICIT_BINDING_CONNECTOR` | - | Create BindingConnector between features |
+| Type                         | Prefix           | Purpose                                    |
+|------------------------------|------------------|--------------------------------------------|
+| `DERIVATION`                 | `derive`         | Compute derived property values            |
+| `VERIFICATION`               | `check`/`verify` | Validate invariants                        |
+| `NON_NAVIGABLE_END`          | `compute`        | Calculate reverse association ends         |
+| `IMPLICIT_REDEFINITION`      | -                | Create inferred Redefinition relationships |
+| `IMPLICIT_TYPE_FEATURING`    | -                | Create inferred TypeFeaturing              |
+| `IMPLICIT_BINDING_CONNECTOR` | -                | Create BindingConnector between features   |
 
 ### ConstraintRegistry (`constraints/ConstraintRegistry.kt`)
 
@@ -260,13 +263,15 @@ val result = executor.evaluate(ast)
 // "self.ownedMembership->closure(m | m.memberElement.ownedMembership)"
 ```
 
-**Recursion safety**: Uses LinkedHashSet for visited tracking and ArrayDeque for work queue in operations like `closure`.
+**Recursion safety**: Uses LinkedHashSet for visited tracking and ArrayDeque for work queue in operations like
+`closure`.
 
 ## KerML Metamodel Implementation
 
 ### Package Structure
 
 **Root Package (14 classes)** - Fundamental elements:
+
 - `Element` - Abstract root of all KerML elements
 - `Relationship` - Abstract base for relationships
 - `Namespace` - Container with membership
@@ -276,6 +281,7 @@ val result = executor.evaluate(ast)
 - `AnnotatingElement`, `Dependency`
 
 **Core Package (23 classes)** - Types and features:
+
 - `Type`, `Classifier`, `Feature`
 - `Structure`, `Class`
 - `Specialization`, `Subsetting`, `Redefinition`
@@ -283,6 +289,7 @@ val result = executor.evaluate(ast)
 - `Conjugation`, `Disjoining`, `Intersecting`, `Unioning`, `Differencing`
 
 **Kernel Package (48+ classes)** - Concrete concepts:
+
 - Classifiers: `DataType`, `Association`, `Behavior`, `Function`
 - Expressions: `Expression`, `LiteralExpression`, `OperatorExpression`, `InvocationExpression`
 - Specialized: `CollectExpression`, `SelectExpression`, `FeatureChainExpression`
@@ -292,6 +299,7 @@ val result = executor.evaluate(ast)
 ### Association Definitions (37+ files)
 
 Organized by domain:
+
 - `ElementsAssociations.kt` - Core element relationships
 - `TypesAssociations.kt` - Type hierarchy
 - `FeaturesAssociations.kt` - Feature relationships
@@ -326,11 +334,13 @@ fun loadKerMLMetamodel(registry: MetamodelRegistry) {
 ### KerML Parsing (`kerml/parser/`)
 
 **Main components:**
+
 - `KerMLParseCoordinator.kt` - Main parsing orchestration
 - `KerMLVisitorFactory.kt` - Factory for creating visitors
 - **45+ visitor files** organized by domain
 
 **Visitor architecture:**
+
 - Visitor pattern for ANTLR-generated parse trees
 - Each visitor handles specific metaclasses
 - Coordination via `KerMLParseCoordinator`
@@ -391,6 +401,7 @@ class FeatureImpl(wrapped: MDMObject) : TypeImpl(wrapped), IFeature {
 ```
 
 Output locations:
+
 - `org.openmbee.gearshift.generated.interfaces` - Type-safe interfaces
 - `org.openmbee.gearshift.generated.impl` - Base implementations
 - `org.openmbee.gearshift.generated.Wrappers` - Factory utilities
@@ -531,7 +542,8 @@ Implements KerML v1.0 specification:
 
 ## Summary
 
-The Gearshift KerML Service provides a production-ready, metadata-driven foundation for KerML implementation. Key achievements:
+The Gearshift KerML Service provides a production-ready, metadata-driven foundation for KerML implementation. Key
+achievements:
 
 1. **Complete Metamodel**: 85+ KerML metaclasses with full inheritance hierarchy
 2. **OCL Support**: Full parser and executor for Object Constraint Language
@@ -540,4 +552,5 @@ The Gearshift KerML Service provides a production-ready, metadata-driven foundat
 5. **Code Generation**: Auto-generated type-safe interfaces
 6. **Versioning Ready**: Architecture supports Git-like version control with KerML as commit payload
 
-The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor of formal metamodeling approaches.
+The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor of formal
+metamodeling approaches.

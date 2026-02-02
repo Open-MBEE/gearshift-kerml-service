@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Specialization
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -41,8 +41,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class SpecializationVisitor : BaseRelationshipVisitor<KerMLParser.SpecializationContext, Specialization>() {
 
-    override fun visit(ctx: KerMLParser.SpecializationContext, parseContext: ParseContext): Specialization {
-        val specialization = parseContext.create<Specialization>()
+    override fun visit(ctx: KerMLParser.SpecializationContext, kermlParseContext: KermlParseContext): Specialization {
+        val specialization = kermlParseContext.create<Specialization>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), specialization)
@@ -50,21 +50,21 @@ class SpecializationVisitor : BaseRelationshipVisitor<KerMLParser.Specialization
         // Parse specific type reference
         ctx.specificType()?.qualifiedName()?.let { qn ->
             val specificTypeName = extractQualifiedName(qn)
-            parseContext.registerReference(specialization, "specific", specificTypeName)
+            kermlParseContext.registerReference(specialization, "specific", specificTypeName)
         }
 
         // Parse general type reference
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val generalTypeName = extractQualifiedName(qn)
-            parseContext.registerReference(specialization, "general", generalTypeName)
+            kermlParseContext.registerReference(specialization, "general", generalTypeName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(specialization, parseContext)
+        createRelationshipMembership(specialization, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(specialization, specialization.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(specialization, specialization.declaredName ?: "")
             parseRelationshipBody(body, specialization, childContext)
         }
 

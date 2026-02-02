@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -41,8 +41,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class SubsettingVisitor : BaseRelationshipVisitor<KerMLParser.SubsettingContext, Subsetting>() {
 
-    override fun visit(ctx: KerMLParser.SubsettingContext, parseContext: ParseContext): Subsetting {
-        val subsetting = parseContext.create<Subsetting>()
+    override fun visit(ctx: KerMLParser.SubsettingContext, kermlParseContext: KermlParseContext): Subsetting {
+        val subsetting = kermlParseContext.create<Subsetting>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), subsetting)
@@ -50,21 +50,21 @@ class SubsettingVisitor : BaseRelationshipVisitor<KerMLParser.SubsettingContext,
         // Parse subsetting feature (specificType)
         ctx.specificType()?.qualifiedName()?.let { qn ->
             val subsettingFeatureName = extractQualifiedName(qn)
-            parseContext.registerReference(subsetting, "subsettingFeature", subsettingFeatureName)
+            kermlParseContext.registerReference(subsetting, "subsettingFeature", subsettingFeatureName)
         }
 
         // Parse subsetted feature (generalType)
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val subsettedFeatureName = extractQualifiedName(qn)
-            parseContext.registerReference(subsetting, "subsettedFeature", subsettedFeatureName)
+            kermlParseContext.registerReference(subsetting, "subsettedFeature", subsettedFeatureName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(subsetting, parseContext)
+        createRelationshipMembership(subsetting, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(subsetting, subsetting.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(subsetting, subsetting.declaredName ?: "")
             parseRelationshipBody(body, subsetting, childContext)
         }
 

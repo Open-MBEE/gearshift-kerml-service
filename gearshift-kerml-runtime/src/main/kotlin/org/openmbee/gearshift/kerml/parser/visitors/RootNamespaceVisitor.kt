@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for the root namespace (entry point for KerML parsing).
@@ -38,15 +38,16 @@ class RootNamespaceVisitor : BaseTypedVisitor<KerMLParser.RootNamespaceContext, 
 
     private val namespaceVisitor = NamespaceVisitor()
 
-    override fun visit(ctx: KerMLParser.RootNamespaceContext, parseContext: ParseContext): Namespace {
-        // Create an implicit root namespace to hold all top-level elements
-        val rootNamespace = parseContext.create<Namespace>()
+    override fun visit(ctx: KerMLParser.RootNamespaceContext, kermlParseContext: KermlParseContext): Namespace {
+        // Create an implicit root namespace to hold all top-level elements.
+        // Per spec: "A root namespace is a namespace that has no owner."
+        // Top-level elements ARE owned by the root namespace, but the root namespace has no owner.
+        val rootNamespace = kermlParseContext.create<Namespace>()
 
-        // The root namespace has no name (empty qualified name prefix)
         // Create child context with root as parent
-        val childContext = parseContext.withParent(rootNamespace, "")
+        val childContext = kermlParseContext.withParent(rootNamespace, "")
 
-        // Process each namespace body element
+        // Process each namespace body element as children of the root namespace
         ctx.namespaceBodyElement()?.forEach { bodyElement ->
             namespaceVisitor.parseNamespaceBodyElement(bodyElement, childContext)
         }

@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Succession
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Succession elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class SuccessionVisitor : BaseFeatureVisitor<KerMLParser.SuccessionContext, Succession>() {
 
-    override fun visit(ctx: KerMLParser.SuccessionContext, parseContext: ParseContext): Succession {
-        val succession = parseContext.create<Succession>()
+    override fun visit(ctx: KerMLParser.SuccessionContext, kermlParseContext: KermlParseContext): Succession {
+        val succession = kermlParseContext.create<Succession>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), succession)
 
         // Parse succession declaration - succession-specific
         ctx.successionDeclaration()?.let { decl ->
-            parseSuccessionDeclaration(decl, succession, parseContext)
+            parseSuccessionDeclaration(decl, succession, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(succession, succession.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(succession, succession.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(succession, parseContext)
+        createFeatureMembership(succession, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
@@ -68,10 +68,10 @@ class SuccessionVisitor : BaseFeatureVisitor<KerMLParser.SuccessionContext, Succ
     private fun parseSuccessionDeclaration(
         ctx: KerMLParser.SuccessionDeclarationContext,
         succession: Succession,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, succession, parseContext)
+            parseFeatureDeclaration(decl, succession, kermlParseContext)
         }
 
         ctx.isSufficient?.let { succession.isSufficient = true }

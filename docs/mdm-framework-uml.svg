@@ -1,0 +1,554 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1400">
+  <defs>
+    <style>
+      .class-box { fill: #fffef0; stroke: #333; stroke-width: 1.5; }
+      .abstract-class-box { fill: #f0f8ff; stroke: #333; stroke-width: 1.5; }
+      .interface-box { fill: #f0fff0; stroke: #333; stroke-width: 1.5; }
+      .enum-box { fill: #fff0f5; stroke: #333; stroke-width: 1.5; }
+      .class-name { font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; }
+      .abstract-name { font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; font-style: italic; }
+      .stereotype { font-family: Arial, sans-serif; font-size: 10px; font-style: italic; }
+      .attribute { font-family: Arial, sans-serif; font-size: 10px; }
+      .operation { font-family: Arial, sans-serif; font-size: 10px; }
+      .section-title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #444; }
+      .section-bg { fill: #f8f8f8; stroke: #ccc; stroke-width: 1; stroke-dasharray: 5,5; rx: 10; }
+      .arrow { fill: none; stroke: #333; stroke-width: 1.5; }
+      .arrow-head { fill: #333; stroke: #333; }
+      .arrow-head-hollow { fill: white; stroke: #333; stroke-width: 1.5; }
+      .diamond-hollow { fill: white; stroke: #333; stroke-width: 1.5; }
+      .diamond-filled { fill: #333; stroke: #333; }
+      .dashed { stroke-dasharray: 5,3; }
+      .multiplicity { font-family: Arial, sans-serif; font-size: 9px; }
+      .role-name { font-family: Arial, sans-serif; font-size: 9px; font-style: italic; }
+    </style>
+    <!-- Arrow markers -->
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" class="arrow-head"/>
+    </marker>
+    <marker id="hollow-arrow" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto">
+      <polygon points="0 0, 12 5, 0 10" class="arrow-head-hollow"/>
+    </marker>
+    <marker id="diamond-hollow" markerWidth="12" markerHeight="8" refX="0" refY="4" orient="auto">
+      <polygon points="6 0, 12 4, 6 8, 0 4" class="diamond-hollow"/>
+    </marker>
+    <marker id="diamond-filled" markerWidth="12" markerHeight="8" refX="0" refY="4" orient="auto">
+      <polygon points="6 0, 12 4, 6 8, 0 4" class="diamond-filled"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="800" y="30" text-anchor="middle" style="font-family: Arial; font-size: 20px; font-weight: bold;">MDM Framework - Abstract Syntax (UML Class Diagram)</text>
+  <text x="800" y="50" text-anchor="middle" style="font-family: Arial; font-size: 12px; fill: #666;">Model-Driven Metamodel Framework Architecture</text>
+
+  <!-- ============================================== -->
+  <!-- METADATA LAYER (Left side) -->
+  <!-- ============================================== -->
+  <rect x="20" y="70" width="700" height="750" class="section-bg"/>
+  <text x="370" y="95" text-anchor="middle" class="section-title">Metadata Layer (Schema)</text>
+
+  <!-- MetaClass -->
+  <g transform="translate(40, 110)">
+    <rect width="200" height="180" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="140" x2="200" y2="140" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MetaClass</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ superclasses: List&lt;String&gt;</text>
+    <text x="5" y="60" class="attribute">+ isAbstract: Boolean</text>
+    <text x="5" y="72" class="attribute">+ description: String?</text>
+    <text x="5" y="84" class="attribute">+ attributes: List&lt;MetaProperty&gt;</text>
+    <text x="5" y="96" class="attribute">+ constraints: List&lt;MetaConstraint&gt;</text>
+    <text x="5" y="108" class="attribute">+ operations: List&lt;MetaOperation&gt;</text>
+    <text x="5" y="120" class="attribute">+ semanticBindings: List&lt;SemanticBinding&gt;</text>
+    <text x="5" y="132" class="attribute">+ ownershipBinding: OwnershipBinding?</text>
+    <text x="5" y="156" class="operation">+ getAllProperties(): List</text>
+    <text x="5" y="168" class="operation">+ getAllOperations(): List</text>
+  </g>
+
+  <!-- MetaProperty -->
+  <g transform="translate(280, 110)">
+    <rect width="180" height="170" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="155" x2="180" y2="155" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">MetaProperty</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ type: String</text>
+    <text x="5" y="60" class="attribute">+ lowerBound: Int</text>
+    <text x="5" y="72" class="attribute">+ upperBound: Int</text>
+    <text x="5" y="84" class="attribute">+ isDerived: Boolean</text>
+    <text x="5" y="96" class="attribute">+ isReadOnly: Boolean</text>
+    <text x="5" y="108" class="attribute">+ isUnion: Boolean</text>
+    <text x="5" y="120" class="attribute">+ defaultValue: Any?</text>
+    <text x="5" y="132" class="attribute">+ derivationConstraint: String?</text>
+    <text x="5" y="144" class="attribute">+ description: String?</text>
+  </g>
+
+  <!-- MetaConstraint -->
+  <g transform="translate(500, 110)">
+    <rect width="180" height="130" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="115" x2="180" y2="115" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">MetaConstraint</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ type: ConstraintType</text>
+    <text x="5" y="60" class="attribute">+ language: String = "OCL"</text>
+    <text x="5" y="72" class="attribute">+ expression: String</text>
+    <text x="5" y="84" class="attribute">+ libraryTypeName: String?</text>
+    <text x="5" y="96" class="attribute">+ description: String?</text>
+  </g>
+
+  <!-- MetaAssociation -->
+  <g transform="translate(40, 320)">
+    <rect width="200" height="100" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="85" x2="200" y2="85" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MetaAssociation</text>
+    <text x="5" y="38" class="attribute">+ name: String</text>
+    <text x="5" y="50" class="attribute">+ sourceEnd: MetaAssociationEnd</text>
+    <text x="5" y="62" class="attribute">+ targetEnd: MetaAssociationEnd</text>
+    <text x="5" y="74" class="attribute">+ isDerived: Boolean</text>
+  </g>
+
+  <!-- MetaAssociationEnd -->
+  <g transform="translate(280, 300)">
+    <rect width="180" height="180" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="165" x2="180" y2="165" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">MetaAssociationEnd</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ type: String</text>
+    <text x="5" y="60" class="attribute">+ lowerBound: Int</text>
+    <text x="5" y="72" class="attribute">+ upperBound: Int</text>
+    <text x="5" y="84" class="attribute">+ isNavigable: Boolean</text>
+    <text x="5" y="96" class="attribute">+ aggregation: AggregationKind</text>
+    <text x="5" y="108" class="attribute">+ isOrdered: Boolean</text>
+    <text x="5" y="120" class="attribute">+ isDerived: Boolean</text>
+    <text x="5" y="132" class="attribute">+ subsets: List&lt;String&gt;</text>
+    <text x="5" y="144" class="attribute">+ redefines: List&lt;String&gt;</text>
+    <text x="5" y="156" class="attribute">+ derivationConstraint: String?</text>
+  </g>
+
+  <!-- MetaOperation -->
+  <g transform="translate(500, 260)">
+    <rect width="180" height="160" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="145" x2="180" y2="145" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">MetaOperation</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ returnType: String?</text>
+    <text x="5" y="60" class="attribute">+ returnLowerBound: Int</text>
+    <text x="5" y="72" class="attribute">+ returnUpperBound: Int</text>
+    <text x="5" y="84" class="attribute">+ parameters: List&lt;MetaParameter&gt;</text>
+    <text x="5" y="96" class="attribute">+ body: String?</text>
+    <text x="5" y="108" class="attribute">+ bodyLanguage: ExpressionLanguage</text>
+    <text x="5" y="120" class="attribute">+ isAbstract: Boolean</text>
+    <text x="5" y="132" class="attribute">+ isQuery: Boolean</text>
+  </g>
+
+  <!-- MetaParameter -->
+  <g transform="translate(500, 440)">
+    <rect width="150" height="90" class="class-box"/>
+    <line x1="0" y1="22" x2="150" y2="22" stroke="#333"/>
+    <line x1="0" y1="75" x2="150" y2="75" stroke="#333"/>
+    <text x="75" y="16" text-anchor="middle" class="class-name">MetaParameter</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ type: String</text>
+    <text x="5" y="60" class="attribute">+ lowerBound: Int</text>
+  </g>
+
+  <!-- SemanticBinding -->
+  <g transform="translate(40, 450)">
+    <rect width="180" height="100" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="85" x2="180" y2="85" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">SemanticBinding</text>
+    <text x="5" y="36" class="attribute">+ name: String</text>
+    <text x="5" y="48" class="attribute">+ baseConcept: String</text>
+    <text x="5" y="60" class="attribute">+ bindingKind: BindingKind</text>
+    <text x="5" y="72" class="attribute">+ condition: BindingCondition?</text>
+  </g>
+
+  <!-- OwnershipBinding -->
+  <g transform="translate(40, 570)">
+    <rect width="180" height="75" class="class-box"/>
+    <line x1="0" y1="22" x2="180" y2="22" stroke="#333"/>
+    <line x1="0" y1="60" x2="180" y2="60" stroke="#333"/>
+    <text x="90" y="16" text-anchor="middle" class="class-name">OwnershipBinding</text>
+    <text x="5" y="36" class="attribute">+ ownedElementEnd: String</text>
+    <text x="5" y="48" class="attribute">+ ownerEnd: String</text>
+  </g>
+
+  <!-- Enumerations -->
+  <!-- AggregationKind -->
+  <g transform="translate(250, 560)">
+    <rect width="130" height="80" class="enum-box"/>
+    <line x1="0" y1="34" x2="130" y2="34" stroke="#333"/>
+    <text x="65" y="14" text-anchor="middle" class="stereotype">«enumeration»</text>
+    <text x="65" y="28" text-anchor="middle" class="class-name">AggregationKind</text>
+    <text x="5" y="50" class="attribute">NONE</text>
+    <text x="5" y="62" class="attribute">SHARED</text>
+    <text x="5" y="74" class="attribute">COMPOSITE</text>
+  </g>
+
+  <!-- ConstraintType -->
+  <g transform="translate(400, 550)">
+    <rect width="160" height="115" class="enum-box"/>
+    <line x1="0" y1="34" x2="160" y2="34" stroke="#333"/>
+    <text x="80" y="14" text-anchor="middle" class="stereotype">«enumeration»</text>
+    <text x="80" y="28" text-anchor="middle" class="class-name">ConstraintType</text>
+    <text x="5" y="50" class="attribute">DERIVATION</text>
+    <text x="5" y="62" class="attribute">VERIFICATION</text>
+    <text x="5" y="74" class="attribute">NON_NAVIGABLE_END</text>
+    <text x="5" y="86" class="attribute">IMPLICIT_REDEFINITION</text>
+    <text x="5" y="98" class="attribute">IMPLICIT_TYPE_FEATURING</text>
+    <text x="5" y="110" class="attribute">...</text>
+  </g>
+
+  <!-- ExpressionLanguage -->
+  <g transform="translate(580, 550)">
+    <rect width="120" height="90" class="enum-box"/>
+    <line x1="0" y1="34" x2="120" y2="34" stroke="#333"/>
+    <text x="60" y="14" text-anchor="middle" class="stereotype">«enumeration»</text>
+    <text x="60" y="28" text-anchor="middle" class="class-name">ExpressionLanguage</text>
+    <text x="5" y="50" class="attribute">OCL</text>
+    <text x="5" y="62" class="attribute">GQL</text>
+    <text x="5" y="74" class="attribute">KOTLIN_DSL</text>
+    <text x="5" y="86" class="attribute">PROPERTY_REF</text>
+  </g>
+
+  <!-- BindingKind -->
+  <g transform="translate(250, 660)">
+    <rect width="120" height="65" class="enum-box"/>
+    <line x1="0" y1="34" x2="120" y2="34" stroke="#333"/>
+    <text x="60" y="14" text-anchor="middle" class="stereotype">«enumeration»</text>
+    <text x="60" y="28" text-anchor="middle" class="class-name">BindingKind</text>
+    <text x="5" y="50" class="attribute">SPECIALIZES</text>
+    <text x="5" y="62" class="attribute">SUBSETS</text>
+  </g>
+
+  <!-- BindingCondition (abstract) -->
+  <g transform="translate(400, 680)">
+    <rect width="180" height="70" class="abstract-class-box"/>
+    <line x1="0" y1="34" x2="180" y2="34" stroke="#333"/>
+    <line x1="0" y1="55" x2="180" y2="55" stroke="#333"/>
+    <text x="90" y="14" text-anchor="middle" class="stereotype">«sealed interface»</text>
+    <text x="90" y="28" text-anchor="middle" class="abstract-name">BindingCondition</text>
+    <text x="5" y="48" class="attribute" style="font-style: italic;">+ evaluate(): Boolean</text>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- RUNTIME LAYER (Right side) -->
+  <!-- ============================================== -->
+  <rect x="740" y="70" width="840" height="750" class="section-bg"/>
+  <text x="1160" y="95" text-anchor="middle" class="section-title">Runtime Layer (Model)</text>
+
+  <!-- MDMEngine -->
+  <g transform="translate(760, 110)">
+    <rect width="280" height="260" class="class-box"/>
+    <line x1="0" y1="22" x2="280" y2="22" stroke="#333"/>
+    <line x1="0" y1="90" x2="280" y2="90" stroke="#333"/>
+    <text x="140" y="16" text-anchor="middle" class="class-name">MDMEngine</text>
+    <text x="5" y="38" class="attribute">- elements: Map&lt;String, MDMObject&gt;</text>
+    <text x="5" y="50" class="attribute">- graph: MDMGraph</text>
+    <text x="5" y="62" class="attribute">- lifecycleHandlers: List&lt;LifecycleHandler&gt;</text>
+    <text x="5" y="74" class="attribute">+ schema: MetamodelRegistry</text>
+    <text x="5" y="86" class="attribute">+ factory: ElementFactory</text>
+    <text x="5" y="106" class="operation">+ createElement(className): MDMObject</text>
+    <text x="5" y="118" class="operation">+ getElement(id): MDMObject?</text>
+    <text x="5" y="130" class="operation">+ getAllElements(): Collection</text>
+    <text x="5" y="142" class="operation">+ getElementsByClass(name): List</text>
+    <text x="5" y="154" class="operation">+ deleteInstanceWithCascade(id)</text>
+    <text x="5" y="166" class="operation">+ link(sourceId, targetId, assocName)</text>
+    <text x="5" y="178" class="operation">+ unlink(sourceId, targetId, assocName)</text>
+    <text x="5" y="190" class="operation">+ navigateAssociation(obj, prop): List</text>
+    <text x="5" y="202" class="operation">+ getPropertyValue(obj, prop): Any?</text>
+    <text x="5" y="214" class="operation">+ setPropertyValue(obj, prop, value)</text>
+    <text x="5" y="226" class="operation">+ invokeOperation(obj, op, args): Any?</text>
+    <text x="5" y="238" class="operation">+ validateAll(): List&lt;ValidationResult&gt;</text>
+    <text x="5" y="250" class="operation">+ registerLifecycleHandler(handler)</text>
+  </g>
+
+  <!-- MetamodelRegistry -->
+  <g transform="translate(1080, 110)">
+    <rect width="230" height="180" class="class-box"/>
+    <line x1="0" y1="22" x2="230" y2="22" stroke="#333"/>
+    <line x1="0" y1="62" x2="230" y2="62" stroke="#333"/>
+    <text x="115" y="16" text-anchor="middle" class="class-name">MetamodelRegistry</text>
+    <text x="5" y="38" class="attribute">- classes: Map&lt;String, MetaClass&gt;</text>
+    <text x="5" y="50" class="attribute">- associations: Map&lt;String, MetaAssociation&gt;</text>
+    <text x="5" y="78" class="operation">+ registerClass(MetaClass)</text>
+    <text x="5" y="90" class="operation">+ registerAssociation(MetaAssociation)</text>
+    <text x="5" y="102" class="operation">+ getClass(name): MetaClass?</text>
+    <text x="5" y="114" class="operation">+ getAssociation(name): MetaAssociation?</text>
+    <text x="5" y="126" class="operation">+ getAllClasses(): Collection</text>
+    <text x="5" y="138" class="operation">+ isSubclassOf(sub, super): Boolean</text>
+    <text x="5" y="150" class="operation">+ getAllSuperclasses(name): List</text>
+    <text x="5" y="162" class="operation">+ getNavigableEndsForClass(name): Map</text>
+    <text x="5" y="174" class="operation">+ validate(): List&lt;String&gt;</text>
+  </g>
+
+  <!-- MDMObject -->
+  <g transform="translate(760, 400)">
+    <rect width="200" height="130" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="75" x2="200" y2="75" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MDMObject</text>
+    <text x="5" y="38" class="attribute">+ className: String</text>
+    <text x="5" y="50" class="attribute">+ metaClass: MetaClass</text>
+    <text x="5" y="62" class="attribute">+ id: String?</text>
+    <text x="5" y="90" class="operation">+ setProperty(name, value)</text>
+    <text x="5" y="102" class="operation">+ getProperty(name): Any?</text>
+    <text x="5" y="114" class="operation">+ getAllProperties(): Map</text>
+  </g>
+
+  <!-- MDMLink -->
+  <g transform="translate(1000, 400)">
+    <rect width="200" height="130" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="75" x2="200" y2="75" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MDMLink</text>
+    <text x="5" y="38" class="attribute">+ id: String</text>
+    <text x="5" y="50" class="attribute">+ association: MetaAssociation</text>
+    <text x="5" y="62" class="attribute">+ sourceId: String</text>
+    <text x="5" y="74" class="attribute">+ targetId: String</text>
+    <text x="5" y="90" class="operation">+ associationName(): String</text>
+    <text x="5" y="102" class="operation">+ isForwardNavigable(): Boolean</text>
+    <text x="5" y="114" class="operation">+ isTargetComposite(): Boolean</text>
+  </g>
+
+  <!-- MDMGraph -->
+  <g transform="translate(1240, 400)">
+    <rect width="200" height="130" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="62" x2="200" y2="62" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MDMGraph</text>
+    <text x="5" y="38" class="attribute">- edges: Map&lt;String, MDMLink&gt;</text>
+    <text x="5" y="50" class="attribute">- sourceIndex: Map&lt;String, List&gt;</text>
+    <text x="5" y="78" class="operation">+ addEdge(MDMLink)</text>
+    <text x="5" y="90" class="operation">+ removeEdge(linkId)</text>
+    <text x="5" y="102" class="operation">+ getTargets(sourceId): List</text>
+    <text x="5" y="114" class="operation">+ getSources(targetId): List</text>
+  </g>
+
+  <!-- ElementFactory (interface) -->
+  <g transform="translate(1320, 110)">
+    <rect width="180" height="80" class="interface-box"/>
+    <line x1="0" y1="34" x2="180" y2="34" stroke="#333"/>
+    <text x="90" y="14" text-anchor="middle" class="stereotype">«interface»</text>
+    <text x="90" y="28" text-anchor="middle" class="class-name">ElementFactory</text>
+    <text x="5" y="50" class="operation">+ createInstance(className): MDMObject</text>
+    <text x="5" y="62" class="operation">+ supportsClass(className): Boolean</text>
+    <text x="5" y="74" class="attribute">+ engine: MDMEngine</text>
+  </g>
+
+  <!-- ExpressionEvaluator (interface) -->
+  <g transform="translate(1320, 220)">
+    <rect width="200" height="65" class="interface-box"/>
+    <line x1="0" y1="34" x2="200" y2="34" stroke="#333"/>
+    <text x="100" y="14" text-anchor="middle" class="stereotype">«interface»</text>
+    <text x="100" y="28" text-anchor="middle" class="class-name">ExpressionEvaluator</text>
+    <text x="5" y="50" class="operation">+ evaluate(expr, element, model, args)</text>
+  </g>
+
+  <!-- LifecycleHandler (interface) -->
+  <g transform="translate(760, 560)">
+    <rect width="200" height="75" class="interface-box"/>
+    <line x1="0" y1="34" x2="200" y2="34" stroke="#333"/>
+    <text x="100" y="14" text-anchor="middle" class="stereotype">«interface»</text>
+    <text x="100" y="28" text-anchor="middle" class="class-name">LifecycleHandler</text>
+    <text x="5" y="50" class="attribute">+ priority: Int = 100</text>
+    <text x="5" y="62" class="operation">+ handle(event, model)</text>
+  </g>
+
+  <!-- LifecycleEvent (sealed) -->
+  <g transform="translate(1000, 560)">
+    <rect width="200" height="110" class="abstract-class-box"/>
+    <line x1="0" y1="34" x2="200" y2="34" stroke="#333"/>
+    <text x="100" y="14" text-anchor="middle" class="stereotype">«sealed interface»</text>
+    <text x="100" y="28" text-anchor="middle" class="abstract-name">LifecycleEvent</text>
+    <text x="5" y="50" class="attribute" style="font-style: italic;">InstanceCreated(element)</text>
+    <text x="5" y="62" class="attribute" style="font-style: italic;">LinkCreated(link)</text>
+    <text x="5" y="74" class="attribute" style="font-style: italic;">InstanceDeleting(element)</text>
+    <text x="5" y="86" class="attribute" style="font-style: italic;">LinkDeleting(link)</text>
+    <text x="5" y="98" class="attribute" style="font-style: italic;">PropertyChanged(element, prop)</text>
+  </g>
+
+  <!-- ConstraintEngine -->
+  <g transform="translate(1240, 560)">
+    <rect width="200" height="130" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="50" x2="200" y2="50" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">ConstraintEngine</text>
+    <text x="5" y="38" class="attribute">- registry: ConstraintRegistry</text>
+    <text x="5" y="66" class="operation">+ evaluateDerivedProperty()</text>
+    <text x="5" y="78" class="operation">+ validateInstance()</text>
+    <text x="5" y="90" class="operation">+ evaluateAssociationEnd()</text>
+    <text x="5" y="102" class="operation">+ validateConstraint()</text>
+    <text x="5" y="114" class="operation">+ hasDerivedPropertyEvaluator()</text>
+  </g>
+
+  <!-- MDMModel -->
+  <g transform="translate(760, 700)">
+    <rect width="200" height="100" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="62" x2="200" y2="62" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">MDMModel</text>
+    <text x="5" y="38" class="attribute">+ engine: MDMEngine</text>
+    <text x="5" y="50" class="attribute">+ project: ProjectMetadata</text>
+    <text x="5" y="78" class="operation">+ getElement(id): MDMObject?</text>
+    <text x="5" y="90" class="operation">+ createElement(className): MDMObject</text>
+  </g>
+
+  <!-- ConstraintRegistry -->
+  <g transform="translate(1240, 710)">
+    <rect width="200" height="90" class="class-box"/>
+    <line x1="0" y1="22" x2="200" y2="22" stroke="#333"/>
+    <line x1="0" y1="35" x2="200" y2="35" stroke="#333"/>
+    <text x="100" y="16" text-anchor="middle" class="class-name">ConstraintRegistry</text>
+    <text x="5" y="50" class="operation">+ registerDerivedProperty()</text>
+    <text x="5" y="62" class="operation">+ registerValidation()</text>
+    <text x="5" y="74" class="operation">+ registerAssociationEnd()</text>
+  </g>
+
+  <!-- ============================================== -->
+  <!-- RELATIONSHIPS -->
+  <!-- ============================================== -->
+
+  <!-- MetaClass -> MetaProperty (composition) -->
+  <path d="M 240 190 L 280 190" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="255" y="185" class="multiplicity">1</text>
+  <text x="270" y="185" class="multiplicity">*</text>
+  <text x="255" y="200" class="role-name">attributes</text>
+
+  <!-- MetaClass -> MetaConstraint (composition) -->
+  <path d="M 240 200 L 255 200 L 255 175 L 500 175" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="490" y="170" class="multiplicity">*</text>
+  <text x="300" y="168" class="role-name">constraints</text>
+
+  <!-- MetaClass -> MetaOperation (composition) -->
+  <path d="M 240 210 L 265 210 L 265 285 L 500 285" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="490" y="280" class="multiplicity">*</text>
+  <text x="300" y="278" class="role-name">operations</text>
+
+  <!-- MetaClass -> SemanticBinding (composition) -->
+  <path d="M 140 290 L 140 450" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="145" y="440" class="multiplicity">*</text>
+  <text x="145" y="320" class="role-name">semanticBindings</text>
+
+  <!-- MetaClass -> OwnershipBinding (composition) -->
+  <path d="M 100 290 L 100 570" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="105" y="560" class="multiplicity">0..1</text>
+
+  <!-- MetaAssociation -> MetaAssociationEnd (composition) -->
+  <path d="M 240 370 L 280 370" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="255" y="365" class="multiplicity">1</text>
+  <text x="270" y="365" class="multiplicity">2</text>
+  <text x="255" y="380" class="role-name">ends</text>
+
+  <!-- MetaOperation -> MetaParameter (composition) -->
+  <path d="M 590 420 L 590 440" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="595" y="435" class="multiplicity">*</text>
+  <text x="595" y="425" class="role-name">parameters</text>
+
+  <!-- MDMEngine -> MetamodelRegistry -->
+  <path d="M 1040 175 L 1080 175" class="arrow" marker-end="url(#arrow)"/>
+  <text x="1050" y="168" class="role-name">schema</text>
+
+  <!-- MDMEngine -> MDMObject (contains) -->
+  <path d="M 860 370 L 860 400" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="865" y="395" class="multiplicity">*</text>
+  <text x="865" y="380" class="role-name">elements</text>
+
+  <!-- MDMEngine -> MDMGraph (contains) -->
+  <path d="M 1000 370 L 1000 380 L 1340 380 L 1340 400" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="1345" y="395" class="multiplicity">1</text>
+  <text x="1345" y="380" class="role-name">graph</text>
+
+  <!-- MDMGraph -> MDMLink (contains) -->
+  <path d="M 1240 465 L 1200 465" class="arrow" marker-start="url(#diamond-filled)"/>
+  <text x="1205" y="460" class="multiplicity">*</text>
+  <text x="1205" y="475" class="role-name">edges</text>
+
+  <!-- MDMLink -> MDMObject (association) -->
+  <path d="M 1000 465 L 960 465" class="arrow" marker-end="url(#arrow)"/>
+  <text x="970" y="460" class="role-name">source/target</text>
+
+  <!-- MDMObject -> MetaClass (typed by) -->
+  <path d="M 780 400 L 780 300 L 650 300 L 650 290 L 240 290 L 240 280" class="arrow dashed" marker-end="url(#arrow)"/>
+  <text x="400" y="295" class="role-name">«instanceOf»</text>
+
+  <!-- MDMLink -> MetaAssociation (typed by) -->
+  <path d="M 1050 530 L 1050 540 L 700 540 L 700 370 L 240 370" class="arrow dashed" marker-end="url(#arrow)"/>
+  <text x="400" y="365" class="role-name">«instanceOf»</text>
+
+  <!-- MDMEngine -> LifecycleHandler -->
+  <path d="M 860 370 L 860 560" class="arrow" marker-end="url(#arrow)"/>
+  <text x="865" y="500" class="role-name">handlers</text>
+  <text x="865" y="550" class="multiplicity">*</text>
+
+  <!-- LifecycleHandler uses LifecycleEvent -->
+  <path d="M 960 600 L 1000 600" class="arrow dashed" marker-end="url(#arrow)"/>
+  <text x="970" y="595" class="role-name">«uses»</text>
+
+  <!-- MDMEngine -> ElementFactory -->
+  <path d="M 1040 160 L 1240 160 L 1320 160" class="arrow" marker-end="url(#arrow)"/>
+  <text x="1200" y="155" class="role-name">factory</text>
+
+  <!-- MDMEngine -> ExpressionEvaluator -->
+  <path d="M 1040 200 L 1260 200 L 1320 240" class="arrow" marker-end="url(#arrow)"/>
+  <text x="1200" y="195" class="role-name">evaluators</text>
+  <text x="1290" y="210" class="multiplicity">*</text>
+
+  <!-- ConstraintEngine -> ConstraintRegistry -->
+  <path d="M 1340 690 L 1340 710" class="arrow" marker-end="url(#arrow)"/>
+  <text x="1345" y="705" class="role-name">registry</text>
+
+  <!-- MDMModel -> MDMEngine -->
+  <path d="M 860 700 L 860 370" class="arrow" marker-end="url(#arrow)"/>
+  <text x="815" y="500" class="role-name">engine</text>
+
+  <!-- Legend -->
+  <g transform="translate(20, 850)">
+    <rect width="720" height="130" fill="white" stroke="#333" rx="5"/>
+    <text x="10" y="20" style="font-family: Arial; font-size: 12px; font-weight: bold;">Legend</text>
+
+    <!-- Class -->
+    <rect x="10" y="30" width="60" height="25" class="class-box"/>
+    <text x="40" y="47" text-anchor="middle" class="attribute">Class</text>
+    <text x="80" y="47" class="attribute">Concrete class</text>
+
+    <!-- Abstract -->
+    <rect x="170" y="30" width="70" height="25" class="abstract-class-box"/>
+    <text x="205" y="47" text-anchor="middle" class="attribute" style="font-style: italic;">Abstract</text>
+    <text x="250" y="47" class="attribute">Abstract/Sealed</text>
+
+    <!-- Interface -->
+    <rect x="350" y="30" width="70" height="25" class="interface-box"/>
+    <text x="385" y="47" text-anchor="middle" class="attribute">Interface</text>
+    <text x="430" y="47" class="attribute">Interface</text>
+
+    <!-- Enum -->
+    <rect x="530" y="30" width="60" height="25" class="enum-box"/>
+    <text x="560" y="47" text-anchor="middle" class="attribute">Enum</text>
+    <text x="600" y="47" class="attribute">Enumeration</text>
+
+    <!-- Composition -->
+    <path d="M 10 75 L 80 75" class="arrow" marker-start="url(#diamond-filled)"/>
+    <text x="90" y="79" class="attribute">Composition (owns)</text>
+
+    <!-- Association -->
+    <path d="M 220 75 L 290 75" class="arrow" marker-end="url(#arrow)"/>
+    <text x="300" y="79" class="attribute">Association</text>
+
+    <!-- Dependency -->
+    <path d="M 400 75 L 470 75" class="arrow dashed" marker-end="url(#arrow)"/>
+    <text x="480" y="79" class="attribute">Dependency / instanceOf</text>
+
+    <!-- Generalization note -->
+    <path d="M 10 100 L 80 100" class="arrow" marker-end="url(#hollow-arrow)"/>
+    <text x="90" y="104" class="attribute">Generalization (extends)</text>
+
+    <text x="10" y="120" class="attribute" style="font-style: italic;">Note: Properties with non-primitive types are MetaAssociationEnds, not MetaProperties</text>
+  </g>
+
+</svg>

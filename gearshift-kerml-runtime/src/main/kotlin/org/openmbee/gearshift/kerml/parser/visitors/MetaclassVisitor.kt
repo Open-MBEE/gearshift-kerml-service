@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Metaclass
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Metaclass elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class MetaclassVisitor : BaseClassifierVisitor<KerMLParser.MetaclassContext, Metaclass>() {
 
-    override fun visit(ctx: KerMLParser.MetaclassContext, parseContext: ParseContext): Metaclass {
-        val metaclass = parseContext.create<Metaclass>()
+    override fun visit(ctx: KerMLParser.MetaclassContext, kermlParseContext: KermlParseContext): Metaclass {
+        val metaclass = kermlParseContext.create<Metaclass>()
 
         // Parse type prefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), metaclass)
 
         // Parse classifier declaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, metaclass, parseContext)
+            parseClassifierDeclaration(decl, metaclass, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(metaclass, metaclass.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(metaclass, metaclass.declaredName ?: "")
 
         // Create ownership membership (inherited from BaseTypeVisitor)
-        createOwnershipMembership(metaclass, parseContext)
+        createOwnershipMembership(metaclass, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

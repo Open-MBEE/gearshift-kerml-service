@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Step
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Step elements.
@@ -38,22 +38,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class StepVisitor : BaseFeatureVisitor<KerMLParser.StepContext, Step>() {
 
-    override fun visit(ctx: KerMLParser.StepContext, parseContext: ParseContext): Step {
-        val step = parseContext.create<Step>()
+    override fun visit(ctx: KerMLParser.StepContext, kermlParseContext: KermlParseContext): Step {
+        val step = kermlParseContext.create<Step>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), step)
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, step, parseContext)
+            parseFeatureDeclaration(decl, step, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(step, step.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(step, step.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(step, parseContext)
+        createFeatureMembership(step, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), step, childContext)

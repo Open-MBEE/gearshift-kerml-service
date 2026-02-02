@@ -19,8 +19,8 @@ import org.openmbee.gearshift.generated.interfaces.Documentation
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Documentation elements.
@@ -40,8 +40,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class DocumentationVisitor : BaseTypedVisitor<KerMLParser.DocumentationContext, Documentation>() {
 
-    override fun visit(ctx: KerMLParser.DocumentationContext, parseContext: ParseContext): Documentation {
-        val documentation = parseContext.create<Documentation>()
+    override fun visit(ctx: KerMLParser.DocumentationContext, kermlParseContext: KermlParseContext): Documentation {
+        val documentation = kermlParseContext.create<Documentation>()
 
         // Parse identification
         parseIdentification(ctx.identification(), documentation)
@@ -57,7 +57,7 @@ class DocumentationVisitor : BaseTypedVisitor<KerMLParser.DocumentationContext, 
         }
 
         // Create membership with parent namespace
-        createAnnotatingElementMembership(documentation, parseContext)
+        createAnnotatingElementMembership(documentation, kermlParseContext)
 
         return documentation
     }
@@ -85,12 +85,13 @@ class DocumentationVisitor : BaseTypedVisitor<KerMLParser.DocumentationContext, 
      */
     private fun createAnnotatingElementMembership(
         documentation: Documentation,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = documentation
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = documentation
                 documentation.declaredName?.let { membership.memberName = it }
                 documentation.declaredShortName?.let { membership.memberShortName = it }
                 membership.membershipOwningNamespace = parent

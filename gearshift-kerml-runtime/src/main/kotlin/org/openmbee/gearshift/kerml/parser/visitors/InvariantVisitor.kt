@@ -18,8 +18,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 import org.openmbee.gearshift.generated.interfaces.Invariant
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Invariant elements.
@@ -40,8 +40,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class InvariantVisitor : BaseFeatureVisitor<KerMLParser.InvariantContext, Invariant>() {
 
-    override fun visit(ctx: KerMLParser.InvariantContext, parseContext: ParseContext): Invariant {
-        val invariant = parseContext.create<Invariant>()
+    override fun visit(ctx: KerMLParser.InvariantContext, kermlParseContext: KermlParseContext): Invariant {
+        val invariant = kermlParseContext.create<Invariant>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), invariant)
@@ -53,14 +53,14 @@ class InvariantVisitor : BaseFeatureVisitor<KerMLParser.InvariantContext, Invari
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, invariant, parseContext)
+            parseFeatureDeclaration(decl, invariant, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(invariant, invariant.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(invariant, invariant.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(invariant, parseContext)
+        createFeatureMembership(invariant, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), invariant, childContext)
@@ -78,21 +78,21 @@ class InvariantVisitor : BaseFeatureVisitor<KerMLParser.InvariantContext, Invari
      */
     private fun parseFunctionBody(
         ctx: KerMLParser.FunctionBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.functionBodyPart()?.let { bodyPart ->
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
-                parseTypeBodyElement(bodyElement, parseContext)
+                parseTypeBodyElement(bodyElement, kermlParseContext)
             }
 
             bodyPart.returnFeatureMember()?.forEach { returnMember ->
                 returnMember.featureElement()?.let { fe ->
-                    parseFeatureElement(fe, parseContext)
+                    parseFeatureElement(fe, kermlParseContext)
                 }
             }
 
             bodyPart.resultExpressionMember()?.let { _ ->
-                parseContext.create<ResultExpressionMembership>()
+                kermlParseContext.create<ResultExpressionMembership>()
             }
         }
     }

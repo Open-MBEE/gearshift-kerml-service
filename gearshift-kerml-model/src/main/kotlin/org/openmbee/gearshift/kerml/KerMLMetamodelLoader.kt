@@ -16,7 +16,7 @@
 package org.openmbee.gearshift.kerml
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 import org.openmbee.gearshift.kerml.metamodel.associations.*
 import org.openmbee.gearshift.kerml.metamodel.classes.core.*
 import org.openmbee.gearshift.kerml.metamodel.classes.kernel.*
@@ -53,6 +53,10 @@ object KerMLMetamodelLoader {
 
         // Register associations after classes are in place
         registerAssociations(registry)
+
+        // Note: Ownership semantics are now declared on individual MetaClass definitions
+        // via ownershipBinding (e.g., on OwningMembership, FeatureMembership, etc.)
+        // and resolved dynamically by OwnershipResolver.
 
         val classCount = registry.getAllClasses().size
         val assocCount = registry.getAllAssociations().size

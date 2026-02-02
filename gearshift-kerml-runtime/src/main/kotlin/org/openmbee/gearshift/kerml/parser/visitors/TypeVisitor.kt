@@ -19,8 +19,8 @@ import org.openmbee.gearshift.generated.interfaces.Conjugation
 import org.openmbee.gearshift.generated.interfaces.Specialization
 import org.openmbee.gearshift.generated.interfaces.Type
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypeVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -40,22 +40,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
 
-    override fun visit(ctx: KerMLParser.TypeContext, parseContext: ParseContext): Type {
-        val type = parseContext.create<Type>()
+    override fun visit(ctx: KerMLParser.TypeContext, kermlParseContext: KermlParseContext): Type {
+        val type = kermlParseContext.create<Type>()
 
         // Parse typePrefix
         parseTypePrefix(ctx.typePrefix(), type)
 
         // Parse typeDeclaration
         ctx.typeDeclaration()?.let { decl ->
-            parseTypeDeclaration(decl, type, parseContext)
+            parseTypeDeclaration(decl, type, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(type, type.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(type, type.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(type, parseContext)
+        createOwnershipMembership(type, kermlParseContext)
 
         // Parse type body
         ctx.typeBody()?.let { body ->
@@ -79,7 +79,7 @@ class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
     protected fun parseTypeDeclaration(
         decl: KerMLParser.TypeDeclarationContext,
         type: Type,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Parse identification
         decl.identification()?.let { id ->
@@ -93,27 +93,27 @@ class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
 
         // Parse multiplicity
         decl.ownedMultiplicity()?.let { mult ->
-            MultiplicityVisitor().parseOwnedMultiplicity(mult, parseContext)
+            MultiplicityVisitor().parseOwnedMultiplicity(mult, kermlParseContext)
         }
 
         // Parse specialization parts
         decl.specializationPart()?.forEach { specPart ->
-            parseSpecializationPart(specPart, type, parseContext)
+            parseSpecializationPart(specPart, type, kermlParseContext)
         }
 
         // Parse conjugation if present
         decl.conjugationPart()?.forEach { conjPart ->
-            val conjugation = parseContext.create<Conjugation>()
+            val conjugation = kermlParseContext.create<Conjugation>()
             conjugation.conjugatedType = type
             conjPart.ownedConjugation()?.qualifiedName()?.let { qn ->
                 val originalName = extractQualifiedName(qn)
-                parseContext.registerReference(conjugation, "originalType", originalName)
+                kermlParseContext.registerReference(conjugation, "originalType", originalName)
             }
         }
 
         // Parse type relationship parts
         decl.typeRelationshipPart()?.forEach { relPart ->
-            parseTypeRelationshipPart(relPart, type, parseContext)
+            parseTypeRelationshipPart(relPart, type, kermlParseContext)
         }
     }
 
@@ -123,10 +123,10 @@ class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
     private fun parseSpecializationPart(
         ctx: KerMLParser.SpecializationPartContext,
         type: Type,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.ownedSpecialization()?.forEach { specCtx ->
-            parseOwnedSpecialization(specCtx, type, parseContext)
+            parseOwnedSpecialization(specCtx, type, kermlParseContext)
         }
     }
 
@@ -136,15 +136,15 @@ class TypeVisitor : BaseTypeVisitor<KerMLParser.TypeContext, Type>() {
     private fun parseOwnedSpecialization(
         ctx: KerMLParser.OwnedSpecializationContext,
         type: Type,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val specialization = parseContext.create<Specialization>()
+        val specialization = kermlParseContext.create<Specialization>()
         specialization.specific = type
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val generalName = extractQualifiedName(qnCtx)
             // Register pending reference for general type
-            parseContext.registerReference(specialization, "general", generalName)
+            kermlParseContext.registerReference(specialization, "general", generalName)
         }
     }
 }

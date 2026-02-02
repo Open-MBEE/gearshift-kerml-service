@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Behavior
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Behavior elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class BehaviorVisitor : BaseClassifierVisitor<KerMLParser.BehaviorContext, Behavior>() {
 
-    override fun visit(ctx: KerMLParser.BehaviorContext, parseContext: ParseContext): Behavior {
-        val behavior = parseContext.create<Behavior>()
+    override fun visit(ctx: KerMLParser.BehaviorContext, kermlParseContext: KermlParseContext): Behavior {
+        val behavior = kermlParseContext.create<Behavior>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), behavior)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, behavior, parseContext)
+            parseClassifierDeclaration(decl, behavior, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(behavior, behavior.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(behavior, behavior.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(behavior, parseContext)
+        createOwnershipMembership(behavior, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

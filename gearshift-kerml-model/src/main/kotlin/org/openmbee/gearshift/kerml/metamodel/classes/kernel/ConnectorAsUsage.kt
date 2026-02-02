@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaClass
 
 /**
  * KerML ConnectorAsUsage metaclass.

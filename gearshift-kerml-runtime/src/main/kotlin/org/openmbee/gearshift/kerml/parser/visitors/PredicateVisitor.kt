@@ -18,8 +18,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 import org.openmbee.gearshift.generated.interfaces.Predicate
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Predicate elements.
@@ -39,22 +39,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class PredicateVisitor : BaseClassifierVisitor<KerMLParser.PredicateContext, Predicate>() {
 
-    override fun visit(ctx: KerMLParser.PredicateContext, parseContext: ParseContext): Predicate {
-        val predicate = parseContext.create<Predicate>()
+    override fun visit(ctx: KerMLParser.PredicateContext, kermlParseContext: KermlParseContext): Predicate {
+        val predicate = kermlParseContext.create<Predicate>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), predicate)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, predicate, parseContext)
+            parseClassifierDeclaration(decl, predicate, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(predicate, predicate.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(predicate, predicate.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(predicate, parseContext)
+        createOwnershipMembership(predicate, kermlParseContext)
 
         // Parse function body (predicate uses functionBody like Function)
         ctx.functionBody()?.let { body ->
@@ -69,24 +69,24 @@ class PredicateVisitor : BaseClassifierVisitor<KerMLParser.PredicateContext, Pre
      */
     private fun parseFunctionBody(
         ctx: KerMLParser.FunctionBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.functionBodyPart()?.let { bodyPart ->
             // Parse type body elements (reuse inherited parseTypeBodyElement)
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
-                parseTypeBodyElement(bodyElement, parseContext)
+                parseTypeBodyElement(bodyElement, kermlParseContext)
             }
 
             // Parse return feature members
             bodyPart.returnFeatureMember()?.forEach { returnMember ->
                 returnMember.featureElement()?.let { fe ->
-                    parseFeatureElement(fe, parseContext)
+                    parseFeatureElement(fe, kermlParseContext)
                 }
             }
 
             // Parse result expression member
             bodyPart.resultExpressionMember()?.let { _ ->
-                parseContext.create<ResultExpressionMembership>()
+                kermlParseContext.create<ResultExpressionMembership>()
             }
         }
     }

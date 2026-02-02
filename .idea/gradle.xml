@@ -9,9 +9,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/gearshift-framework" />
             <option value="$PROJECT_DIR$/gearshift-kerml-model" />
             <option value="$PROJECT_DIR$/gearshift-kerml-runtime" />
+            <option value="$PROJECT_DIR$/kerml-generated" />
+            <option value="$PROJECT_DIR$/mdm-framework" />
           </set>
         </option>
       </GradleProjectSettings>

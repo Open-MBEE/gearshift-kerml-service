@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Conjugation
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -47,8 +47,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class ConjugationVisitor : BaseRelationshipVisitor<KerMLParser.ConjugationContext, Conjugation>() {
 
-    override fun visit(ctx: KerMLParser.ConjugationContext, parseContext: ParseContext): Conjugation {
-        val conjugation = parseContext.create<Conjugation>()
+    override fun visit(ctx: KerMLParser.ConjugationContext, kermlParseContext: KermlParseContext): Conjugation {
+        val conjugation = kermlParseContext.create<Conjugation>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), conjugation)
@@ -60,7 +60,7 @@ class ConjugationVisitor : BaseRelationshipVisitor<KerMLParser.ConjugationContex
         // First reference is the conjugated type
         if (qualifiedNames.size >= 1) {
             val conjugatedTypeName = extractQualifiedName(qualifiedNames[0])
-            parseContext.registerReference(conjugation, "conjugatedType", conjugatedTypeName)
+            kermlParseContext.registerReference(conjugation, "conjugatedType", conjugatedTypeName)
         } else if (featureChains.size >= 1) {
             // Feature chain references require special handling
             parseFeatureChain(featureChains[0])
@@ -69,18 +69,18 @@ class ConjugationVisitor : BaseRelationshipVisitor<KerMLParser.ConjugationContex
         // Second reference is the original type
         if (qualifiedNames.size >= 2) {
             val originalTypeName = extractQualifiedName(qualifiedNames[1])
-            parseContext.registerReference(conjugation, "originalType", originalTypeName)
+            kermlParseContext.registerReference(conjugation, "originalType", originalTypeName)
         } else if (featureChains.size >= 2) {
             // Feature chain references require special handling
             parseFeatureChain(featureChains[1])
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(conjugation, parseContext)
+        createRelationshipMembership(conjugation, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(conjugation, conjugation.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(conjugation, conjugation.declaredName ?: "")
             parseRelationshipBody(body, conjugation, childContext)
         }
 

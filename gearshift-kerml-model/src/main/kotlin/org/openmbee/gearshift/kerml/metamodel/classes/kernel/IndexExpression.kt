@@ -15,10 +15,10 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
  * KerML IndexExpression metaclass.

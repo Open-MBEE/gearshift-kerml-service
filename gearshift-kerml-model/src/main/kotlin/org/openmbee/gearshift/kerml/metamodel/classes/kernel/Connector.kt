@@ -15,12 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.BindingCondition
-import org.openmbee.gearshift.framework.meta.BindingKind
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
  * KerML Connector metaclass.
@@ -113,40 +113,48 @@ fun createConnectorMetaClass() = MetaClass(
             name = "connectorBinaryObjectBinding",
             baseConcept = "Objects::binaryLinkObjects",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.CollectionSizeEquals("connectorEnd", 2),
-                BindingCondition.HasElementOfType("association", "AssociationStructure")
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.CollectionSizeEquals("connectorEnd", 2),
+                    BindingCondition.HasElementOfType("association", "AssociationStructure")
+                )
+            )
         ),
         // Binary connector (2 ends) NOT for AssociationStructure -> binaryLinks
         SemanticBinding(
             name = "connectorBinaryBinding",
             baseConcept = "Links::binaryLinks",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.CollectionSizeEquals("connectorEnd", 2),
-                BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.CollectionSizeEquals("connectorEnd", 2),
+                    BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
+                )
+            )
         ),
         // Non-binary connector (<> 2 ends) for AssociationStructure -> linkObjects
         SemanticBinding(
             name = "connectorObjectBinding",
             baseConcept = "Objects::linkObjects",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
-                BindingCondition.HasElementOfType("association", "AssociationStructure")
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
+                    BindingCondition.HasElementOfType("association", "AssociationStructure")
+                )
+            )
         ),
         // Non-binary connector (<> 2 ends) NOT for AssociationStructure -> links
         SemanticBinding(
             name = "connectorLinksBinding",
             baseConcept = "Links::links",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
-                BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.CollectionSizeNotEquals("connectorEnd", 2),
+                    BindingCondition.Not(BindingCondition.HasElementOfType("association", "AssociationStructure"))
+                )
+            )
         )
     ),
     description = "A feature and relationship that represents a connector"

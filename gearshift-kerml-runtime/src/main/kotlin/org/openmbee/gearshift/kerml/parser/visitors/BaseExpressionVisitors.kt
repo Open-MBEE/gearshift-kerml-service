@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -39,37 +39,37 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class BaseExpressionDispatcher : BaseFeatureVisitor<KerMLParser.BaseExpressionContext, Expression>() {
 
-    override fun visit(ctx: KerMLParser.BaseExpressionContext, parseContext: ParseContext): Expression {
+    override fun visit(ctx: KerMLParser.BaseExpressionContext, kermlParseContext: KermlParseContext): Expression {
         ctx.nullExpression()?.let { nullCtx ->
-            return NullExpressionVisitor().visit(nullCtx, parseContext)
+            return NullExpressionVisitor().visit(nullCtx, kermlParseContext)
         }
 
         ctx.literalExpression()?.let { literalCtx ->
-            return LiteralExpressionVisitor().visit(literalCtx, parseContext)
+            return LiteralExpressionVisitor().visit(literalCtx, kermlParseContext)
         }
 
         ctx.featureReferenceExpression()?.let { refCtx ->
-            return FeatureReferenceExpressionVisitor().visit(refCtx, parseContext)
+            return FeatureReferenceExpressionVisitor().visit(refCtx, kermlParseContext)
         }
 
         ctx.metadataAccessExpression()?.let { metaCtx ->
-            return MetadataAccessExpressionVisitor().visit(metaCtx, parseContext)
+            return MetadataAccessExpressionVisitor().visit(metaCtx, kermlParseContext)
         }
 
         ctx.invocationExpression()?.let { invCtx ->
-            return InvocationExpressionVisitor().visit(invCtx, parseContext)
+            return InvocationExpressionVisitor().visit(invCtx, kermlParseContext)
         }
 
         ctx.constructorExpression()?.let { consCtx ->
-            return ConstructorExpressionVisitor().visit(consCtx, parseContext)
+            return ConstructorExpressionVisitor().visit(consCtx, kermlParseContext)
         }
 
         ctx.bodyExpression()?.let { bodyCtx ->
-            return BodyExpressionVisitor().visit(bodyCtx, parseContext)
+            return BodyExpressionVisitor().visit(bodyCtx, kermlParseContext)
         }
 
         // Fallback - shouldn't reach here
-        return parseContext.create<Expression>()
+        return kermlParseContext.create<Expression>()
     }
 }
 
@@ -85,11 +85,11 @@ class BaseExpressionDispatcher : BaseFeatureVisitor<KerMLParser.BaseExpressionCo
  */
 class NullExpressionVisitor : BaseFeatureVisitor<KerMLParser.NullExpressionContext, NullExpression>() {
 
-    override fun visit(ctx: KerMLParser.NullExpressionContext, parseContext: ParseContext): NullExpression {
-        val expr = parseContext.create<NullExpression>()
+    override fun visit(ctx: KerMLParser.NullExpressionContext, kermlParseContext: KermlParseContext): NullExpression {
+        val expr = kermlParseContext.create<NullExpression>()
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -111,19 +111,23 @@ class NullExpressionVisitor : BaseFeatureVisitor<KerMLParser.NullExpressionConte
  *     ;
  * ```
  */
-class FeatureReferenceExpressionVisitor : BaseFeatureVisitor<KerMLParser.FeatureReferenceExpressionContext, FeatureReferenceExpression>() {
+class FeatureReferenceExpressionVisitor :
+    BaseFeatureVisitor<KerMLParser.FeatureReferenceExpressionContext, FeatureReferenceExpression>() {
 
-    override fun visit(ctx: KerMLParser.FeatureReferenceExpressionContext, parseContext: ParseContext): FeatureReferenceExpression {
-        val expr = parseContext.create<FeatureReferenceExpression>()
+    override fun visit(
+        ctx: KerMLParser.FeatureReferenceExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): FeatureReferenceExpression {
+        val expr = kermlParseContext.create<FeatureReferenceExpression>()
 
         // Parse the feature reference
         ctx.featureReferenceMember()?.featureReference()?.qualifiedName()?.let { qn ->
             val referencedName = extractQualifiedName(qn)
-            parseContext.registerReference(expr, "referent", referencedName)
+            kermlParseContext.registerReference(expr, "referent", referencedName)
         }
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -142,19 +146,23 @@ class FeatureReferenceExpressionVisitor : BaseFeatureVisitor<KerMLParser.Feature
  *     ;
  * ```
  */
-class MetadataAccessExpressionVisitor : BaseFeatureVisitor<KerMLParser.MetadataAccessExpressionContext, MetadataAccessExpression>() {
+class MetadataAccessExpressionVisitor :
+    BaseFeatureVisitor<KerMLParser.MetadataAccessExpressionContext, MetadataAccessExpression>() {
 
-    override fun visit(ctx: KerMLParser.MetadataAccessExpressionContext, parseContext: ParseContext): MetadataAccessExpression {
-        val expr = parseContext.create<MetadataAccessExpression>()
+    override fun visit(
+        ctx: KerMLParser.MetadataAccessExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): MetadataAccessExpression {
+        val expr = kermlParseContext.create<MetadataAccessExpression>()
 
         // Parse the element reference
         ctx.elementReferenceMember()?.qualifiedName()?.let { qn ->
             val referencedName = extractQualifiedName(qn)
-            parseContext.registerReference(expr, "referencedElement", referencedName)
+            kermlParseContext.registerReference(expr, "referencedElement", referencedName)
         }
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -176,22 +184,26 @@ class MetadataAccessExpressionVisitor : BaseFeatureVisitor<KerMLParser.MetadataA
  *     ;
  * ```
  */
-class InvocationExpressionVisitor : BaseFeatureVisitor<KerMLParser.InvocationExpressionContext, InvocationExpression>() {
+class InvocationExpressionVisitor :
+    BaseFeatureVisitor<KerMLParser.InvocationExpressionContext, InvocationExpression>() {
 
-    override fun visit(ctx: KerMLParser.InvocationExpressionContext, parseContext: ParseContext): InvocationExpression {
-        val expr = parseContext.create<InvocationExpression>()
+    override fun visit(
+        ctx: KerMLParser.InvocationExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): InvocationExpression {
+        val expr = kermlParseContext.create<InvocationExpression>()
 
         // Parse the invoked type
         ctx.instantiatedTypeMember()?.instantiatedTypeReference()?.qualifiedName()?.let { qn ->
             val typeName = extractQualifiedName(qn)
             // Register reference to the invoked function/type
-            val typing = parseContext.create<FeatureTyping>()
+            val typing = kermlParseContext.create<FeatureTyping>()
             typing.typedFeature = expr
-            parseContext.registerReference(typing, "type", typeName)
+            kermlParseContext.registerReference(typing, "type", typeName)
         }
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -207,22 +219,26 @@ class InvocationExpressionVisitor : BaseFeatureVisitor<KerMLParser.InvocationExp
  *     ;
  * ```
  */
-class ConstructorExpressionVisitor : BaseFeatureVisitor<KerMLParser.ConstructorExpressionContext, ConstructorExpression>() {
+class ConstructorExpressionVisitor :
+    BaseFeatureVisitor<KerMLParser.ConstructorExpressionContext, ConstructorExpression>() {
 
-    override fun visit(ctx: KerMLParser.ConstructorExpressionContext, parseContext: ParseContext): ConstructorExpression {
-        val expr = parseContext.create<ConstructorExpression>()
+    override fun visit(
+        ctx: KerMLParser.ConstructorExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): ConstructorExpression {
+        val expr = kermlParseContext.create<ConstructorExpression>()
 
         // Parse the instantiated type
         ctx.instantiatedTypeMember()?.instantiatedTypeReference()?.qualifiedName()?.let { qn ->
             val typeName = extractQualifiedName(qn)
             // Register reference to the constructed type
-            val typing = parseContext.create<FeatureTyping>()
+            val typing = kermlParseContext.create<FeatureTyping>()
             typing.typedFeature = expr
-            parseContext.registerReference(typing, "type", typeName)
+            kermlParseContext.registerReference(typing, "type", typeName)
         }
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -246,17 +262,20 @@ class ConstructorExpressionVisitor : BaseFeatureVisitor<KerMLParser.ConstructorE
  */
 class BodyExpressionVisitor : BaseFeatureVisitor<KerMLParser.BodyExpressionContext, FeatureReferenceExpression>() {
 
-    override fun visit(ctx: KerMLParser.BodyExpressionContext, parseContext: ParseContext): FeatureReferenceExpression {
-        val expr = parseContext.create<FeatureReferenceExpression>()
+    override fun visit(
+        ctx: KerMLParser.BodyExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): FeatureReferenceExpression {
+        val expr = kermlParseContext.create<FeatureReferenceExpression>()
 
         // Parse the expression body
-        val childContext = parseContext.withParent(expr, "")
+        val childContext = kermlParseContext.withParent(expr, "")
         ctx.expressionBodyMember()?.expressionBody()?.functionBodyPart()?.let { bodyPart ->
             parseFunctionBodyPart(bodyPart, childContext)
         }
 
         // Create membership with parent
-        createFeatureMembership(expr, parseContext)
+        createFeatureMembership(expr, kermlParseContext)
 
         return expr
     }
@@ -264,14 +283,14 @@ class BodyExpressionVisitor : BaseFeatureVisitor<KerMLParser.BodyExpressionConte
     /**
      * Parse function body part.
      */
-    private fun parseFunctionBodyPart(ctx: KerMLParser.FunctionBodyPartContext, parseContext: ParseContext) {
+    private fun parseFunctionBodyPart(ctx: KerMLParser.FunctionBodyPartContext, kermlParseContext: KermlParseContext) {
         ctx.typeBodyElement()?.forEach { bodyElement ->
-            parseTypeBodyElement(bodyElement, parseContext)
+            parseTypeBodyElement(bodyElement, kermlParseContext)
         }
 
         ctx.returnFeatureMember()?.forEach { returnMember ->
             returnMember.featureElement()?.let { fe ->
-                parseFeatureElement(fe, parseContext)
+                parseFeatureElement(fe, kermlParseContext)
             }
         }
     }

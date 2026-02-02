@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.BindingConnector
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for BindingConnector elements.
@@ -37,22 +37,25 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class BindingConnectorVisitor : BaseFeatureVisitor<KerMLParser.BindingConnectorContext, BindingConnector>() {
 
-    override fun visit(ctx: KerMLParser.BindingConnectorContext, parseContext: ParseContext): BindingConnector {
-        val binding = parseContext.create<BindingConnector>()
+    override fun visit(
+        ctx: KerMLParser.BindingConnectorContext,
+        kermlParseContext: KermlParseContext
+    ): BindingConnector {
+        val binding = kermlParseContext.create<BindingConnector>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), binding)
 
         // Parse binding connector declaration - binding-specific
         ctx.bindingConnectorDeclaration()?.let { decl ->
-            parseBindingConnectorDeclaration(decl, binding, parseContext)
+            parseBindingConnectorDeclaration(decl, binding, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(binding, binding.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(binding, binding.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(binding, parseContext)
+        createFeatureMembership(binding, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
@@ -68,10 +71,10 @@ class BindingConnectorVisitor : BaseFeatureVisitor<KerMLParser.BindingConnectorC
     private fun parseBindingConnectorDeclaration(
         ctx: KerMLParser.BindingConnectorDeclarationContext,
         binding: BindingConnector,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, binding, parseContext)
+            parseFeatureDeclaration(decl, binding, kermlParseContext)
         }
 
         ctx.isSufficient?.let { binding.isSufficient = true }

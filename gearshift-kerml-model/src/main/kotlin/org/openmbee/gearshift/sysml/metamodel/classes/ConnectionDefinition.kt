@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
-import org.openmbee.gearshift.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaClass
 
 /**
  * KerML ConnectionDefinition metaclass.

@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.AssociationStructure
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for AssociationStructure elements.
@@ -36,24 +36,28 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  *
  * AssociationStructure extends both Association and Structure. Uses inherited parsing from BaseClassifierVisitor.
  */
-class AssociationStructureVisitor : BaseClassifierVisitor<KerMLParser.AssociationStructureContext, AssociationStructure>() {
+class AssociationStructureVisitor :
+    BaseClassifierVisitor<KerMLParser.AssociationStructureContext, AssociationStructure>() {
 
-    override fun visit(ctx: KerMLParser.AssociationStructureContext, parseContext: ParseContext): AssociationStructure {
-        val assocStruct = parseContext.create<AssociationStructure>()
+    override fun visit(
+        ctx: KerMLParser.AssociationStructureContext,
+        kermlParseContext: KermlParseContext
+    ): AssociationStructure {
+        val assocStruct = kermlParseContext.create<AssociationStructure>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), assocStruct)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, assocStruct, parseContext)
+            parseClassifierDeclaration(decl, assocStruct, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(assocStruct, assocStruct.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(assocStruct, assocStruct.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(assocStruct, parseContext)
+        createOwnershipMembership(assocStruct, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Redefinition
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -41,8 +41,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class RedefinitionVisitor : BaseRelationshipVisitor<KerMLParser.RedefinitionContext, Redefinition>() {
 
-    override fun visit(ctx: KerMLParser.RedefinitionContext, parseContext: ParseContext): Redefinition {
-        val redefinition = parseContext.create<Redefinition>()
+    override fun visit(ctx: KerMLParser.RedefinitionContext, kermlParseContext: KermlParseContext): Redefinition {
+        val redefinition = kermlParseContext.create<Redefinition>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), redefinition)
@@ -50,21 +50,26 @@ class RedefinitionVisitor : BaseRelationshipVisitor<KerMLParser.RedefinitionCont
         // Parse redefining feature (specificType)
         ctx.specificType()?.qualifiedName()?.let { qn ->
             val redefiningFeatureName = extractQualifiedName(qn)
-            parseContext.registerReference(redefinition, "redefiningFeature", redefiningFeatureName)
+            kermlParseContext.registerReference(redefinition, "redefiningFeature", redefiningFeatureName)
         }
 
         // Parse redefined feature (generalType)
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val redefinedFeatureName = extractQualifiedName(qn)
-            parseContext.registerReference(redefinition, "redefinedFeature", redefinedFeatureName, isRedefinitionContext = true)
+            kermlParseContext.registerReference(
+                redefinition,
+                "redefinedFeature",
+                redefinedFeatureName,
+                isRedefinitionContext = true
+            )
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(redefinition, parseContext)
+        createRelationshipMembership(redefinition, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(redefinition, redefinition.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(redefinition, redefinition.declaredName ?: "")
             parseRelationshipBody(body, redefinition, childContext)
         }
 

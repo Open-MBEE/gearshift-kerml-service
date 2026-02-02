@@ -26,7 +26,7 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.openmbee.gearshift.framework.runtime.MDMObject
+import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.gearshift.kerml.KerMLModelFactory
 
 /**
@@ -251,6 +251,7 @@ class DemoApi(private val port: Int = 8080) {
                     "${value.className}[${value.id?.take(8)}...]"
                 }
             }
+
             is List<*> -> {
                 if (value.isEmpty()) {
                     emptyList<String>()
@@ -258,6 +259,7 @@ class DemoApi(private val port: Int = 8080) {
                     value.map { formatAssociationValue(it) }
                 }
             }
+
             else -> value.toString()
         }
     }

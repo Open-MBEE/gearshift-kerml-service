@@ -15,7 +15,11 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.framework.meta.*
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
  * KerML Element (Root.Element)

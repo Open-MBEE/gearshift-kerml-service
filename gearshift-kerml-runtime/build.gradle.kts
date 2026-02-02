@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
@@ -10,8 +26,9 @@ group = "org.openmbee.gearshift"
 version = "0.1.0-SNAPSHOT"
 
 dependencies {
-    implementation(project(":gearshift-framework"))
+    implementation(project(":mdm-framework"))
     implementation(project(":gearshift-kerml-model"))
+    implementation(project(":kerml-generated"))
 
     // Kotlin
     implementation(kotlin("stdlib"))
@@ -98,115 +115,20 @@ sourceSets {
     }
 }
 
-// Bootstrap Stubs Task
-tasks.register("createBootstrapStubs") {
-    description = "Create minimal stub files for generated code when missing"
-    group = "build"
-
-    val interfacesDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated/interfaces")
-    val implDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated/impl")
-    val utilDir = file("${project.projectDir}/src/main/kotlin/org/openmbee/gearshift/generated")
-
-    onlyIf {
-        !interfacesDir.exists() || !implDir.exists() ||
-        interfacesDir.listFiles()?.isEmpty() ?: true ||
-        implDir.listFiles()?.isEmpty() ?: true
-    }
-
-    doLast {
-        interfacesDir.mkdirs()
-        implDir.mkdirs()
-
-        file("$interfacesDir/ModelElement.kt").writeText("""
-            |package org.openmbee.gearshift.generated.interfaces
-            |
-            |// Bootstrap stub - will be replaced by generated code
-            |interface ModelElement {
-            |    val id: String?
-            |    val className: String
-            |}
-            |
-            |interface Element : ModelElement {
-            |    val name: String?
-            |    val declaredName: String?
-            |}
-            |interface Package : Element
-            |interface Namespace : Element
-            |interface Relationship : Element
-            |interface Membership : Relationship
-        """.trimMargin())
-
-        file("$implDir/BaseModelElementImpl.kt").writeText("""
-            |package org.openmbee.gearshift.generated.impl
-            |
-            |import org.openmbee.gearshift.GearshiftEngine
-            |import org.openmbee.gearshift.framework.runtime.MDMObject
-            |import org.openmbee.gearshift.generated.interfaces.ModelElement
-            |
-            |// Bootstrap stub - will be replaced by generated code
-            |open class BaseModelElementImpl(
-            |    internal val wrapped: MDMObject,
-            |    internal val engine: GearshiftEngine
-            |) : ModelElement {
-            |    override val id: String?
-            |        get() = wrapped.id
-            |    override val className: String
-            |        get() = wrapped.className
-            |}
-        """.trimMargin())
-
-        file("$utilDir/Wrappers.kt").writeText("""
-            |package org.openmbee.gearshift.generated
-            |
-            |import org.openmbee.gearshift.GearshiftEngine
-            |import org.openmbee.gearshift.framework.runtime.MDMObject
-            |import org.openmbee.gearshift.generated.interfaces.ModelElement
-            |import org.openmbee.gearshift.generated.impl.BaseModelElementImpl
-            |
-            |// Bootstrap stub - will be replaced by generated code
-            |object Wrappers {
-            |    fun wrap(obj: MDMObject, engine: GearshiftEngine): ModelElement {
-            |        return BaseModelElementImpl(obj, engine)
-            |    }
-            |
-            |    inline fun <reified T : ModelElement> wrapAs(obj: MDMObject, engine: GearshiftEngine): T {
-            |        return wrap(obj, engine) as T
-            |    }
-            |}
-        """.trimMargin())
-
-        println("Created bootstrap stubs for generated code")
-    }
-}
-
-tasks.named("compileKotlin") {
-    dependsOn("createBootstrapStubs")
-}
-
-// Metamodel Code Generation Task
-tasks.register<JavaExec>("generateMetamodelCode") {
-    description = "Generate typed Kotlin code from KerML metamodel definitions"
-    group = "build"
-
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("org.openmbee.gearshift.codegen.CodeGeneratorRunner")
-
-    args = listOf("${project.projectDir}/src/main/kotlin")
-
-    dependsOn("compileKotlin")
-}
 
 // License header configuration
 license {
     header = rootProject.file("LICENSE-HEADER.txt")
     strictCheck = true
     includes(listOf("**/*.kt", "**/*.java"))
-    excludes(listOf(
-        "**/generated-src/**",
-        "**/build/**",
-        "**/.antlr/**",
-        "**/antlr/**"
-    ))
+    excludes(
+        listOf(
+            "**/generated-src/**",
+            "**/build/**",
+            "**/.antlr/**",
+            "**/antlr/**"
+        )
+    )
     ext.set("year", "2026")
     ext.set("owner", "Charles Galey")
     mapping("kt", "SLASHSTAR_STYLE")

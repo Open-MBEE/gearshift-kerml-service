@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.SuccessionFlow
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for SuccessionFlow elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class SuccessionFlowVisitor : BaseFeatureVisitor<KerMLParser.SuccessionFlowContext, SuccessionFlow>() {
 
-    override fun visit(ctx: KerMLParser.SuccessionFlowContext, parseContext: ParseContext): SuccessionFlow {
-        val succFlow = parseContext.create<SuccessionFlow>()
+    override fun visit(ctx: KerMLParser.SuccessionFlowContext, kermlParseContext: KermlParseContext): SuccessionFlow {
+        val succFlow = kermlParseContext.create<SuccessionFlow>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), succFlow)
 
         // Parse item flow declaration - flow-specific
         ctx.itemFlowDeclaration()?.let { decl ->
-            parseItemFlowDeclaration(decl, succFlow, parseContext)
+            parseItemFlowDeclaration(decl, succFlow, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(succFlow, succFlow.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(succFlow, succFlow.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(succFlow, parseContext)
+        createFeatureMembership(succFlow, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
@@ -68,15 +68,15 @@ class SuccessionFlowVisitor : BaseFeatureVisitor<KerMLParser.SuccessionFlowConte
     private fun parseItemFlowDeclaration(
         ctx: KerMLParser.ItemFlowDeclarationContext,
         succFlow: SuccessionFlow,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Parse feature declaration if present (inherited)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, succFlow, parseContext)
+            parseFeatureDeclaration(decl, succFlow, kermlParseContext)
         }
 
         // Parse value part (inherited)
-        parseValuePart(ctx.valuePart(), succFlow, parseContext)
+        parseValuePart(ctx.valuePart(), succFlow, kermlParseContext)
 
         // Parse item flow end members
         ctx.flowEndMember()?.forEach { _ ->

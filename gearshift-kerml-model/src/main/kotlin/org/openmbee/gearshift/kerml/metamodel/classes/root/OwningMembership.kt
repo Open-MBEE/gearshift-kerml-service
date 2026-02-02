@@ -15,12 +15,13 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.framework.meta.BodyLanguage
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.MetaOperation
-import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.BodyLanguage
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.OwnershipBinding
 
 /**
  * KerML OwningMembership metaclass.
@@ -89,5 +90,13 @@ fun createOwningMembershipMetaClass() = MetaClass(
             """.trimIndent()
         )
     ),
-    description = "A membership where the namespace owns the member element"
+    description = "A membership where the namespace owns the member element",
+
+    // OwningMembership is the base ownership intermediate for KerML
+    // Namespace → OwningMembership → Element
+    // Types are derived from association ends: membershipOwningNamespace->Namespace, ownedMemberElement->Element
+    ownershipBinding = OwnershipBinding(
+        ownedElementEnd = "ownedMemberElement",
+        ownerEnd = "membershipOwningNamespace"
+    )
 )

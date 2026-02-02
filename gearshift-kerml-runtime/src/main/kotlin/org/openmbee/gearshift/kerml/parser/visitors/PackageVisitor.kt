@@ -16,8 +16,8 @@
 package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
 
 /**
@@ -48,20 +48,20 @@ class PackageVisitor : BaseTypedVisitor<KerMLParser.PackageContext, KerMLPackage
 
     private val namespaceVisitor = NamespaceVisitor()
 
-    override fun visit(ctx: KerMLParser.PackageContext, parseContext: ParseContext): KerMLPackage {
-        // Create the Package instance using typed wrapper
-        val pkg = parseContext.create<KerMLPackage>()
+    override fun visit(ctx: KerMLParser.PackageContext, kermlParseContext: KermlParseContext): KerMLPackage {
+        // Extract name first (needed for ownership in secondary constructor)
+        val declaredName = ctx.packageDeclaration()?.identification()?.declaredName?.text
 
-        // Parse identification from packageDeclaration
+        // Create Package with parent and name - secondary constructor handles ownership
+        val pkg = kermlParseContext.create<KerMLPackage>(declaredName = declaredName)
+
+        // Parse identification (sets short name and other properties)
         ctx.packageDeclaration()?.identification()?.let { id ->
             parseIdentification(id, pkg)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(pkg, pkg.declaredName ?: "")
-
-        // Create ownership relationship with parent namespace (using NamespaceVisitor helper)
-        namespaceVisitor.createOwnershipMembership(pkg, parseContext)
+        val childContext = kermlParseContext.withParent(pkg, pkg.declaredName ?: "")
 
         // Parse package body (reuses namespace body parsing from NamespaceVisitor)
         ctx.packageBody()?.let { body ->
@@ -83,11 +83,11 @@ class PackageVisitor : BaseTypedVisitor<KerMLParser.PackageContext, KerMLPackage
      */
     private fun parsePackageBody(
         ctx: KerMLParser.PackageBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Process each namespace body element using NamespaceVisitor
         ctx.namespaceBodyElement()?.forEach { bodyElement ->
-            namespaceVisitor.parseNamespaceBodyElement(bodyElement, parseContext)
+            namespaceVisitor.parseNamespaceBodyElement(bodyElement, kermlParseContext)
         }
     }
 }

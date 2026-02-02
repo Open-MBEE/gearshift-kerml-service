@@ -20,8 +20,8 @@ import org.openmbee.gearshift.generated.interfaces.Comment
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -46,8 +46,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class CommentVisitor : BaseTypedVisitor<KerMLParser.CommentContext, Comment>() {
 
-    override fun visit(ctx: KerMLParser.CommentContext, parseContext: ParseContext): Comment {
-        val comment = parseContext.create<Comment>()
+    override fun visit(ctx: KerMLParser.CommentContext, kermlParseContext: KermlParseContext): Comment {
+        val comment = kermlParseContext.create<Comment>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), comment)
@@ -64,11 +64,11 @@ class CommentVisitor : BaseTypedVisitor<KerMLParser.CommentContext, Comment>() {
 
         // Parse annotations (about clause)
         ctx.annotation()?.forEach { annotationCtx ->
-            parseAnnotationAbout(annotationCtx, comment, parseContext)
+            parseAnnotationAbout(annotationCtx, comment, kermlParseContext)
         }
 
         // Create membership with parent namespace
-        createAnnotatingElementMembership(comment, parseContext)
+        createAnnotatingElementMembership(comment, kermlParseContext)
 
         return comment
     }
@@ -97,14 +97,14 @@ class CommentVisitor : BaseTypedVisitor<KerMLParser.CommentContext, Comment>() {
     private fun parseAnnotationAbout(
         ctx: KerMLParser.AnnotationContext,
         comment: Comment,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val annotation = parseContext.create<Annotation>()
+        val annotation = kermlParseContext.create<Annotation>()
         annotation.ownedAnnotatingElement = comment
 
         ctx.qualifiedName()?.let { qn ->
             val targetName = extractQualifiedName(qn)
-            parseContext.registerReference(annotation, "annotatedElement", targetName)
+            kermlParseContext.registerReference(annotation, "annotatedElement", targetName)
         }
     }
 
@@ -113,12 +113,13 @@ class CommentVisitor : BaseTypedVisitor<KerMLParser.CommentContext, Comment>() {
      */
     private fun createAnnotatingElementMembership(
         comment: Comment,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = comment
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = comment
                 comment.declaredName?.let { membership.memberName = it }
                 comment.declaredShortName?.let { membership.memberShortName = it }
                 membership.membershipOwningNamespace = parent

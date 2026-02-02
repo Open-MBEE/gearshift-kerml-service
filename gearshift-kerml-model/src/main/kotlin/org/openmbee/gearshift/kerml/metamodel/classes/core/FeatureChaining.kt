@@ -16,6 +16,6 @@
 
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
-import org.openmbee.gearshift.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaClass
 
 fun createFeatureChainingMetaClass() = MetaClass(name = "FeatureChaining", superclasses = listOf("Relationship"))

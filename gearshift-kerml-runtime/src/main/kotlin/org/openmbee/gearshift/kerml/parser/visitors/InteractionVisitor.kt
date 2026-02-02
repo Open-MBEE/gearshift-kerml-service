@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Interaction
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Interaction elements.
@@ -37,22 +37,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class InteractionVisitor : BaseClassifierVisitor<KerMLParser.InteractionContext, Interaction>() {
 
-    override fun visit(ctx: KerMLParser.InteractionContext, parseContext: ParseContext): Interaction {
-        val interaction = parseContext.create<Interaction>()
+    override fun visit(ctx: KerMLParser.InteractionContext, kermlParseContext: KermlParseContext): Interaction {
+        val interaction = kermlParseContext.create<Interaction>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), interaction)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, interaction, parseContext)
+            parseClassifierDeclaration(decl, interaction, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(interaction, interaction.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(interaction, interaction.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(interaction, parseContext)
+        createOwnershipMembership(interaction, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

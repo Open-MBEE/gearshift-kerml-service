@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.generated.interfaces.Relationship
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 
 /**
  * Abstract base visitor for Relationship elements and their subclasses.
@@ -44,10 +45,10 @@ abstract class BaseRelationshipVisitor<Ctx, Result : Relationship> : BaseTypedVi
     protected fun parseRelationshipBody(
         ctx: KerMLParser.RelationshipBodyContext,
         relationship: Relationship,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.relationshipOwnedElement()?.forEach { ownedElement ->
-            parseRelationshipOwnedElement(ownedElement, relationship, parseContext)
+            parseRelationshipOwnedElement(ownedElement, relationship, kermlParseContext)
         }
     }
 
@@ -59,7 +60,7 @@ abstract class BaseRelationshipVisitor<Ctx, Result : Relationship> : BaseTypedVi
     protected fun parseRelationshipOwnedElement(
         ctx: KerMLParser.RelationshipOwnedElementContext,
         relationship: Relationship,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.ownedAnnotation()?.let { _ ->
             // TODO: Delegate to AnnotationVisitor
@@ -72,12 +73,13 @@ abstract class BaseRelationshipVisitor<Ctx, Result : Relationship> : BaseTypedVi
      */
     protected fun createRelationshipMembership(
         relationship: Relationship,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = relationship
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = relationship
                 relationship.declaredName?.let { membership.memberName = it }
                 relationship.declaredShortName?.let { membership.memberShortName = it }
                 membership.membershipOwningNamespace = parent

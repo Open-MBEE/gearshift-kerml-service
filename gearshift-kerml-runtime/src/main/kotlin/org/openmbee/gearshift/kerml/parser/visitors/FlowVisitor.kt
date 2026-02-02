@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Flow
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Flow elements.
@@ -38,22 +38,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class FlowVisitor : BaseFeatureVisitor<KerMLParser.FlowContext, Flow>() {
 
-    override fun visit(ctx: KerMLParser.FlowContext, parseContext: ParseContext): Flow {
-        val flow = parseContext.create<Flow>()
+    override fun visit(ctx: KerMLParser.FlowContext, kermlParseContext: KermlParseContext): Flow {
+        val flow = kermlParseContext.create<Flow>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), flow)
 
         // Parse item flow declaration - flow-specific
         ctx.itemFlowDeclaration()?.let { decl ->
-            parseItemFlowDeclaration(decl, flow, parseContext)
+            parseItemFlowDeclaration(decl, flow, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(flow, flow.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(flow, flow.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(flow, parseContext)
+        createFeatureMembership(flow, kermlParseContext)
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->
@@ -69,15 +69,15 @@ class FlowVisitor : BaseFeatureVisitor<KerMLParser.FlowContext, Flow>() {
     private fun parseItemFlowDeclaration(
         ctx: KerMLParser.ItemFlowDeclarationContext,
         flow: Flow,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Parse feature declaration if present (inherited)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, flow, parseContext)
+            parseFeatureDeclaration(decl, flow, kermlParseContext)
         }
 
         // Parse value part (inherited)
-        parseValuePart(ctx.valuePart(), flow, parseContext)
+        parseValuePart(ctx.valuePart(), flow, kermlParseContext)
 
         // Parse item flow end members (from -> to)
         ctx.flowEndMember()?.forEach { _ ->

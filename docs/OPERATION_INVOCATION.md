@@ -313,7 +313,7 @@ To fully leverage operation invocation in KerML:
 
 ## Summary
 
-Operation invocation is now a first-class feature of the Gearshift framework, providing:
+Operation invocation is now a first-class feature of the Mdm framework, providing:
 
 - Metamodel-driven operation definitions
 - Instance-based invocation with validation

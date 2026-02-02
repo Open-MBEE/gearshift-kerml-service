@@ -20,8 +20,8 @@ import org.openmbee.gearshift.generated.interfaces.EndFeatureMembership
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -44,27 +44,27 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connector>() {
 
-    override fun visit(ctx: KerMLParser.ConnectorContext, parseContext: ParseContext): Connector {
-        val connector = parseContext.create<Connector>()
+    override fun visit(ctx: KerMLParser.ConnectorContext, kermlParseContext: KermlParseContext): Connector {
+        val connector = kermlParseContext.create<Connector>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), connector)
 
         // Parse feature declaration (if present without connector declaration)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, connector, parseContext)
+            parseFeatureDeclaration(decl, connector, kermlParseContext)
         }
 
         // Parse connector declaration (binary or n-ary) - connector-specific
         ctx.connectorDeclaration()?.let { connDecl ->
-            parseConnectorDeclaration(connDecl, connector, parseContext)
+            parseConnectorDeclaration(connDecl, connector, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(connector, connector.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(connector, connector.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(connector, parseContext)
+        createFeatureMembership(connector, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), connector, childContext)
@@ -83,14 +83,14 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
     private fun parseConnectorDeclaration(
         ctx: KerMLParser.ConnectorDeclarationContext,
         connector: Connector,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.binaryConnectorDeclaration()?.let { binaryDecl ->
-            parseBinaryConnectorDeclaration(binaryDecl, connector, parseContext)
+            parseBinaryConnectorDeclaration(binaryDecl, connector, kermlParseContext)
         }
 
         ctx.naryConnectorDeclaration()?.let { naryDecl ->
-            parseNaryConnectorDeclaration(naryDecl, connector, parseContext)
+            parseNaryConnectorDeclaration(naryDecl, connector, kermlParseContext)
         }
     }
 
@@ -100,14 +100,14 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
     private fun parseBinaryConnectorDeclaration(
         ctx: KerMLParser.BinaryConnectorDeclarationContext,
         connector: Connector,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, connector, parseContext)
+            parseFeatureDeclaration(decl, connector, kermlParseContext)
         }
 
         ctx.connectorEndMember()?.forEach { endMember ->
-            parseConnectorEndMember(endMember, connector, parseContext)
+            parseConnectorEndMember(endMember, connector, kermlParseContext)
         }
     }
 
@@ -117,14 +117,14 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
     private fun parseNaryConnectorDeclaration(
         ctx: KerMLParser.NaryConnectorDeclarationContext,
         connector: Connector,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, connector, parseContext)
+            parseFeatureDeclaration(decl, connector, kermlParseContext)
         }
 
         ctx.connectorEndMember()?.forEach { endMember ->
-            parseConnectorEndMember(endMember, connector, parseContext)
+            parseConnectorEndMember(endMember, connector, kermlParseContext)
         }
     }
 
@@ -134,31 +134,31 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
     private fun parseConnectorEndMember(
         ctx: KerMLParser.ConnectorEndMemberContext,
         connector: Connector,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val endMembership = parseContext.create<EndFeatureMembership>()
-        val endFeature = parseContext.create<Feature>()
+        val endMembership = kermlParseContext.create<EndFeatureMembership>()
+        val endFeature = kermlParseContext.create<Feature>()
         endFeature.isEnd = true
         endMembership.memberElement = endFeature
 
         ctx.connectorEnd()?.let { connEnd ->
             connEnd.declaredName?.let { endFeature.declaredName = it.text }
             connEnd.ownedReferenceSubsetting()?.let { refSubsetting ->
-                val subsetting = parseContext.create<Subsetting>()
+                val subsetting = kermlParseContext.create<Subsetting>()
                 subsetting.subsettingFeature = endFeature
 
                 // Establish ownership - link Subsetting as owned by the Feature
-                parseContext.engine.link(
+                kermlParseContext.engine.link(
                     sourceId = endFeature.id!!,
                     targetId = subsetting.id!!,
                     associationName = "owningFeatureOwnedSubsettingAssociation"
                 )
-                parseContext.engine.link(
+                kermlParseContext.engine.link(
                     sourceId = endFeature.id!!,
                     targetId = subsetting.id!!,
                     associationName = "owningTypeOwnedSpecializationAssociation"
                 )
-                parseContext.engine.link(
+                kermlParseContext.engine.link(
                     sourceId = endFeature.id!!,
                     targetId = subsetting.id!!,
                     associationName = "owningRelatedElementOwnedRelationshipAssociation"
@@ -166,7 +166,7 @@ class ConnectorVisitor : BaseFeatureVisitor<KerMLParser.ConnectorContext, Connec
 
                 refSubsetting.generalType()?.qualifiedName()?.let { qn ->
                     val name = extractQualifiedName(qn)
-                    parseContext.registerReference(subsetting, "subsettedFeature", name)
+                    kermlParseContext.registerReference(subsetting, "subsettedFeature", name)
                 }
             }
         }

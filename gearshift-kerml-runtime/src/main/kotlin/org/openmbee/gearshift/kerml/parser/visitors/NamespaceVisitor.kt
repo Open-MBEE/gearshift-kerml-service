@@ -18,8 +18,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Base visitor for Namespace elements and namespace body parsing.
@@ -54,9 +54,9 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespace>() {
 
-    override fun visit(ctx: KerMLParser.NamespaceContext, parseContext: ParseContext): Namespace {
+    override fun visit(ctx: KerMLParser.NamespaceContext, kermlParseContext: KermlParseContext): Namespace {
         // Create the Namespace instance
-        val ns = parseContext.create<Namespace>()
+        val ns = kermlParseContext.create<Namespace>()
 
         // Parse identification from namespaceDeclaration
         ctx.namespaceDeclaration()?.identification()?.let { id ->
@@ -64,10 +64,10 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(ns, ns.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(ns, ns.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(ns, parseContext)
+        createOwnershipMembership(ns, kermlParseContext)
 
         // Parse namespace body
         ctx.namespaceBody()?.let { body ->
@@ -87,12 +87,13 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun createOwnershipMembership(
         element: org.openmbee.gearshift.generated.interfaces.Element,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = element
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = element
 
                 // Set membership name from element name
                 element.declaredName?.let { membership.memberName = it }
@@ -100,7 +101,7 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
 
                 // Link membership to owning namespace
                 membership.membershipOwningNamespace = parent
-                membership.visibility = parseContext.memberVisibility
+                membership.visibility = kermlParseContext.memberVisibility
             }
         }
     }
@@ -113,11 +114,11 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNamespaceBody(
         ctx: KerMLParser.NamespaceBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Process each namespace body element
         ctx.namespaceBodyElement()?.forEach { bodyElement ->
-            parseNamespaceBodyElement(bodyElement, parseContext)
+            parseNamespaceBodyElement(bodyElement, kermlParseContext)
         }
     }
 
@@ -128,23 +129,23 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNamespaceBodyElement(
         ctx: KerMLParser.NamespaceBodyElementContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Handle namespaceMember
         ctx.namespaceMember()?.let { member ->
-            parseNamespaceMember(member, parseContext)
+            parseNamespaceMember(member, kermlParseContext)
             return
         }
 
         // Handle aliasMember
         ctx.aliasMember()?.let { alias ->
-            parseAliasMember(alias, parseContext)
+            parseAliasMember(alias, kermlParseContext)
             return
         }
 
         // Handle import
         ctx.import_()?.let { import ->
-            parseImport(import, parseContext)
+            parseImport(import, kermlParseContext)
             return
         }
 
@@ -158,17 +159,17 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNamespaceMember(
         ctx: KerMLParser.NamespaceMemberContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Handle nonFeatureMember
         ctx.nonFeatureMember()?.let { nonFeature ->
-            parseNonFeatureMember(nonFeature, parseContext)
+            parseNonFeatureMember(nonFeature, kermlParseContext)
             return
         }
 
         // Handle namespaceFeatureMember
         ctx.namespaceFeatureMember()?.let { featureMember ->
-            parseNamespaceFeatureMember(featureMember, parseContext)
+            parseNamespaceFeatureMember(featureMember, kermlParseContext)
         }
     }
 
@@ -179,10 +180,10 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNonFeatureMember(
         ctx: KerMLParser.NonFeatureMemberContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         val visibility = parseMemberPrefix(ctx.memberPrefix())
-        val visCtx = parseContext.copy(memberVisibility = visibility)
+        val visCtx = kermlParseContext.copy(memberVisibility = visibility)
 
         // Get the memberElement
         ctx.memberElement()?.let { memberElement ->
@@ -206,10 +207,10 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNamespaceFeatureMember(
         ctx: KerMLParser.NamespaceFeatureMemberContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         val visibility = parseMemberPrefix(ctx.memberPrefix())
-        val visCtx = parseContext.copy(memberVisibility = visibility)
+        val visCtx = kermlParseContext.copy(memberVisibility = visibility)
 
         // Get the featureElement
         ctx.featureElement()?.let { featureElement ->
@@ -225,65 +226,65 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseFeatureElement(
         ctx: KerMLParser.FeatureElementContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Feature
         ctx.feature()?.let { feature ->
-            FeatureVisitor().visit(feature, parseContext)
+            FeatureVisitor().visit(feature, kermlParseContext)
             return
         }
 
         // Step
         ctx.step()?.let { step ->
-            StepVisitor().visit(step, parseContext)
+            StepVisitor().visit(step, kermlParseContext)
             return
         }
 
         // Expression
         ctx.expression()?.let { expr ->
-            ExpressionVisitor().visit(expr, parseContext)
+            ExpressionVisitor().visit(expr, kermlParseContext)
             return
         }
 
         // BooleanExpression
         ctx.booleanExpression()?.let { boolExpr ->
-            BooleanExpressionVisitor().visit(boolExpr, parseContext)
+            BooleanExpressionVisitor().visit(boolExpr, kermlParseContext)
             return
         }
 
         // Invariant
         ctx.invariant()?.let { inv ->
-            InvariantVisitor().visit(inv, parseContext)
+            InvariantVisitor().visit(inv, kermlParseContext)
             return
         }
 
         // Connector
         ctx.connector()?.let { conn ->
-            ConnectorVisitor().visit(conn, parseContext)
+            ConnectorVisitor().visit(conn, kermlParseContext)
             return
         }
 
         // BindingConnector
         ctx.bindingConnector()?.let { binding ->
-            BindingConnectorVisitor().visit(binding, parseContext)
+            BindingConnectorVisitor().visit(binding, kermlParseContext)
             return
         }
 
         // Succession
         ctx.succession()?.let { succ ->
-            SuccessionVisitor().visit(succ, parseContext)
+            SuccessionVisitor().visit(succ, kermlParseContext)
             return
         }
 
         // Flow
         ctx.flow()?.let { flow ->
-            FlowVisitor().visit(flow, parseContext)
+            FlowVisitor().visit(flow, kermlParseContext)
             return
         }
 
         // SuccessionFlow
         ctx.successionFlow()?.let { succFlow ->
-            SuccessionFlowVisitor().visit(succFlow, parseContext)
+            SuccessionFlowVisitor().visit(succFlow, kermlParseContext)
             return
         }
     }
@@ -295,95 +296,95 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     fun parseNonFeatureElement(
         ctx: KerMLParser.NonFeatureElementContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Package
         ctx.package_()?.let { pkg ->
-            PackageVisitor().visit(pkg, parseContext)
+            PackageVisitor().visit(pkg, kermlParseContext)
             return
         }
 
         // LibraryPackage
         ctx.libraryPackage()?.let { libPkg ->
-            LibraryPackageVisitor().visit(libPkg, parseContext)
+            LibraryPackageVisitor().visit(libPkg, kermlParseContext)
             return
         }
 
         // Namespace (generic)
         ctx.namespace()?.let { ns ->
-            NamespaceVisitor().visit(ns, parseContext)
+            NamespaceVisitor().visit(ns, kermlParseContext)
             return
         }
 
         // Type (generic)
         ctx.type()?.let { type ->
-            TypeVisitor().visit(type, parseContext)
+            TypeVisitor().visit(type, kermlParseContext)
             return
         }
 
         // Classifier (generic)
         ctx.classifier()?.let { classifier ->
-            ClassifierVisitor().visit(classifier, parseContext)
+            ClassifierVisitor().visit(classifier, kermlParseContext)
             return
         }
 
         // Class
         ctx.class_()?.let { cls ->
-            ClassVisitor().visit(cls, parseContext)
+            ClassVisitor().visit(cls, kermlParseContext)
             return
         }
 
         // DataType
         ctx.datatype()?.let { dt ->
-            DataTypeVisitor().visit(dt, parseContext)
+            DataTypeVisitor().visit(dt, kermlParseContext)
             return
         }
 
         // Structure
         ctx.structure()?.let { struct ->
-            StructureVisitor().visit(struct, parseContext)
+            StructureVisitor().visit(struct, kermlParseContext)
             return
         }
 
         // Association
         ctx.association()?.let { assoc ->
-            AssociationVisitor().visit(assoc, parseContext)
+            AssociationVisitor().visit(assoc, kermlParseContext)
             return
         }
 
         // AssociationStructure
         ctx.associationStructure()?.let { assocStruct ->
-            AssociationStructureVisitor().visit(assocStruct, parseContext)
+            AssociationStructureVisitor().visit(assocStruct, kermlParseContext)
             return
         }
 
         // Behavior
         ctx.behavior()?.let { beh ->
-            BehaviorVisitor().visit(beh, parseContext)
+            BehaviorVisitor().visit(beh, kermlParseContext)
             return
         }
 
         // Function
         ctx.function()?.let { func ->
-            FunctionVisitor().visit(func, parseContext)
+            FunctionVisitor().visit(func, kermlParseContext)
             return
         }
 
         // Predicate
         ctx.predicate()?.let { pred ->
-            PredicateVisitor().visit(pred, parseContext)
+            PredicateVisitor().visit(pred, kermlParseContext)
             return
         }
 
         // Interaction
         ctx.interaction()?.let { inter ->
-            InteractionVisitor().visit(inter, parseContext)
+            InteractionVisitor().visit(inter, kermlParseContext)
             return
         }
 
         // Metaclass
         ctx.metaclass()?.let { meta ->
-            MetaclassVisitor().visit(meta, parseContext)
+            MetaclassVisitor().visit(meta, kermlParseContext)
             return
         }
 
@@ -395,28 +396,28 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
 
         // Multiplicity
         ctx.multiplicity()?.let { mult ->
-            MultiplicityVisitor().visit(mult, parseContext)
+            MultiplicityVisitor().visit(mult, kermlParseContext)
             return
         }
 
         // Relationship elements
         ctx.specialization()?.let { spec ->
-            SpecializationVisitor().visit(spec, parseContext)
+            SpecializationVisitor().visit(spec, kermlParseContext)
             return
         }
 
         ctx.conjugation()?.let { conj ->
-            ConjugationVisitor().visit(conj, parseContext)
+            ConjugationVisitor().visit(conj, kermlParseContext)
             return
         }
 
         ctx.subclassification()?.let { subcl ->
-            SubclassificationVisitor().visit(subcl, parseContext)
+            SubclassificationVisitor().visit(subcl, kermlParseContext)
             return
         }
 
         ctx.disjoining()?.let { disj ->
-            DisjoiningVisitor().visit(disj, parseContext)
+            DisjoiningVisitor().visit(disj, kermlParseContext)
             return
         }
 
@@ -426,17 +427,17 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
         }
 
         ctx.featureTyping()?.let { ft ->
-            FeatureTypingVisitor().visit(ft, parseContext)
+            FeatureTypingVisitor().visit(ft, kermlParseContext)
             return
         }
 
         ctx.subsetting()?.let { sub ->
-            SubsettingVisitor().visit(sub, parseContext)
+            SubsettingVisitor().visit(sub, kermlParseContext)
             return
         }
 
         ctx.redefinition()?.let { redef ->
-            RedefinitionVisitor().visit(redef, parseContext)
+            RedefinitionVisitor().visit(redef, kermlParseContext)
             return
         }
 
@@ -451,7 +452,7 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     private fun parseAliasMember(
         ctx: KerMLParser.AliasMemberContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // TODO: Implement alias member parsing
         // Creates an Membership with memberName/memberShortName aliasing another element
@@ -462,9 +463,9 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     private fun parseImport(
         ctx: KerMLParser.Import_Context,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        ImportVisitor().visit(ctx, parseContext)
+        ImportVisitor().visit(ctx, kermlParseContext)
     }
 
     /**
@@ -474,25 +475,25 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
      */
     private fun parseAnnotatingElement(
         ctx: KerMLParser.AnnotatingElementContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.comment()?.let { comment ->
-            CommentVisitor().visit(comment, parseContext)
+            CommentVisitor().visit(comment, kermlParseContext)
             return
         }
 
         ctx.documentation()?.let { doc ->
-            DocumentationVisitor().visit(doc, parseContext)
+            DocumentationVisitor().visit(doc, kermlParseContext)
             return
         }
 
         ctx.textualRepresentation()?.let { textRep ->
-            TextualRepresentationVisitor().visit(textRep, parseContext)
+            TextualRepresentationVisitor().visit(textRep, kermlParseContext)
             return
         }
 
         ctx.metadataFeature()?.let { metadata ->
-            MetadataFeatureVisitor().visit(metadata, parseContext)
+            MetadataFeatureVisitor().visit(metadata, kermlParseContext)
             return
         }
     }

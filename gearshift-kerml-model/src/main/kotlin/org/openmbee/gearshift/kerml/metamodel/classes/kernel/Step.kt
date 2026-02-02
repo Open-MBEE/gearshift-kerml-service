@@ -15,12 +15,12 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.BindingCondition
-import org.openmbee.gearshift.framework.meta.BindingKind
-import org.openmbee.gearshift.framework.meta.ConstraintType
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaConstraint
-import org.openmbee.gearshift.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
  * KerML Step metaclass.
@@ -59,36 +59,46 @@ fun createStepMetaClass() = MetaClass(
             name = "stepEnclosedPerformanceBinding",
             baseConcept = "Performances::Performance::enclosedPerformance",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.Or(listOf(
-                BindingCondition.OwningTypeIs("Behavior"),
-                BindingCondition.OwningTypeIs("Step")
-            ))
+            condition = BindingCondition.Or(
+                listOf(
+                    BindingCondition.OwningTypeIs("Behavior"),
+                    BindingCondition.OwningTypeIs("Step")
+                )
+            )
         ),
         // Conditional: composite Step whose owningType is Structure or typed by Structure subsets ownedPerformance
         SemanticBinding(
             name = "stepOwnedPerformanceBinding",
             baseConcept = "Objects::Object::ownedPerformance",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsComposite,
-                BindingCondition.Or(listOf(
-                    BindingCondition.OwningTypeIs("Structure"),
-                    BindingCondition.OwningTypeTypedBy("Structure")
-                ))
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsComposite,
+                    BindingCondition.Or(
+                        listOf(
+                            BindingCondition.OwningTypeIs("Structure"),
+                            BindingCondition.OwningTypeTypedBy("Structure")
+                        )
+                    )
+                )
+            )
         ),
         // Conditional: composite Step whose owningType is Behavior or Step subsets subperformance
         SemanticBinding(
             name = "stepSubperformanceBinding",
             baseConcept = "Performances::Performance::subperformance",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsComposite,
-                BindingCondition.Or(listOf(
-                    BindingCondition.OwningTypeIs("Behavior"),
-                    BindingCondition.OwningTypeIs("Step")
-                ))
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsComposite,
+                    BindingCondition.Or(
+                        listOf(
+                            BindingCondition.OwningTypeIs("Behavior"),
+                            BindingCondition.OwningTypeIs("Step")
+                        )
+                    )
+                )
+            )
         )
     ),
     description = "A feature that represents a step in a behavior"

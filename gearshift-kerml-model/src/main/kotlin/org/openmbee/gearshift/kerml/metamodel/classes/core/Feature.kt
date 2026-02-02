@@ -15,7 +15,16 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
-import org.openmbee.gearshift.framework.meta.*
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.BodyLanguage
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaParameter
+import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
  * KerML Feature metaclass.
@@ -772,46 +781,56 @@ fun createFeatureMetaClass() = MetaClass(
             name = "featureEndParticipantBinding",
             baseConcept = "Links::Link::participant",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsEnd,
-                BindingCondition.Or(listOf(
-                    BindingCondition.OwningTypeIs("Association"),
-                    BindingCondition.OwningTypeIs("Connector")
-                ))
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsEnd,
+                    BindingCondition.Or(
+                        listOf(
+                            BindingCondition.OwningTypeIs("Association"),
+                            BindingCondition.OwningTypeIs("Connector")
+                        )
+                    )
+                )
+            )
         ),
         // Conditional: isPortion and typed by Class with Class owningType -> Occurrences::Occurrence::portions
         SemanticBinding(
             name = "featurePortionBinding",
             baseConcept = "Occurrences::Occurrence::portions",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsPortion,
-                BindingCondition.TypedBy("Class"),
-                BindingCondition.OwningTypeTypedBy("Class")
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsPortion,
+                    BindingCondition.TypedBy("Class"),
+                    BindingCondition.OwningTypeTypedBy("Class")
+                )
+            )
         ),
         // Conditional: isComposite and typed by Structure with Structure owningType -> Objects::Object::subobjects
         SemanticBinding(
             name = "featureSubobjectBinding",
             baseConcept = "Objects::Object::subobjects",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsComposite,
-                BindingCondition.TypedBy("Structure"),
-                BindingCondition.OwningTypeTypedBy("Structure")
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsComposite,
+                    BindingCondition.TypedBy("Structure"),
+                    BindingCondition.OwningTypeTypedBy("Structure")
+                )
+            )
         ),
         // Conditional: isComposite and typed by Class with Class owningType -> Occurrences::Occurrence::suboccurrences
         SemanticBinding(
             name = "featureSuboccurrenceBinding",
             baseConcept = "Occurrences::Occurrence::suboccurrences",
             bindingKind = BindingKind.SUBSETS,
-            condition = BindingCondition.And(listOf(
-                BindingCondition.IsComposite,
-                BindingCondition.TypedBy("Class"),
-                BindingCondition.OwningTypeTypedBy("Class")
-            ))
+            condition = BindingCondition.And(
+                listOf(
+                    BindingCondition.IsComposite,
+                    BindingCondition.TypedBy("Class"),
+                    BindingCondition.OwningTypeTypedBy("Class")
+                )
+            )
         )
     ),
     description = "A type that is also a feature"

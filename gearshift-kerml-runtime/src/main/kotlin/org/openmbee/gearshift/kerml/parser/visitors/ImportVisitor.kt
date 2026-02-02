@@ -20,8 +20,8 @@ import org.openmbee.gearshift.generated.interfaces.MembershipImport
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.NamespaceImport
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -47,17 +47,17 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import>() {
 
-    override fun visit(ctx: KerMLParser.Import_Context, parseContext: ParseContext): Import {
+    override fun visit(ctx: KerMLParser.Import_Context, kermlParseContext: KermlParseContext): Import {
         // Determine which type of import to create based on importDeclaration
         val importDecl = ctx.importDeclaration()
 
         val import: Import = if (importDecl?.membershipImport() != null) {
-            parseMembershipImport(importDecl.membershipImport(), parseContext)
+            parseMembershipImport(importDecl.membershipImport(), kermlParseContext)
         } else if (importDecl?.namespaceImport() != null) {
-            parseNamespaceImport(importDecl.namespaceImport(), parseContext)
+            parseNamespaceImport(importDecl.namespaceImport(), kermlParseContext)
         } else {
             // Default to base import if no declaration
-            parseContext.create<MembershipImport>()
+            kermlParseContext.create<MembershipImport>()
         }
 
         // Parse visibility
@@ -71,7 +71,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
         }
 
         // Set import owning namespace
-        parseContext.parent?.let { parent ->
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
                 import.importOwningNamespace = parent
             }
@@ -79,7 +79,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(import, "")
+            val childContext = kermlParseContext.withParent(import, "")
             parseRelationshipBody(body, import, childContext)
         }
 
@@ -93,14 +93,14 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
      */
     private fun parseMembershipImport(
         ctx: KerMLParser.MembershipImportContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): MembershipImport {
-        val membershipImport = parseContext.create<MembershipImport>()
+        val membershipImport = kermlParseContext.create<MembershipImport>()
 
         // Parse imported membership reference
         ctx.importedMembership?.let { qn ->
             val membershipName = extractQualifiedName(qn)
-            parseContext.registerReference(membershipImport, "importedMembership", membershipName)
+            kermlParseContext.registerReference(membershipImport, "importedMembership", membershipName)
         }
 
         // Parse isRecursive
@@ -118,14 +118,14 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
      */
     private fun parseNamespaceImport(
         ctx: KerMLParser.NamespaceImportContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ): NamespaceImport {
-        val namespaceImport = parseContext.create<NamespaceImport>()
+        val namespaceImport = kermlParseContext.create<NamespaceImport>()
 
         // Parse imported namespace reference
         ctx.qualifiedName()?.let { qn ->
             val namespaceName = extractQualifiedName(qn)
-            parseContext.registerReference(namespaceImport, "importedNamespace", namespaceName)
+            kermlParseContext.registerReference(namespaceImport, "importedNamespace", namespaceName)
         }
 
         // Parse isRecursive

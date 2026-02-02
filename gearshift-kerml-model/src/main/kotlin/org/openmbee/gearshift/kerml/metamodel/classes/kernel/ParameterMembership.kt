@@ -16,8 +16,8 @@
 
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaOperation
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaOperation
 
 fun createParameterMembershipMetaClass() = MetaClass(
     name = "ParameterMembership",

@@ -17,6 +17,7 @@ package org.openmbee.gearshift.kerml.parser.visitors.base
 
 import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 
 /**
  * Abstract base visitor for Feature elements and their subclasses.
@@ -106,7 +107,7 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseFeatureDeclaration(
         ctx: KerMLParser.FeatureDeclarationContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.isSufficient?.let { feature.isSufficient = true }
 
@@ -115,20 +116,20 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
         }
 
         ctx.featureSpecializationPart()?.let { specPart ->
-            parseFeatureSpecializationPart(specPart, feature, parseContext)
+            parseFeatureSpecializationPart(specPart, feature, kermlParseContext)
         }
 
         ctx.conjugationPart()?.let { conjPart ->
-            val conjugation = parseContext.create<Conjugation>()
+            val conjugation = kermlParseContext.create<Conjugation>()
             conjugation.conjugatedType = feature
             conjPart.ownedConjugation()?.qualifiedName()?.let { qn ->
                 val originalName = extractQualifiedName(qn)
-                parseContext.registerReference(conjugation, "originalType", originalName)
+                kermlParseContext.registerReference(conjugation, "originalType", originalName)
             }
         }
 
         ctx.featureRelationshipPart()?.forEach { relPart ->
-            parseFeatureRelationshipPart(relPart, feature, parseContext)
+            parseFeatureRelationshipPart(relPart, feature, kermlParseContext)
         }
     }
 
@@ -146,14 +147,14 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseFeatureSpecializationPart(
         ctx: KerMLParser.FeatureSpecializationPartContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.multiplicityPart()?.let { multPart ->
-            parseMultiplicityPart(multPart, feature, parseContext)
+            parseMultiplicityPart(multPart, feature, kermlParseContext)
         }
 
         ctx.featureSpecialization()?.forEach { spec ->
-            parseFeatureSpecialization(spec, feature, parseContext)
+            parseFeatureSpecialization(spec, feature, kermlParseContext)
         }
     }
 
@@ -163,11 +164,11 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseMultiplicityPart(
         ctx: KerMLParser.MultiplicityPartContext,
         feature: Feature,
-        parseContext: ParseContext? = null
+        kermlParseContext: KermlParseContext? = null
     ) {
         ctx.isOrdered?.let { feature.isOrdered = true }
         ctx.isNonunique?.let { feature.isNonunique = true }
-        parseContext?.let { pc ->
+        kermlParseContext?.let { pc ->
             ctx.ownedMultiplicity()?.let { mult ->
                 org.openmbee.gearshift.kerml.parser.visitors.MultiplicityVisitor().parseOwnedMultiplicity(mult, pc)
             }
@@ -180,18 +181,18 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseFeatureSpecialization(
         ctx: KerMLParser.FeatureSpecializationContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.typings()?.let { typings ->
-            parseTypings(typings, feature, parseContext)
+            parseTypings(typings, feature, kermlParseContext)
         }
 
         ctx.subsettings()?.let { subsettings ->
-            parseSubsettings(subsettings, feature, parseContext)
+            parseSubsettings(subsettings, feature, kermlParseContext)
         }
 
         ctx.redefinitions()?.let { redefinitions ->
-            parseRedefinitions(redefinitions, feature, parseContext)
+            parseRedefinitions(redefinitions, feature, kermlParseContext)
         }
 
         ctx.references()?.let { _ ->
@@ -209,14 +210,14 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseTypings(
         ctx: KerMLParser.TypingsContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.typedBy()?.ownedFeatureTyping()?.let { typing ->
-            parseOwnedFeatureTyping(typing, feature, parseContext)
+            parseOwnedFeatureTyping(typing, feature, kermlParseContext)
         }
 
         ctx.ownedFeatureTyping()?.forEach { typing ->
-            parseOwnedFeatureTyping(typing, feature, parseContext)
+            parseOwnedFeatureTyping(typing, feature, kermlParseContext)
         }
     }
 
@@ -226,15 +227,15 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseOwnedFeatureTyping(
         ctx: KerMLParser.OwnedFeatureTypingContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val featureTyping = parseContext.create<FeatureTyping>()
+        val featureTyping = kermlParseContext.create<FeatureTyping>()
         featureTyping.typedFeature = feature
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val typeName = extractQualifiedName(qnCtx)
             // Register pending reference for type resolution
-            parseContext.registerReference(featureTyping, "type", typeName)
+            kermlParseContext.registerReference(featureTyping, "type", typeName)
         }
     }
 
@@ -244,14 +245,14 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseSubsettings(
         ctx: KerMLParser.SubsettingsContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.subsets()?.ownedSubsetting()?.let { subsetting ->
-            parseOwnedSubsetting(subsetting, feature, parseContext)
+            parseOwnedSubsetting(subsetting, feature, kermlParseContext)
         }
 
         ctx.ownedSubsetting()?.forEach { subsetting ->
-            parseOwnedSubsetting(subsetting, feature, parseContext)
+            parseOwnedSubsetting(subsetting, feature, kermlParseContext)
         }
     }
 
@@ -261,25 +262,25 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseOwnedSubsetting(
         ctx: KerMLParser.OwnedSubsettingContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val subsetting = parseContext.create<Subsetting>()
+        val subsetting = kermlParseContext.create<Subsetting>()
         subsetting.subsettingFeature = feature
 
         // Establish ownership - link Subsetting as owned by the Feature
         // This makes it accessible via feature.ownedSubsetting
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = feature.id!!,
             targetId = subsetting.id!!,
             associationName = "owningFeatureOwnedSubsettingAssociation"
         )
         // Also link via base associations for Type and Element ownership
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = feature.id!!,
             targetId = subsetting.id!!,
             associationName = "owningTypeOwnedSpecializationAssociation"
         )
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = feature.id!!,
             targetId = subsetting.id!!,
             associationName = "owningRelatedElementOwnedRelationshipAssociation"
@@ -288,7 +289,7 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val featureName = extractQualifiedName(qnCtx)
             // Register pending reference for subsetted feature
-            parseContext.registerReference(subsetting, "subsettedFeature", featureName)
+            kermlParseContext.registerReference(subsetting, "subsettedFeature", featureName)
         }
     }
 
@@ -298,14 +299,14 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseRedefinitions(
         ctx: KerMLParser.RedefinitionsContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.redefines()?.ownedRedefinition()?.let { redef ->
-            parseOwnedRedefinition(redef, feature, parseContext)
+            parseOwnedRedefinition(redef, feature, kermlParseContext)
         }
 
         ctx.ownedRedefinition()?.forEach { redef ->
-            parseOwnedRedefinition(redef, feature, parseContext)
+            parseOwnedRedefinition(redef, feature, kermlParseContext)
         }
     }
 
@@ -315,15 +316,20 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseOwnedRedefinition(
         ctx: KerMLParser.OwnedRedefinitionContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val redefinition = parseContext.create<Redefinition>()
+        val redefinition = kermlParseContext.create<Redefinition>()
         redefinition.redefiningFeature = feature
 
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val featureName = extractQualifiedName(qnCtx)
             // Register pending reference for redefined feature (uses redefinition context)
-            parseContext.registerReference(redefinition, "redefinedFeature", featureName, isRedefinitionContext = true)
+            kermlParseContext.registerReference(
+                redefinition,
+                "redefinedFeature",
+                featureName,
+                isRedefinitionContext = true
+            )
         }
     }
 
@@ -333,25 +339,25 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseFeatureRelationshipPart(
         ctx: KerMLParser.FeatureRelationshipPartContext,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.typeRelationshipPart()?.let { relPart ->
-            parseTypeRelationshipPart(relPart, feature, parseContext)
+            parseTypeRelationshipPart(relPart, feature, kermlParseContext)
         }
 
         ctx.chainingPart()?.let { chainingPart ->
             chainingPart.ownedFeatureChaining()?.let { ownedChaining ->
-                val chaining = parseContext.create<FeatureChaining>()
+                val chaining = kermlParseContext.create<FeatureChaining>()
                 ownedChaining.chainingFeature?.let { qn ->
                     val name = extractQualifiedName(qn)
-                    parseContext.registerReference(chaining, "chainingFeature", name)
+                    kermlParseContext.registerReference(chaining, "chainingFeature", name)
                 }
             }
             chainingPart.featureChain()?.ownedFeatureChaining()?.forEach { ownedChaining ->
-                val chaining = parseContext.create<FeatureChaining>()
+                val chaining = kermlParseContext.create<FeatureChaining>()
                 ownedChaining.chainingFeature?.let { qn ->
                     val name = extractQualifiedName(qn)
-                    parseContext.registerReference(chaining, "chainingFeature", name)
+                    kermlParseContext.registerReference(chaining, "chainingFeature", name)
                 }
             }
         }
@@ -363,10 +369,10 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
     protected fun parseValuePart(
         ctx: KerMLParser.ValuePartContext?,
         feature: Feature,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx?.featureValue()?.let { fvCtx ->
-            val featureValue = parseContext.create<FeatureValue>()
+            val featureValue = kermlParseContext.create<FeatureValue>()
             fvCtx.isDefault?.let { featureValue.isDefault = true }
             fvCtx.isInitial?.let { featureValue.isInitial = true }
             // ownedExpression parsing requires full expression visitor infrastructure

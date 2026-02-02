@@ -18,8 +18,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 import org.openmbee.gearshift.generated.interfaces.BooleanExpression
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for BooleanExpression elements.
@@ -39,22 +39,25 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class BooleanExpressionVisitor : BaseFeatureVisitor<KerMLParser.BooleanExpressionContext, BooleanExpression>() {
 
-    override fun visit(ctx: KerMLParser.BooleanExpressionContext, parseContext: ParseContext): BooleanExpression {
-        val boolExpr = parseContext.create<BooleanExpression>()
+    override fun visit(
+        ctx: KerMLParser.BooleanExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): BooleanExpression {
+        val boolExpr = kermlParseContext.create<BooleanExpression>()
 
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), boolExpr)
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, boolExpr, parseContext)
+            parseFeatureDeclaration(decl, boolExpr, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(boolExpr, boolExpr.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(boolExpr, boolExpr.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(boolExpr, parseContext)
+        createFeatureMembership(boolExpr, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), boolExpr, childContext)
@@ -72,21 +75,21 @@ class BooleanExpressionVisitor : BaseFeatureVisitor<KerMLParser.BooleanExpressio
      */
     private fun parseFunctionBody(
         ctx: KerMLParser.FunctionBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.functionBodyPart()?.let { bodyPart ->
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
-                parseTypeBodyElement(bodyElement, parseContext)
+                parseTypeBodyElement(bodyElement, kermlParseContext)
             }
 
             bodyPart.returnFeatureMember()?.forEach { returnMember ->
                 returnMember.featureElement()?.let { fe ->
-                    parseFeatureElement(fe, parseContext)
+                    parseFeatureElement(fe, kermlParseContext)
                 }
             }
 
             bodyPart.resultExpressionMember()?.let { _ ->
-                parseContext.create<ResultExpressionMembership>()
+                kermlParseContext.create<ResultExpressionMembership>()
             }
         }
     }

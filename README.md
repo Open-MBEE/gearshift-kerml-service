@@ -1,11 +1,11 @@
 # GearShift KerML Service
 
-A metadata-driven KerML metamodel implementation using the **Gearshift Framework** - a next-generation MOF (Meta-Object
+A metadata-driven KerML metamodel implementation using the **Mdm Framework** - a next-generation MOF (Meta-Object
 Facility) combined with model data management.
 
 ## Architecture
 
-### Gearshift Framework
+### Mdm Framework
 
 The core framework (`org.openmbee.gearshift`) provides:
 

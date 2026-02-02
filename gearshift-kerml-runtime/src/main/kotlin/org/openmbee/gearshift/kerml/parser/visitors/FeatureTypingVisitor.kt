@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.FeatureTyping
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -41,8 +41,8 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class FeatureTypingVisitor : BaseRelationshipVisitor<KerMLParser.FeatureTypingContext, FeatureTyping>() {
 
-    override fun visit(ctx: KerMLParser.FeatureTypingContext, parseContext: ParseContext): FeatureTyping {
-        val featureTyping = parseContext.create<FeatureTyping>()
+    override fun visit(ctx: KerMLParser.FeatureTypingContext, kermlParseContext: KermlParseContext): FeatureTyping {
+        val featureTyping = kermlParseContext.create<FeatureTyping>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), featureTyping)
@@ -50,21 +50,21 @@ class FeatureTypingVisitor : BaseRelationshipVisitor<KerMLParser.FeatureTypingCo
         // Parse typedFeature reference
         ctx.typedFeature?.let { qn ->
             val typedFeatureName = extractQualifiedName(qn)
-            parseContext.registerReference(featureTyping, "typedFeature", typedFeatureName)
+            kermlParseContext.registerReference(featureTyping, "typedFeature", typedFeatureName)
         }
 
         // Parse general type (the typing type) reference
         ctx.generalType()?.qualifiedName()?.let { qn ->
             val typeName = extractQualifiedName(qn)
-            parseContext.registerReference(featureTyping, "type", typeName)
+            kermlParseContext.registerReference(featureTyping, "type", typeName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(featureTyping, parseContext)
+        createRelationshipMembership(featureTyping, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(featureTyping, featureTyping.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(featureTyping, featureTyping.declaredName ?: "")
             parseRelationshipBody(body, featureTyping, childContext)
         }
 

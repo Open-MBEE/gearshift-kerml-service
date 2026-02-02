@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for Feature elements.
@@ -42,22 +42,22 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
  */
 class FeatureVisitor : BaseFeatureVisitor<KerMLParser.FeatureContext, Feature>() {
 
-    override fun visit(ctx: KerMLParser.FeatureContext, parseContext: ParseContext): Feature {
-        val feature = parseContext.create<Feature>()
+    override fun visit(ctx: KerMLParser.FeatureContext, kermlParseContext: KermlParseContext): Feature {
+        val feature = kermlParseContext.create<Feature>()
 
         // Parse feature prefix (handles featurePrefix, basicFeaturePrefix, endFeaturePrefix)
         parseFeaturePrefixFromContext(ctx, feature)
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
         ctx.featureDeclaration()?.let { decl ->
-            parseFeatureDeclaration(decl, feature, parseContext)
+            parseFeatureDeclaration(decl, feature, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(feature, feature.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(feature, feature.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(feature, parseContext)
+        createFeatureMembership(feature, kermlParseContext)
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), feature, childContext)

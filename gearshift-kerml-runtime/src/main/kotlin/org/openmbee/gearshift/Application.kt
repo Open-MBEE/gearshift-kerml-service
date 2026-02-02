@@ -15,8 +15,10 @@
  */
 package org.openmbee.gearshift
 
+import org.openmbee.gearshift.generated.KerMLElementFactory
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
-import org.openmbee.gearshift.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.SessionManager
 
 /**
  * Main application entry point for the GearShift KerML Service.
@@ -24,7 +26,7 @@ import org.openmbee.gearshift.framework.runtime.MetamodelRegistry
 fun main(args: Array<String>) {
     println("=".repeat(70))
     println("GearShift KerML Service")
-    println("Metadata-driven KerML Implementation using Gearshift Framework")
+    println("Metadata-driven KerML Implementation using Mdm Framework")
     println("=".repeat(70))
     println()
 
@@ -60,8 +62,9 @@ fun main(args: Array<String>) {
     println()
 
     // Create session manager and a session
-    val sessionManager = SessionManager(schema)
-    val session = sessionManager.createSession("Demo Session", ModelLanguage.KERML)
+    val factory = KerMLElementFactory()
+    val sessionManager = SessionManager(schema, factory)
+    val session = sessionManager.createSession("Demo Session")
 
     println("Created session: ${session.name} (${session.id})")
     println()

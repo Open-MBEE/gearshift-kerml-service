@@ -59,6 +59,53 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
                 val myClass = factory.findByName<KerMLClass>("MyClass")
                 myClass.shouldNotBeNull()
 
+                // Debug trace derivation chain
+                println("DEBUG: myClass.id = ${myClass.id}")
+                println("DEBUG: myClass.declaredName = ${myClass.declaredName}")
+                println("DEBUG: myClass.owningMembership = ${myClass.owningMembership}")
+                println("DEBUG: myClass.owningRelationship = ${myClass.owningRelationship}")
+                println("DEBUG: myClass.owner = ${myClass.owner}")
+                println("DEBUG: myClass.owningNamespace = ${myClass.owningNamespace}")
+                val om = myClass.owningMembership
+                if (om != null) {
+                    println("DEBUG: owningMembership.id = ${om.id}")
+                    println("DEBUG: owningMembership.membershipOwningNamespace = ${om.membershipOwningNamespace}")
+                }
+                println("DEBUG: myClass.name = ${myClass.name}")
+                val ns = myClass.owningNamespace
+                if (ns != null) {
+                    println("DEBUG: owningNamespace.declaredName = ${ns.declaredName}")
+                    println("DEBUG: owningNamespace.owner = ${ns.owner}")
+                    println("DEBUG: owningNamespace.owningNamespace = ${ns.owningNamespace}")
+                    val nsOwningNamespace = ns.owningNamespace
+                    if (nsOwningNamespace != null) {
+                        println("DEBUG: owningNamespace.owningNamespace.owner = ${nsOwningNamespace.owner}")
+                        println("DEBUG: owningNamespace.owningNamespace.ownedMember = ${nsOwningNamespace.ownedMember}")
+                        println("DEBUG: owningNamespace.owningNamespace.ownedMembership = ${nsOwningNamespace.ownedMembership}")
+                        val ms = nsOwningNamespace.ownedMembership.firstOrNull()
+                        if (ms is org.openmbee.gearshift.generated.interfaces.OwningMembership) {
+                            println("DEBUG: First membership is OwningMembership")
+                            println("DEBUG: OwningMembership.ownedMemberElement = ${ms.ownedMemberElement}")
+                            println("DEBUG: OwningMembership.memberElement = ${ms.memberElement}")
+                        }
+                        // Test the derivation manually
+                        val engine = factory.engine
+                        val ownedMembershipCollection = nsOwningNamespace.ownedMembership
+                        println("DEBUG: Manual: ownedMembership count = ${ownedMembershipCollection.size}")
+                        val asOwningMemberships = ownedMembershipCollection.filterIsInstance<org.openmbee.gearshift.generated.interfaces.OwningMembership>()
+                        println("DEBUG: Manual: after filterIsInstance<OwningMembership> count = ${asOwningMemberships.size}")
+                        val ownedMemberElements = asOwningMemberships.mapNotNull { it.ownedMemberElement }
+                        println("DEBUG: Manual: ownedMemberElements = $ownedMemberElements")
+                    }
+                    println("DEBUG: owningNamespace.qualifiedName = ${ns.qualifiedName}")
+                }
+                println("DEBUG: myClass.qualifiedName = ${myClass.qualifiedName}")
+
+                myClass.owner.shouldNotBeNull()
+                myClass.owner!!.name shouldBe "Test"
+                myClass.qualifiedName shouldBe "Test::MyClass"
+
+
                 // Find all Subclassification instances
                 val subclassifications = factory.allOfType<Subclassification>()
 
@@ -107,8 +154,16 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
                 val car = factory.findByName<KerMLClass>("Car")
                 car.shouldNotBeNull()
                 car.name.shouldNotBeNull()
+
+                // Debug: Check ownership chain
+                println("DEBUG: Car.id = ${car.id}")
+                println("DEBUG: Car.declaredName = ${car.declaredName}")
+                println("DEBUG: Car.owningMembership = ${car.owningMembership}")
+                println("DEBUG: Car.owningRelationship = ${car.owningRelationship}")
+                println("DEBUG: Car.owner = ${car.owner}")
+
                 car.owner.shouldNotBeNull()
-                car.owner!!.name shouldBe "Test"
+                car.owner!!.declaredName shouldBe "Test"
                 car.qualifiedName shouldBe "Test::Car"
                 // Find all Subclassification instances where Car is the subclassifier
                 val subclassifications = factory.allOfType<Subclassification>()

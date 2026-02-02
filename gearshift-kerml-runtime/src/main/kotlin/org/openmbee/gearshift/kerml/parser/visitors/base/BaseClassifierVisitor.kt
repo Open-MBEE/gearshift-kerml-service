@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Classifier
 import org.openmbee.gearshift.generated.interfaces.Conjugation
 import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 
 /**
  * Abstract base visitor for Classifier elements and their subclasses.
@@ -48,7 +49,7 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
     protected fun parseClassifierDeclaration(
         decl: KerMLParser.ClassifierDeclarationContext,
         classifier: Classifier,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Parse identification
         decl.identification()?.let { id ->
@@ -63,27 +64,27 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
         // Parse multiplicity
         decl.ownedMultiplicity()?.let { mult ->
             org.openmbee.gearshift.kerml.parser.visitors.MultiplicityVisitor()
-                .parseOwnedMultiplicity(mult, parseContext)
+                .parseOwnedMultiplicity(mult, kermlParseContext)
         }
 
         // Parse superclassing (subclassification relationships)
         decl.superclassingPart()?.let { superclassing ->
-            parseSuperclassingPart(superclassing, classifier, parseContext)
+            parseSuperclassingPart(superclassing, classifier, kermlParseContext)
         }
 
         // Parse conjugation if present (alternative to superclassing)
         decl.conjugationPart()?.let { conjPart ->
-            val conjugation = parseContext.create<Conjugation>()
+            val conjugation = kermlParseContext.create<Conjugation>()
             conjugation.conjugatedType = classifier
             conjPart.ownedConjugation()?.qualifiedName()?.let { qn ->
                 val originalName = extractQualifiedName(qn)
-                parseContext.registerReference(conjugation, "originalType", originalName)
+                kermlParseContext.registerReference(conjugation, "originalType", originalName)
             }
         }
 
         // Parse type relationship parts
         decl.typeRelationshipPart()?.forEach { relPart ->
-            parseTypeRelationshipPart(relPart, classifier, parseContext)
+            parseTypeRelationshipPart(relPart, classifier, kermlParseContext)
         }
     }
 
@@ -99,10 +100,10 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
     protected fun parseSuperclassingPart(
         ctx: KerMLParser.SuperclassingPartContext,
         classifier: Classifier,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.ownedSubclassification()?.forEach { subclassCtx ->
-            parseOwnedSubclassification(subclassCtx, classifier, parseContext)
+            parseOwnedSubclassification(subclassCtx, classifier, kermlParseContext)
         }
     }
 
@@ -117,25 +118,25 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
     protected fun parseOwnedSubclassification(
         ctx: KerMLParser.OwnedSubclassificationContext,
         classifier: Classifier,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
-        val subclassification = parseContext.create<Subclassification>()
+        val subclassification = kermlParseContext.create<Subclassification>()
         subclassification.subclassifier = classifier
 
         // Establish ownership - link Subclassification as owned by the Classifier
         // This makes it accessible via classifier.ownedSpecialization
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = classifier.id!!,
             targetId = subclassification.id!!,
             associationName = "owningClassifierOwnedSubclassificationAssociation"
         )
         // Also link via base associations for Type and Element ownership
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = classifier.id!!,
             targetId = subclassification.id!!,
             associationName = "owningTypeOwnedSpecializationAssociation"
         )
-        parseContext.engine.link(
+        kermlParseContext.engine.link(
             sourceId = classifier.id!!,
             targetId = subclassification.id!!,
             associationName = "owningRelatedElementOwnedRelationshipAssociation"
@@ -144,7 +145,7 @@ abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor
         ctx.qualifiedName()?.let { qnCtx ->
             val superclassName = extractQualifiedName(qnCtx)
             // Register pending reference for superclassifier
-            parseContext.registerReference(subclassification, "superclassifier", superclassName)
+            kermlParseContext.registerReference(subclassification, "superclassifier", superclassName)
         }
     }
 }

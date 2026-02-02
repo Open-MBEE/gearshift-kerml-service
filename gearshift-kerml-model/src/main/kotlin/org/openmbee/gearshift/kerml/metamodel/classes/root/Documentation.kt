@@ -15,8 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.gearshift.framework.meta.MetaClass
-import org.openmbee.gearshift.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.MetaClass
 
 /**
  * KerML Documentation metaclass.

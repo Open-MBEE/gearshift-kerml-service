@@ -16,17 +16,18 @@
 package org.openmbee.gearshift.kerml
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.gearshift.framework.meta.BindingCondition
-import org.openmbee.gearshift.framework.meta.BindingKind
-import org.openmbee.gearshift.framework.meta.SemanticBinding
-import org.openmbee.gearshift.framework.runtime.LifecycleEvent
-import org.openmbee.gearshift.framework.runtime.LifecycleHandler
-import org.openmbee.gearshift.framework.runtime.MDMEngine
-import org.openmbee.gearshift.framework.runtime.MDMObject
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.runtime.LifecycleEvent
+import org.openmbee.mdm.framework.runtime.LifecycleHandler
+import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.Classifier
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.generated.interfaces.Subsetting
+import org.openmbee.mdm.framework.meta.MetaClass
 
 private val logger = KotlinLogging.logger {}
 
@@ -90,10 +91,10 @@ class KerMLSemanticHandler(
     /**
      * Collect all semantic bindings from a metaclass and all its superclasses.
      */
-    private fun collectAllSemanticBindings(metaClass: org.openmbee.gearshift.framework.meta.MetaClass): List<SemanticBinding> {
+    private fun collectAllSemanticBindings(metaClass: MetaClass): List<SemanticBinding> {
         val bindings = mutableListOf<SemanticBinding>()
         val visited = mutableSetOf<String>()
-        val toProcess = ArrayDeque<org.openmbee.gearshift.framework.meta.MetaClass>()
+        val toProcess = ArrayDeque<MetaClass>()
 
         toProcess.add(metaClass)
 

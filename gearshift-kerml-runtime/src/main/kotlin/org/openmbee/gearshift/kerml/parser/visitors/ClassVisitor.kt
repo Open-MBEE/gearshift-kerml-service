@@ -16,8 +16,8 @@
 package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
 
 /**
@@ -37,22 +37,23 @@ import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
  */
 class ClassVisitor : BaseClassifierVisitor<KerMLParser.ClassContext, KerMLClass>() {
 
-    override fun visit(ctx: KerMLParser.ClassContext, parseContext: ParseContext): KerMLClass {
-        val cls = parseContext.create<KerMLClass>()
+    override fun visit(ctx: KerMLParser.ClassContext, kermlParseContext: KermlParseContext): KerMLClass {
+        // Extract name from declaration first (needed for ownership in secondary constructor)
+        val declaredName = ctx.classifierDeclaration()?.identification()?.declaredName?.text
+
+        // Create class with parent and name - secondary constructor handles ownership
+        val cls = kermlParseContext.create<KerMLClass>(declaredName = declaredName)
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), cls)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, cls, parseContext)
+            parseClassifierDeclaration(decl, cls, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(cls, cls.declaredName ?: "")
-
-        // Create ownership relationship with parent namespace
-        createOwnershipMembership(cls, parseContext)
+        val childContext = kermlParseContext.withParent(cls, cls.declaredName ?: "")
 
         // Parse type body (inherited from BaseTypeVisitor)
         ctx.typeBody()?.let { body ->

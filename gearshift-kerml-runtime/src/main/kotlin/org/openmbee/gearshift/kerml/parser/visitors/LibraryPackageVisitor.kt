@@ -19,8 +19,8 @@ import org.openmbee.gearshift.generated.interfaces.LibraryPackage
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseTypedVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 
 /**
  * Visitor for LibraryPackage elements.
@@ -43,9 +43,9 @@ class LibraryPackageVisitor : BaseTypedVisitor<KerMLParser.LibraryPackageContext
 
     private val namespaceVisitor = NamespaceVisitor()
 
-    override fun visit(ctx: KerMLParser.LibraryPackageContext, parseContext: ParseContext): LibraryPackage {
+    override fun visit(ctx: KerMLParser.LibraryPackageContext, kermlParseContext: KermlParseContext): LibraryPackage {
         // Create the LibraryPackage instance
-        val libraryPkg = parseContext.create<LibraryPackage>()
+        val libraryPkg = kermlParseContext.create<LibraryPackage>()
 
         // Set isStandard flag (the grammar requires 'standard library' prefix)
         ctx.isStandard?.let {
@@ -58,10 +58,10 @@ class LibraryPackageVisitor : BaseTypedVisitor<KerMLParser.LibraryPackageContext
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(libraryPkg, libraryPkg.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(libraryPkg, libraryPkg.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(libraryPkg, parseContext)
+        createOwnershipMembership(libraryPkg, kermlParseContext)
 
         // Parse package body
         ctx.packageBody()?.let { body ->
@@ -84,11 +84,11 @@ class LibraryPackageVisitor : BaseTypedVisitor<KerMLParser.LibraryPackageContext
      */
     private fun parsePackageBody(
         ctx: KerMLParser.PackageBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         // Process each namespace body element using NamespaceVisitor
         ctx.namespaceBodyElement()?.forEach { bodyElement ->
-            namespaceVisitor.parseNamespaceBodyElement(bodyElement, parseContext)
+            namespaceVisitor.parseNamespaceBodyElement(bodyElement, kermlParseContext)
         }
 
         // Process element filter members (specific to library packages)
@@ -100,11 +100,12 @@ class LibraryPackageVisitor : BaseTypedVisitor<KerMLParser.LibraryPackageContext
     /**
      * Create ownership membership.
      */
-    private fun createOwnershipMembership(libraryPkg: LibraryPackage, parseContext: ParseContext) {
-        parseContext.parent?.let { parent ->
+    private fun createOwnershipMembership(libraryPkg: LibraryPackage, kermlParseContext: KermlParseContext) {
+        kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                val membership = parseContext.create<OwningMembership>()
-                membership.memberElement = libraryPkg
+                val membership = kermlParseContext.create<OwningMembership>()
+                // Use ownedMemberElement (redefines memberElement) for proper ownership link
+                membership.ownedMemberElement = libraryPkg
                 libraryPkg.declaredName?.let { membership.memberName = it }
                 libraryPkg.declaredShortName?.let { membership.memberShortName = it }
                 membership.membershipOwningNamespace = parent

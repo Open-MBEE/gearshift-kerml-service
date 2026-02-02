@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseRelationshipVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 
 /**
@@ -40,8 +40,11 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
  */
 class SubclassificationVisitor : BaseRelationshipVisitor<KerMLParser.SubclassificationContext, Subclassification>() {
 
-    override fun visit(ctx: KerMLParser.SubclassificationContext, parseContext: ParseContext): Subclassification {
-        val subclassification = parseContext.create<Subclassification>()
+    override fun visit(
+        ctx: KerMLParser.SubclassificationContext,
+        kermlParseContext: KermlParseContext
+    ): Subclassification {
+        val subclassification = kermlParseContext.create<Subclassification>()
 
         // Parse identification (optional)
         parseIdentification(ctx.identification(), subclassification)
@@ -49,21 +52,21 @@ class SubclassificationVisitor : BaseRelationshipVisitor<KerMLParser.Subclassifi
         // Parse subclassifier reference
         ctx.subclassifier?.let { qn ->
             val subclassifierName = extractQualifiedName(qn)
-            parseContext.registerReference(subclassification, "subclassifier", subclassifierName)
+            kermlParseContext.registerReference(subclassification, "subclassifier", subclassifierName)
         }
 
         // Parse superclassifier reference
         ctx.superclassifier?.let { qn ->
             val superclassifierName = extractQualifiedName(qn)
-            parseContext.registerReference(subclassification, "superclassifier", superclassifierName)
+            kermlParseContext.registerReference(subclassification, "superclassifier", superclassifierName)
         }
 
         // Create membership with parent namespace (inherited from BaseRelationshipVisitor)
-        createRelationshipMembership(subclassification, parseContext)
+        createRelationshipMembership(subclassification, kermlParseContext)
 
         // Parse relationship body (inherited from BaseRelationshipVisitor)
         ctx.relationshipBody()?.let { body ->
-            val childContext = parseContext.withParent(subclassification, subclassification.declaredName ?: "")
+            val childContext = kermlParseContext.withParent(subclassification, subclassification.declaredName ?: "")
             parseRelationshipBody(body, subclassification, childContext)
         }
 

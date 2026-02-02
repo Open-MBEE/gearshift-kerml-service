@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.parser.visitors
 
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseClassifierVisitor
-import org.openmbee.gearshift.kerml.parser.visitors.base.ParseContext
 import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
 
 /**
@@ -43,22 +43,22 @@ import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
  */
 class FunctionVisitor : BaseClassifierVisitor<KerMLParser.FunctionContext, KerMLFunction>() {
 
-    override fun visit(ctx: KerMLParser.FunctionContext, parseContext: ParseContext): KerMLFunction {
-        val function = parseContext.create<KerMLFunction>()
+    override fun visit(ctx: KerMLParser.FunctionContext, kermlParseContext: KermlParseContext): KerMLFunction {
+        val function = kermlParseContext.create<KerMLFunction>()
 
         // Parse typePrefix (inherited from BaseTypeVisitor)
         parseTypePrefix(ctx.typePrefix(), function)
 
         // Parse classifierDeclaration (inherited from BaseClassifierVisitor)
         ctx.classifierDeclaration()?.let { decl ->
-            parseClassifierDeclaration(decl, function, parseContext)
+            parseClassifierDeclaration(decl, function, kermlParseContext)
         }
 
         // Create child context for nested elements
-        val childContext = parseContext.withParent(function, function.declaredName ?: "")
+        val childContext = kermlParseContext.withParent(function, function.declaredName ?: "")
 
         // Create ownership relationship with parent namespace
-        createOwnershipMembership(function, parseContext)
+        createOwnershipMembership(function, kermlParseContext)
 
         // Parse function body (function-specific)
         ctx.functionBody()?.let { body ->
@@ -77,24 +77,24 @@ class FunctionVisitor : BaseClassifierVisitor<KerMLParser.FunctionContext, KerML
      */
     private fun parseFunctionBody(
         ctx: KerMLParser.FunctionBodyContext,
-        parseContext: ParseContext
+        kermlParseContext: KermlParseContext
     ) {
         ctx.functionBodyPart()?.let { bodyPart ->
             // Parse type body elements (reuse inherited parseTypeBodyElement)
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
-                parseTypeBodyElement(bodyElement, parseContext)
+                parseTypeBodyElement(bodyElement, kermlParseContext)
             }
 
             // Parse return feature members (function-specific)
             bodyPart.returnFeatureMember()?.forEach { returnMember ->
                 returnMember.featureElement()?.let { fe ->
-                    parseFeatureElement(fe, parseContext)
+                    parseFeatureElement(fe, kermlParseContext)
                 }
             }
 
             // Parse result expression member (function-specific)
             bodyPart.resultExpressionMember()?.let { _ ->
-                parseContext.create<ResultExpressionMembership>()
+                kermlParseContext.create<ResultExpressionMembership>()
             }
         }
     }
