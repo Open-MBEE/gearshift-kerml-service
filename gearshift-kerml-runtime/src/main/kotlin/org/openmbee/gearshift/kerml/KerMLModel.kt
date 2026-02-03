@@ -116,9 +116,14 @@ class KerMLModel(
 
     companion object {
         /**
-         * Mount ID for the KerML Kernel Semantic Library.
+         * Mount ID for the KerML Kernel Semantic Library (full).
          */
         const val KERNEL_LIBRARY_MOUNT_ID = "kerml-kernel-semantic-library"
+
+        /**
+         * Mount ID for the KerML Base Library only.
+         */
+        const val BASE_LIBRARY_MOUNT_ID = "kerml-base-library"
 
         /**
          * Create an MDMEngine with the KerML metamodel loaded.
@@ -205,6 +210,67 @@ class KerMLModel(
                 return mount
             } catch (e: Exception) {
                 logger.error(e) { "Failed to initialize kernel library" }
+                return null
+            }
+        }
+
+        /**
+         * Initialize only the Base library as an implicit mount.
+         *
+         * This loads only Base.kerml which contains Anything and things.
+         * Use this for tests that expect Base-only behavior (e.g., Class -> Anything
+         * instead of Class -> Occurrence).
+         *
+         * @param libraryPath Optional custom path to the library directory
+         * @return The registered mount, or null if library is not available
+         */
+        fun initializeBaseLibrary(libraryPath: Path? = null): Mount? {
+            // Check if already registered
+            if (MountRegistry.isRegistered(BASE_LIBRARY_MOUNT_ID)) {
+                logger.info { "Base library already registered" }
+                return MountRegistry.get(BASE_LIBRARY_MOUNT_ID)
+            }
+
+            // Check if library is available
+            if (!KerMLSemanticLibraryLoader.isLibraryAvailable()) {
+                logger.warn { "KerML library not found" }
+                return null
+            }
+
+            try {
+                // Create a dedicated engine for the library
+                val libraryEngine = createKerMLEngine()
+
+                // Create a temporary KerMLModel to use for parsing
+                val libraryModel = KerMLModel(
+                    engine = libraryEngine,
+                    projectName = "KerML Base Library"
+                )
+
+                // Load ONLY the Base library
+                val path = libraryPath ?: KerMLSemanticLibraryLoader.getLibraryPath()
+                val result = KerMLSemanticLibraryLoader.loadBaseLibrary(libraryModel, path)
+
+                if (!result.success) {
+                    logger.error { "Failed to load Base library: ${result.error}" }
+                    return null
+                }
+
+                logger.info { "Loaded Base library" }
+
+                // Register as implicit mount
+                val mount = MountRegistry.register(
+                    id = BASE_LIBRARY_MOUNT_ID,
+                    name = "KerML Base Library",
+                    engine = libraryEngine,
+                    priority = StandardMount.IMPLICIT_LIBRARY_PRIORITY,
+                    isImplicit = true
+                )
+
+                logger.info { "Registered base library mount with ${libraryEngine.elementCount()} elements" }
+                return mount
+            } catch (e: Exception) {
+                logger.error(e) { "Failed to initialize base library" }
                 return null
             }
         }

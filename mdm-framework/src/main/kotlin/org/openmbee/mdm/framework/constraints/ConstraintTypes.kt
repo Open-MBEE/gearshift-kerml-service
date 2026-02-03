@@ -79,6 +79,32 @@ interface EngineAccessor {
      * Invoke an operation on an instance.
      */
     fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?> = emptyMap()): Any?
+
+    /**
+     * Invoke an operation on an instance, dispatching based on a specific class.
+     * This is used by oclAsType() to call parent class implementations.
+     *
+     * @param instanceId The instance to invoke the operation on
+     * @param operationName The operation to invoke
+     * @param dispatchClass The class to look up the operation on (for parent class dispatch)
+     * @param arguments Arguments to pass to the operation
+     */
+    fun invokeOperationAs(
+        instanceId: String,
+        operationName: String,
+        dispatchClass: String,
+        arguments: Map<String, Any?> = emptyMap()
+    ): Any?
+
+    /**
+     * Get a property value, looking up the property definition on a specific class.
+     * This is used by oclAsType() to access properties as defined on a parent class.
+     *
+     * @param instanceId The instance to get the property from
+     * @param propertyName The property to get
+     * @param viewAsClass The class to look up the property definition on
+     */
+    fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any?
 }
 
 /**

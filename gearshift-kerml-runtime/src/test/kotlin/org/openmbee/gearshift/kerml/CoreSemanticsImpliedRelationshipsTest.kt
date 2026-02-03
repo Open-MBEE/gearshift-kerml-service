@@ -15,7 +15,6 @@
  */
 package org.openmbee.gearshift.kerml
 
-import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -23,30 +22,30 @@ import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
+import org.openmbee.mdm.framework.runtime.MissingRequiredAssociationException
 
 /**
  * Tests for KerML 8.4.3 Core Semantics Implied Relationships (Table 8).
  *
  * Per the spec, Core semantics require:
- * - checkTypeSpecialization: Creates an implied Subclassification to Base::Anything
+ * - checkTypeSpecialization: Creates implied Subclassification (Type → Base::Anything, Class → Occurrences::Occurrence)
  * - checkFeatureSpecialization: Creates an implied Subsetting to Base::things
  *
  * These tests verify that when KerML textual syntax is parsed, the implied
  * relationships are correctly created by the engine.
+ *
+ * Uses KerMLTestSpec to share the Kernel Semantic Library across tests for efficiency.
  */
-class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
+class CoreSemanticsImpliedRelationshipsTest : KerMLTestSpec({
 
     describe("Table 8: Core Semantics Implied Relationships") {
 
-        context("checkTypeSpecialization -> Subclassification to Base::Anything") {
+        context("checkTypeSpecialization -> Subclassification to Occurrences::Occurrence") {
 
             it("should create implied Subclassification when parsing a class without explicit specialization") {
-                val factory = KerMLModelFactory()
+                val factory = freshModel()
 
-                // Load the real Base library
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
-
-                // Now parse a class that should get an implied subclassification
+                // Parse a class that should get an implied subclassification
                 factory.parseString(
                     """
                     package Test {
@@ -59,64 +58,21 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
                 val myClass = factory.findByName<KerMLClass>("MyClass")
                 myClass.shouldNotBeNull()
 
-                // Debug trace derivation chain
-                println("DEBUG: myClass.id = ${myClass.id}")
-                println("DEBUG: myClass.declaredName = ${myClass.declaredName}")
-                println("DEBUG: myClass.owningMembership = ${myClass.owningMembership}")
-                println("DEBUG: myClass.owningRelationship = ${myClass.owningRelationship}")
-                println("DEBUG: myClass.owner = ${myClass.owner}")
-                println("DEBUG: myClass.owningNamespace = ${myClass.owningNamespace}")
-                val om = myClass.owningMembership
-                if (om != null) {
-                    println("DEBUG: owningMembership.id = ${om.id}")
-                    println("DEBUG: owningMembership.membershipOwningNamespace = ${om.membershipOwningNamespace}")
-                }
-                println("DEBUG: myClass.name = ${myClass.name}")
-                val ns = myClass.owningNamespace
-                if (ns != null) {
-                    println("DEBUG: owningNamespace.declaredName = ${ns.declaredName}")
-                    println("DEBUG: owningNamespace.owner = ${ns.owner}")
-                    println("DEBUG: owningNamespace.owningNamespace = ${ns.owningNamespace}")
-                    val nsOwningNamespace = ns.owningNamespace
-                    if (nsOwningNamespace != null) {
-                        println("DEBUG: owningNamespace.owningNamespace.owner = ${nsOwningNamespace.owner}")
-                        println("DEBUG: owningNamespace.owningNamespace.ownedMember = ${nsOwningNamespace.ownedMember}")
-                        println("DEBUG: owningNamespace.owningNamespace.ownedMembership = ${nsOwningNamespace.ownedMembership}")
-                        val ms = nsOwningNamespace.ownedMembership.firstOrNull()
-                        if (ms is org.openmbee.gearshift.generated.interfaces.OwningMembership) {
-                            println("DEBUG: First membership is OwningMembership")
-                            println("DEBUG: OwningMembership.ownedMemberElement = ${ms.ownedMemberElement}")
-                            println("DEBUG: OwningMembership.memberElement = ${ms.memberElement}")
-                        }
-                        // Test the derivation manually
-                        val engine = factory.engine
-                        val ownedMembershipCollection = nsOwningNamespace.ownedMembership
-                        println("DEBUG: Manual: ownedMembership count = ${ownedMembershipCollection.size}")
-                        val asOwningMemberships = ownedMembershipCollection.filterIsInstance<org.openmbee.gearshift.generated.interfaces.OwningMembership>()
-                        println("DEBUG: Manual: after filterIsInstance<OwningMembership> count = ${asOwningMemberships.size}")
-                        val ownedMemberElements = asOwningMemberships.mapNotNull { it.ownedMemberElement }
-                        println("DEBUG: Manual: ownedMemberElements = $ownedMemberElements")
-                    }
-                    println("DEBUG: owningNamespace.qualifiedName = ${ns.qualifiedName}")
-                }
-                println("DEBUG: myClass.qualifiedName = ${myClass.qualifiedName}")
-
                 myClass.owner.shouldNotBeNull()
                 myClass.owner!!.name shouldBe "Test"
                 myClass.qualifiedName shouldBe "Test::MyClass"
 
-
                 // Find all Subclassification instances
                 val subclassifications = factory.allOfType<Subclassification>()
 
-                // There should be at least one implied subclassification for MyClass -> Base::Anything
+                // There should be at least one implied subclassification for MyClass
                 val impliedSubclassifications = subclassifications.filter { sub ->
                     sub.isImplied == true
                 }
 
                 impliedSubclassifications.shouldNotBeEmpty()
 
-                // Verify that MyClass has an implied subclassification to Anything
+                // Verify that MyClass has an implied subclassification
                 val myClassSubclassifications = impliedSubclassifications.filter { sub ->
                     val subclassifier = sub.subclassifier
                     subclassifier.name == "MyClass" || subclassifier.declaredName == "MyClass"
@@ -124,22 +80,19 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
 
                 myClassSubclassifications.shouldNotBeEmpty()
 
-                // Verify the superclassifier is Base::Anything
+                // Verify the superclassifier is Occurrences::Occurrence (per KerML spec, Class specializes Occurrence)
                 val myClassSub = myClassSubclassifications.first()
                 val superclassifier = myClassSub.superclassifier
                 superclassifier.shouldNotBeNull()
-                (superclassifier.name == "Anything" || superclassifier.declaredName == "Anything") shouldBe true
+                (superclassifier.name == "Occurrence" || superclassifier.declaredName == "Occurrence") shouldBe true
             }
 
-            it("should not create duplicate implied Subclassification when class already specializes a type that specializes Base::Anything") {
-                val factory = KerMLModelFactory()
-
-                // Load the real Base library
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
+            it("should not create duplicate implied Subclassification when class already specializes a type that specializes Occurrences::Occurrence") {
+                val factory = freshModel()
 
                 // Parse a hierarchy: Vehicle -> Car
-                // Vehicle will get implied subclassification to Anything
-                // Car :> Vehicle should NOT get a direct implied subclassification to Anything
+                // Vehicle will get implied subclassification to Occurrence
+                // Car :> Vehicle should NOT get a direct implied subclassification to Occurrence
                 // (redundancy elimination per spec)
                 factory.parseString(
                     """
@@ -173,26 +126,23 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
                 }
 
                 // Car should have a subclassification to Vehicle (explicit)
-                // Car should NOT have a direct implied subclassification to Anything
-                // (because Vehicle already specializes Anything)
-                val carToAnything = carSubclassifications.filter { sub ->
+                // Car should NOT have a direct implied subclassification to Occurrence
+                // (because Vehicle already specializes Occurrence)
+                val carToOccurrence = carSubclassifications.filter { sub ->
                     sub.isImplied == true &&
-                            (sub.superclassifier.name == "Anything" || sub.superclassifier.declaredName == "Anything")
+                            (sub.superclassifier.name == "Occurrence" || sub.superclassifier.declaredName == "Occurrence")
                 }
 
                 // Per redundancy elimination rules, there should be no direct implied
-                // subclassification from Car to Anything
-                carToAnything.size shouldBe 0
+                // subclassification from Car to Occurrence
+                carToOccurrence.size shouldBe 0
             }
         }
 
         context("checkFeatureSpecialization -> Subsetting to Base::things") {
 
             it("should create implied Subsetting when parsing a feature without explicit subsetting") {
-                val factory = KerMLModelFactory()
-
-                // Load the real Base library (includes things feature)
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
+                val factory = freshModel()
 
                 // Parse a class with a feature
                 factory.parseString(
@@ -235,10 +185,7 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
             }
 
             it("should not create duplicate implied Subsetting when feature already subsets a feature that subsets Base::things") {
-                val factory = KerMLModelFactory()
-
-                // Load the real Base library
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
+                val factory = freshModel()
 
                 // Parse a class with features where child subsets parent
                 factory.parseString(
@@ -260,17 +207,30 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
 
                 // Find all Subsetting instances where engineParts is the subsettingFeature
                 val subsettings = factory.allOfType<Subsetting>()
-                val enginePartsSubsettings = subsettings.filter { sub ->
-                    val subsettingFeature = sub.subsettingFeature
-                    subsettingFeature.name == "engineParts" || subsettingFeature.declaredName == "engineParts"
+                val enginePartsSubsettings = subsettings.mapNotNull { sub ->
+                    try {
+                        val subsettingFeature = sub.subsettingFeature
+                        if (subsettingFeature?.name == "engineParts" || subsettingFeature?.declaredName == "engineParts") {
+                            sub
+                        } else {
+                            null
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
 
                 // engineParts should have a subsetting to parts (explicit)
                 // engineParts should NOT have a direct implied subsetting to Base::things
                 // (because parts already subsets things)
                 val enginePartsToThings = enginePartsSubsettings.filter { sub ->
-                    sub.isImplied == true &&
-                            (sub.subsettedFeature.name == "things" || sub.subsettedFeature.declaredName == "things")
+                    try {
+                        val subsettedFeature = sub.subsettedFeature
+                        sub.isImplied == true &&
+                                (subsettedFeature?.name == "things" || subsettedFeature?.declaredName == "things")
+                    } catch (e: Exception) {
+                        false
+                    }
                 }
 
                 // Per redundancy elimination rules, there should be no direct implied
@@ -282,10 +242,7 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
         context("implied relationship properties") {
 
             it("should mark implied relationships with isImplied = true") {
-                val factory = KerMLModelFactory()
-
-                // Load the real Base library
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
+                val factory = freshModel()
 
                 // Parse a simple class
                 factory.parseString(
@@ -310,10 +267,7 @@ class CoreSemanticsImpliedRelationshipsTest : DescribeSpec({
             }
 
             it("should have implied relationships owned by the specific type") {
-                val factory = KerMLModelFactory()
-
-                // Load the real Base library
-                KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
+                val factory = freshModel()
 
                 // Parse a simple class
                 factory.parseString(

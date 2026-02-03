@@ -66,4 +66,14 @@ private class MDMEngineAccessor(private val engine: MDMEngine) : EngineAccessor 
 
     override fun invokeOperation(instanceId: String, operationName: String, arguments: Map<String, Any?>): Any? =
         engine.invokeOperation(instanceId, operationName, arguments)
+
+    override fun invokeOperationAs(
+        instanceId: String,
+        operationName: String,
+        dispatchClass: String,
+        arguments: Map<String, Any?>
+    ): Any? = engine.invokeOperationAs(instanceId, operationName, dispatchClass, arguments)
+
+    override fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any? =
+        engine.getPropertyAs(instanceId, propertyName, viewAsClass)
 }

@@ -15,7 +15,53 @@
  */
 package org.openmbee.mdm.framework.meta
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MDMObject
+
+/**
+ * Type alias for native constraint implementation lambdas.
+ * Parameters:
+ * - element: The MDMObject being validated
+ * - engine: The MDMEngine for model access
+ * Returns: ConstraintResult with validation status and optional message
+ */
+typealias ConstraintImplementation = (element: MDMObject, engine: MDMEngine) -> ConstraintResult
+
+/**
+ * Result of a native constraint evaluation.
+ */
+data class ConstraintResult(
+    val isValid: Boolean,
+    val message: String? = null
+) {
+    companion object {
+        fun valid() = ConstraintResult(true)
+        fun invalid(message: String) = ConstraintResult(false, message)
+    }
+}
+
+/**
+ * Represents a constraint body - either a string expression or native Kotlin implementation.
+ */
+sealed class ConstraintBody {
+    /**
+     * String-based expression (OCL, etc.) - serializable.
+     */
+    data class Expression(
+        val code: String,
+        val language: String = "OCL"
+    ) : ConstraintBody()
+
+    /**
+     * Native Kotlin implementation - not serializable, but type-safe and fast.
+     * Best for validations requiring metamodel introspection.
+     */
+    data class Native(
+        val impl: ConstraintImplementation
+    ) : ConstraintBody()
+}
 
 /**
  * The type of constraint.
@@ -86,7 +132,7 @@ enum class ConstraintType {
 
 /**
  * Represents a constraint in the metamodel.
- * Can be expressed using OCL or other constraint languages.
+ * Can be expressed using OCL, other constraint languages, or native Kotlin.
  */
 data class MetaConstraint(
     @JsonProperty(required = true)
@@ -98,8 +144,20 @@ data class MetaConstraint(
     @JsonProperty
     val language: String = "OCL",
 
-    @JsonProperty(required = true)
-    val expression: String,
+    /**
+     * The constraint expression (for expression-based constraints).
+     * For native constraints, this may be empty.
+     */
+    @JsonProperty
+    val expression: String = "",
+
+    /**
+     * The constraint body - either an expression or native implementation.
+     * If null, uses the legacy 'expression' and 'language' fields.
+     * Use companion helpers: ocl(), native()
+     */
+    @JsonIgnore
+    val body: ConstraintBody? = null,
 
     /**
      * @deprecated Use SemanticBinding.baseConcept instead.
@@ -135,4 +193,34 @@ data class MetaConstraint(
 
     @JsonProperty
     val description: String? = null
-)
+) {
+    companion object {
+        /** Create an OCL expression constraint */
+        fun ocl(
+            name: String,
+            expression: String,
+            type: ConstraintType = ConstraintType.VERIFICATION,
+            description: String? = null
+        ) = MetaConstraint(
+            name = name,
+            type = type,
+            language = "OCL",
+            expression = expression,
+            body = ConstraintBody.Expression(expression, "OCL"),
+            description = description
+        )
+
+        /** Create a native Kotlin implementation constraint */
+        fun native(
+            name: String,
+            type: ConstraintType = ConstraintType.VERIFICATION,
+            description: String? = null,
+            impl: ConstraintImplementation
+        ) = MetaConstraint(
+            name = name,
+            type = type,
+            body = ConstraintBody.Native(impl),
+            description = description
+        )
+    }
+}

@@ -51,24 +51,63 @@ private val logger = KotlinLogging.logger {}
 object KerMLSemanticLibraryLoader {
 
     /**
-     * Default path to the Kernel Semantic Library.
-     * Can be overridden by setting the KERML_LIBRARY_PATH environment variable.
+     * Base path for library resources on the classpath.
+     */
+    private const val RESOURCE_BASE_PATH = "kerml-library"
+
+    /**
+     * Default file system path (fallback if not found on classpath).
      */
     private val DEFAULT_LIBRARY_PATH = "references/Kernel Semantic Library"
 
     /**
-     * The ordered list of library files to load.
-     * Order matters for dependency resolution.
+     * The ordered list of library files to load with their subdirectory.
+     * Order matters for dependency resolution - base types must be loaded first.
      */
+    private data class LibraryFile(val name: String, val subdir: String)
+
     private val LIBRARY_FILES = listOf(
-        "Base.kerml",           // Base types: Anything, things, DataValue, etc.
-        "Links.kerml",          // Link types
-        "Objects.kerml",        // Object types
-        "Occurrences.kerml",    // Occurrence types
-        "Performances.kerml",   // Performance types
-        "Transfers.kerml",      // Transfer types (for Flows)
-        "Metaobjects.kerml"     // Metaobject types (for Metadata)
-        // Additional libraries can be added as needed
+        // === Kernel Semantic Library (core types) ===
+        LibraryFile("Base.kerml", "Kernel Semantic Library"),
+        LibraryFile("Links.kerml", "Kernel Semantic Library"),
+        LibraryFile("Objects.kerml", "Kernel Semantic Library"),
+        LibraryFile("Occurrences.kerml", "Kernel Semantic Library"),
+        LibraryFile("Performances.kerml", "Kernel Semantic Library"),
+        LibraryFile("Transfers.kerml", "Kernel Semantic Library"),
+        LibraryFile("Metaobjects.kerml", "Kernel Semantic Library"),
+        LibraryFile("Clocks.kerml", "Kernel Semantic Library"),
+        LibraryFile("ControlPerformances.kerml", "Kernel Semantic Library"),
+        LibraryFile("FeatureReferencingPerformances.kerml", "Kernel Semantic Library"),
+        LibraryFile("Observation.kerml", "Kernel Semantic Library"),
+        LibraryFile("SpatialFrames.kerml", "Kernel Semantic Library"),
+        LibraryFile("StatePerformances.kerml", "Kernel Semantic Library"),
+        LibraryFile("TransitionPerformances.kerml", "Kernel Semantic Library"),
+        LibraryFile("Triggers.kerml", "Kernel Semantic Library"),
+        LibraryFile("KerML.kerml", "Kernel Semantic Library"),
+
+        // === Kernel Data Type Library ===
+        LibraryFile("ScalarValues.kerml", "Kernel Data Type Library"),
+        LibraryFile("Collections.kerml", "Kernel Data Type Library"),
+        LibraryFile("VectorValues.kerml", "Kernel Data Type Library"),
+
+        // === Kernel Function Library ===
+        LibraryFile("BaseFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("ScalarFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("BooleanFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("IntegerFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("NaturalFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("NumericalFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("RationalFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("RealFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("ComplexFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("TrigFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("StringFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("CollectionFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("SequenceFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("VectorFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("ControlFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("DataFunctions.kerml", "Kernel Function Library"),
+        LibraryFile("OccurrenceFunctions.kerml", "Kernel Function Library")
     )
 
     /**
@@ -82,21 +121,48 @@ object KerMLSemanticLibraryLoader {
      */
     fun loadLibrary(
         factory: KerMLModelFactory,
-        libraryPath: Path = getLibraryPath()
+        libraryPath: Path? = null
     ): List<LibraryLoadResult> {
         val results = mutableListOf<LibraryLoadResult>()
 
-        for (fileName in LIBRARY_FILES) {
-            val filePath = libraryPath.resolve(fileName)
-            if (Files.exists(filePath)) {
-                val result = parseLibraryFile(factory, filePath, fileName)
-                results.add(result)
-            } else {
-                results.add(LibraryLoadResult(fileName, filePath, null, "File not found"))
-            }
+        for (libFile in LIBRARY_FILES) {
+            val result = loadLibraryFile(factory, libFile, libraryPath)
+            results.add(result)
         }
 
         return results
+    }
+
+    /**
+     * Load a single library file, trying classpath first, then file system.
+     */
+    private fun loadLibraryFile(
+        factory: KerMLModelFactory,
+        libFile: LibraryFile,
+        overridePath: Path?
+    ): LibraryLoadResult {
+        // Try classpath first
+        val resourcePath = "$RESOURCE_BASE_PATH/${libFile.subdir}/${libFile.name}"
+        val inputStream = javaClass.classLoader.getResourceAsStream(resourcePath)
+
+        if (inputStream != null) {
+            return try {
+                val content = inputStream.bufferedReader().use { it.readText() }
+                parseLibraryContent(factory, content, libFile.name)
+            } catch (e: Exception) {
+                LibraryLoadResult(libFile.name, Paths.get(resourcePath), null, "Parse error: ${e.message}")
+            }
+        }
+
+        // Fallback to file system
+        val basePath = overridePath?.parent ?: getLibraryPath().parent ?: Paths.get("references")
+        val filePath = basePath.resolve(libFile.subdir).resolve(libFile.name)
+
+        return if (Files.exists(filePath)) {
+            parseLibraryFile(factory, filePath, libFile.name)
+        } else {
+            LibraryLoadResult(libFile.name, filePath, null, "File not found (tried classpath: $resourcePath)")
+        }
     }
 
     /**
@@ -183,6 +249,39 @@ object KerMLSemanticLibraryLoader {
     }
 
     /**
+     * Parse library content from a string (for classpath resources).
+     */
+    private fun parseLibraryContent(
+        factory: KerMLModelFactory,
+        content: String,
+        fileName: String
+    ): LibraryLoadResult {
+        return try {
+            logger.debug { "Loading library from classpath: $fileName" }
+            val lexer = KerMLLexer(CharStreams.fromString(content))
+            val tokens = CommonTokenStream(lexer)
+            val parser = KerMLParser(tokens)
+
+            val tree = parser.rootNamespace()
+
+            // Use the new typed visitor with KermlParseContext
+            val elementFactory = factory.engine.factory as KerMLElementFactory
+            val kermlParseContext = KermlParseContext(factory.engine, elementFactory)
+            val rootNamespace = RootNamespaceVisitor().visit(tree, kermlParseContext)
+
+            val parseResult = KerMLParseResult(
+                success = true,
+                rootNamespace = rootNamespace
+            )
+
+            LibraryLoadResult(fileName, Paths.get(fileName), parseResult)
+        } catch (e: Exception) {
+            logger.error(e) { "Error loading library $fileName from classpath" }
+            LibraryLoadResult(fileName, Paths.get(fileName), null, "Parse error: ${e.message}")
+        }
+    }
+
+    /**
      * Get the library path from environment or use default.
      * Searches up the directory tree to find the library in multi-module projects.
      */
@@ -212,9 +311,16 @@ object KerMLSemanticLibraryLoader {
     }
 
     /**
-     * Check if the library is available at the default or configured path.
+     * Check if the library is available (classpath or file system).
      */
     fun isLibraryAvailable(): Boolean {
+        // Check classpath first
+        val resourcePath = "$RESOURCE_BASE_PATH/Kernel Semantic Library/Base.kerml"
+        if (javaClass.classLoader.getResource(resourcePath) != null) {
+            return true
+        }
+
+        // Fall back to file system
         val libraryPath = getLibraryPath()
         return Files.exists(libraryPath.resolve("Base.kerml"))
     }

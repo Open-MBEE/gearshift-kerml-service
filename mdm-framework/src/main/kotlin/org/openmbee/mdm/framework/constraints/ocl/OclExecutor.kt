@@ -19,6 +19,19 @@ import org.openmbee.mdm.framework.constraints.EngineAccessor
 import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
+ * Wrapper for an MDMObject that's been cast via oclAsType().
+ * When operations are invoked on this wrapper, they dispatch based on
+ * the viewType instead of the object's actual runtime type.
+ *
+ * This enables patterns like `self.oclAsType(ParentClass).someOperation()`
+ * to call the parent class's implementation of someOperation.
+ */
+data class OclAsTypeView(
+    val obj: MDMObject,
+    val viewType: String
+)
+
+/**
  * Executes OCL expressions against MDM model instances.
  *
  * This executor evaluates OCL AST nodes in the context of:
@@ -144,6 +157,18 @@ class OclExecutor(
     override fun visitPropertyCall(exp: PropertyCallExp): Any? {
         val source = exp.source.accept(this)
         return when (source) {
+            is OclAsTypeView -> {
+                // Handle property access on a type-casted object
+                // Use the view type for property lookup (derivation constraints, etc.)
+                val sourceId = findObjectId(source.obj)
+                if (sourceId != null) {
+                    engineAccessor.getPropertyAs(sourceId, exp.propertyName, source.viewType)
+                } else {
+                    // Fallback to direct property access
+                    source.obj.getProperty(exp.propertyName)
+                }
+            }
+
             is MDMObject -> {
                 // First try direct property access
                 val value = source.getProperty(exp.propertyName)
@@ -164,6 +189,20 @@ class OclExecutor(
             is Collection<*> -> {
                 source.flatMap { element ->
                     when (element) {
+                        is OclAsTypeView -> {
+                            val objectId = findObjectId(element.obj)
+                            val value = if (objectId != null) {
+                                engineAccessor.getPropertyAs(objectId, exp.propertyName, element.viewType)
+                            } else {
+                                element.obj.getProperty(exp.propertyName)
+                            }
+                            when (value) {
+                                is Collection<*> -> value.filterNotNull()
+                                null -> emptyList()
+                                else -> listOf(value)
+                            }
+                        }
+
                         is MDMObject -> {
                             var value = element.getProperty(exp.propertyName)
                             val objectId = findObjectId(element)
@@ -204,6 +243,17 @@ class OclExecutor(
     override fun visitNavigationCall(exp: NavigationCallExp): Any? {
         val source = exp.source.accept(this)
         return when (source) {
+            is OclAsTypeView -> {
+                // Handle navigation on a type-casted object
+                // Use the view type for association end lookup
+                val sourceId = findObjectId(source.obj)
+                    ?: throw OclEvaluationException("Cannot navigate from unregistered object")
+
+                // For now, association navigation uses the same mechanism
+                // Future: could add getLinkedTargetsAs for view-type-specific navigation
+                engineAccessor.getLinkedTargets(exp.navigationName, sourceId)
+            }
+
             is MDMObject -> {
                 val sourceId = findObjectId(source)
                     ?: throw OclEvaluationException("Cannot navigate from unregistered object")
@@ -217,6 +267,15 @@ class OclExecutor(
             is Collection<*> -> {
                 source.flatMap { element ->
                     when (element) {
+                        is OclAsTypeView -> {
+                            val elementId = findObjectId(element.obj)
+                            if (elementId != null) {
+                                engineAccessor.getLinkedTargets(exp.navigationName, elementId)
+                            } else {
+                                emptyList()
+                            }
+                        }
+
                         is MDMObject -> {
                             val elementId = findObjectId(element)
                             if (elementId != null) {
@@ -434,9 +493,13 @@ class OclExecutor(
             }
 
             "oclAsType" -> {
-                // Type cast - in our dynamic system, this is essentially a no-op
-                // but we could add runtime type checking
-                source
+                // Type cast - wrap the object to track the view type for method dispatch.
+                // This enables self.oclAsType(ParentClass).method() to call the parent's method.
+                when (source) {
+                    is MDMObject -> OclAsTypeView(source, exp.typeName)
+                    is OclAsTypeView -> OclAsTypeView(source.obj, exp.typeName)
+                    else -> source
+                }
             }
 
             "selectByKind" -> {
@@ -605,6 +668,7 @@ class OclExecutor(
             "oclIsInvalid" -> return false
             "toString" -> return source?.toString() ?: "null"
             "oclType" -> return when (source) {
+                is OclAsTypeView -> source.obj.className  // Return actual type, not view type
                 is MDMObject -> source.className
                 null -> null
                 else -> source.javaClass.simpleName
@@ -614,6 +678,7 @@ class OclExecutor(
                 val typeName = args.firstOrNull()?.toString()
                     ?: throw OclEvaluationException("oclIsKindOf requires a type name argument")
                 return when (source) {
+                    is OclAsTypeView -> isKindOf(source.obj, typeName)
                     is MDMObject -> isKindOf(source, typeName)
                     null -> false
                     else -> false
@@ -624,10 +689,26 @@ class OclExecutor(
                 val typeName = args.firstOrNull()?.toString()
                     ?: throw OclEvaluationException("oclIsTypeOf requires a type name argument")
                 return when (source) {
+                    is OclAsTypeView -> source.obj.className == typeName  // Check actual type
                     is MDMObject -> source.className == typeName
                     null -> false
                     else -> source.javaClass.simpleName == typeName
                 }
+            }
+        }
+
+        // Handle OclAsTypeView for operation invocation - dispatch based on view type
+        if (source is OclAsTypeView) {
+            val targetId = findObjectId(source.obj)
+            if (targetId != null) {
+                val namedArgs = if (args.isEmpty()) emptyMap() else mapOf("arg" to args.first())
+                try {
+                    return engineAccessor.invokeOperationAs(targetId, opName, source.viewType, namedArgs)
+                } catch (e: Exception) {
+                    throw OclEvaluationException("Error invoking operation '$opName' as ${source.viewType}: ${e.message}", e)
+                }
+            } else {
+                throw OclEvaluationException("Cannot invoke operation '$opName': object has no ID (${source.obj.className})")
             }
         }
 

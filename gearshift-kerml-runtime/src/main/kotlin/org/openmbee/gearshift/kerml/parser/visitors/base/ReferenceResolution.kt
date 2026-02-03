@@ -27,6 +27,11 @@ import kotlin.reflect.full.memberProperties
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Thrown when a reference cannot be resolved during parsing.
+ */
+class UnresolvedReferenceException(message: String) : RuntimeException(message)
+
+/**
  * Represents a reference that needs to be resolved after parsing completes.
  *
  * @param sourceElementId The ID of the element containing the reference
@@ -152,12 +157,8 @@ class ReferenceResolver(private val engine: MDMEngine) {
         var resolved = 0
 
         for (ref in references) {
-            try {
-                if (resolveReference(ref)) {
-                    resolved++
-                }
-            } catch (e: Exception) {
-                logger.warn { "Failed to resolve reference ${ref.qualifiedName} for property ${ref.targetProperty}: ${e.message}" }
+            if (resolveReference(ref)) {
+                resolved++
             }
         }
 
@@ -183,8 +184,9 @@ class ReferenceResolver(private val engine: MDMEngine) {
         // Resolve the qualified name to find the target element
         val targetElement = resolveQualifiedName(ref.qualifiedName, ref.localNamespaceId)
         if (targetElement == null) {
-            logger.warn { "Could not resolve qualified name '${ref.qualifiedName}' for ${ref.targetProperty} on ${sourceElement::class.simpleName}" }
-            return false
+            throw UnresolvedReferenceException(
+                "Could not resolve qualified name '${ref.qualifiedName}' for ${ref.targetProperty} on ${sourceElement::class.simpleName}[${ref.sourceElementId}]"
+            )
         }
 
         // Set the property using reflection

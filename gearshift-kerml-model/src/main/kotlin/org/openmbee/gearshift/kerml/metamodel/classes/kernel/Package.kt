@@ -47,6 +47,8 @@ fun createPackageMetaClass() = MetaClass(
                 )
             ),
             description = "Exclude Elements that do not meet all the filterConditions.",
+            // oclAsType(Namespace) changes dispatch to call Namespace's importedMemberships
+            // rather than recursively calling Package's version (which would cause infinite recursion)
             body = MetaOperation.ocl("self.oclAsType(Namespace).importedMemberships(excluded)->select(m | self.includeAsMember(m.memberElement))"),
             isQuery = true,
             redefines = "importedMemberships"

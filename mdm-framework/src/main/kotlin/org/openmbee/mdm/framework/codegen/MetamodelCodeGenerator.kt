@@ -20,6 +20,7 @@ import org.openmbee.mdm.framework.meta.MetaClass
 import org.openmbee.mdm.framework.meta.MetaOperation
 import org.openmbee.mdm.framework.meta.MetaProperty
 import org.openmbee.mdm.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.MetamodelRegistry.Companion.DEFAULT_BASE_CLASS
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -236,17 +237,18 @@ class MetamodelCodeGenerator(
         // Use alias for classes that conflict with Kotlin stdlib
         val interfaceName = TypeMapper.getAliasedTypeName(metaClass.name)
         val openModifier = if (metaClass.isAbstract) "abstract" else "open"
+        // Only the true root class (MDMBaseClass, with no superclasses) extends MDMObject directly
         val isRootClass = metaClass.superclasses.isEmpty()
 
         if (isRootClass) {
-            // Root class extends MDMObject directly and defines engine
+            // Root class (MDMBaseClass) extends MDMObject directly and defines engine
             sb.appendLine("$openModifier class ${metaClass.name}Impl(")
             sb.appendLine("    className: String,")
             sb.appendLine("    metaClass: FrameworkMetaClass,")
             sb.appendLine("    internal val engine: MDMEngine")
             sb.appendLine(") : MDMObject(className, metaClass), $interfaceName {")
         } else {
-            // Non-root class extends parent impl
+            // Non-root class extends parent impl (Element extends MDMBaseClassImpl, etc.)
             val parentImpl = "${metaClass.superclasses.first()}Impl"
             sb.appendLine("$openModifier class ${metaClass.name}Impl(")
             sb.appendLine("    className: String,")
@@ -412,11 +414,16 @@ class MetamodelCodeGenerator(
 
     /**
      * Find the root element class in the metamodel.
-     * The root is the abstract class with no superclasses that other classes inherit from.
+     * The root is the abstract class with no generated superclasses that other classes inherit from.
+     * (MDMBaseClass is filtered out since it's a framework class, not a generated one)
      */
     private fun findRootElementClass(registry: MetamodelRegistry): MetaClass? {
         return registry.getAllClasses()
-            .filter { it.isAbstract && it.superclasses.isEmpty() }
+            .filter { metaClass ->
+                metaClass.isAbstract &&
+                metaClass.name != DEFAULT_BASE_CLASS &&
+                metaClass.superclasses.filter { it != DEFAULT_BASE_CLASS }.isEmpty()
+            }
             .firstOrNull()
     }
 

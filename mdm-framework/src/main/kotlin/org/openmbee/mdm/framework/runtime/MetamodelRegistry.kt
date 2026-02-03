@@ -19,6 +19,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.meta.MetaAssociation
 import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.model.createMDMBaseClass
 import java.util.concurrent.ConcurrentHashMap
 
 private val logger = KotlinLogging.logger {}
@@ -35,19 +36,49 @@ class MetamodelRegistry {
     private val associations = ConcurrentHashMap<String, MetaAssociation>()
     private val subclassIndex = ConcurrentHashMap<String, MutableSet<String>>()
 
+    companion object {
+        /** The default base class name that all classes inherit from if no superclass is specified */
+        const val DEFAULT_BASE_CLASS = "MDMBaseClass"
+    }
+
     /**
      * Register a MetaClass in the registry.
+     *
+     * If the class has no explicit superclasses and is not MDMBaseClass itself,
+     * it will automatically inherit from MDMBaseClass to get default validation constraints.
      */
     fun registerClass(metaClass: MetaClass) {
-        classes[metaClass.name] = metaClass
-
-        // Build subclass index
-        metaClass.superclasses.forEach { superclass ->
-            subclassIndex.getOrPut(superclass) { ConcurrentHashMap.newKeySet() }
-                .add(metaClass.name)
+        val effectiveClass = if (metaClass.superclasses.isEmpty() && metaClass.name != DEFAULT_BASE_CLASS) {
+            // Ensure base class is registered before we reference it
+            ensureBaseClassRegistered()
+            // Add MDMBaseClass as default superclass
+            metaClass.copy(superclasses = listOf(DEFAULT_BASE_CLASS))
+        } else {
+            metaClass
         }
 
-        logger.debug { "Registered MetaClass: ${metaClass.name}" }
+        classes[effectiveClass.name] = effectiveClass
+
+        // Build subclass index
+        effectiveClass.superclasses.forEach { superclass ->
+            subclassIndex.getOrPut(superclass) { ConcurrentHashMap.newKeySet() }
+                .add(effectiveClass.name)
+        }
+
+        logger.debug { "Registered MetaClass: ${effectiveClass.name}" }
+    }
+
+    /**
+     * Ensure the MDMBaseClass is registered.
+     * This should be called before registering other classes to ensure they can inherit from it.
+     * Calling this multiple times is safe - it only registers once.
+     */
+    fun ensureBaseClassRegistered() {
+        if (!classes.containsKey(DEFAULT_BASE_CLASS)) {
+            val baseClass = createMDMBaseClass()
+            classes[baseClass.name] = baseClass
+            logger.debug { "Registered default base class: ${baseClass.name}" }
+        }
     }
 
     /**

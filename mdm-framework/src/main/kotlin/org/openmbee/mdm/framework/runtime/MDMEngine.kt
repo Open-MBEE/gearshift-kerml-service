@@ -273,7 +273,8 @@ open class MDMEngine(
      */
     open fun getLinkedTargets(associationName: String, sourceId: String): List<MDMObject> {
         // First try direct/forward navigation
-        val directResults = graph.getTargets(sourceId, associationName).mapNotNull { elements[it] }
+        // Use getElement() to support cross-mount resolution in MountableEngine
+        val directResults = graph.getTargets(sourceId, associationName).mapNotNull { getElement(it) }
         if (directResults.isNotEmpty()) {
             return directResults
         }
@@ -285,13 +286,14 @@ open class MDMEngine(
 
         // Try reverse navigation: find associations where associationName matches source end name
         // and the current element's class matches the target end type
-        val element = elements[sourceId] ?: return emptyList()
+        val element = getElement(sourceId) ?: return emptyList()
         val assocInfo = schema.findAssociationBySourceEndName(associationName, element.className)
 
         if (assocInfo != null) {
             val (association, _) = assocInfo
             // Reverse navigation: get sources (elements that link TO this element)
-            val reverseResults = graph.getSources(sourceId, association.name).mapNotNull { elements[it] }
+            // Use getElement() to support cross-mount resolution in MountableEngine
+            val reverseResults = graph.getSources(sourceId, association.name).mapNotNull { getElement(it) }
             return reverseResults
         }
 
@@ -302,7 +304,8 @@ open class MDMEngine(
      * Get linked sources via association (GearshiftEngine compatibility).
      */
     open fun getLinkedSources(associationName: String, targetId: String): List<MDMObject> {
-        return graph.getSources(targetId, associationName).mapNotNull { elements[it] }
+        // Use getElement() to support cross-mount resolution in MountableEngine
+        return graph.getSources(targetId, associationName).mapNotNull { getElement(it) }
     }
 
     /**
@@ -368,7 +371,7 @@ open class MDMEngine(
                 return computeDerivedAssociationEnd(element, end)
             }
             val results = navigateAssociation(element, propertyName)
-            return normalizeForMultiplicity(results, end.upperBound)
+            return normalizeForMultiplicity(results, end, element, propertyName)
         }
 
         // Not found
@@ -386,6 +389,20 @@ open class MDMEngine(
             if (property.isDerived) {
                 throw IllegalStateException("Cannot set derived property: $propertyName")
             }
+            if (property.isReadOnly) {
+                throw IllegalStateException("Cannot set read-only property: $propertyName")
+            }
+
+            // Validate unique constraint for multi-valued properties
+            if (property.isUnique && property.isMultiValued && value is Collection<*>) {
+                val distinctCount = value.toSet().size
+                if (distinctCount != value.size) {
+                    throw IllegalArgumentException(
+                        "Property '$propertyName' must contain unique values (found duplicates)"
+                    )
+                }
+            }
+
             val oldValue = element.getProperty(propertyName)
             element.setProperty(propertyName, value)
             fireEvent(LifecycleEvent.PropertyChanged(element, propertyName, oldValue, value))
@@ -532,7 +549,24 @@ open class MDMEngine(
             }
         }
 
-        return allTargetIds.mapNotNull { elements[it] }
+        // Use getElement() to support cross-mount resolution in MountableEngine
+        // Track broken references (IDs that exist but elements that don't)
+        val results = mutableListOf<MDMObject>()
+        val brokenIds = mutableListOf<String>()
+        for (id in allTargetIds) {
+            val element = getElement(id)
+            if (element != null) {
+                results.add(element)
+            } else {
+                brokenIds.add(id)
+            }
+        }
+        if (brokenIds.isNotEmpty()) {
+            throw BrokenReferenceException(
+                "Association '$propertyName' on ${metaClass.name}[$elementId] references non-existent element(s): ${brokenIds.joinToString()}"
+            )
+        }
+        return results
     }
 
     // ===== Public API - Operations & Validation =====
@@ -589,6 +623,214 @@ open class MDMEngine(
     }
 
     /**
+     * Invoke an operation on an instance, dispatching based on a specific class.
+     * This is used by oclAsType() to call parent class implementations.
+     */
+    fun invokeOperationAs(
+        instanceId: String,
+        operationName: String,
+        dispatchClass: String,
+        args: Map<String, Any?> = emptyMap()
+    ): Any? {
+        val element = getElement(instanceId)
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+
+        // Look up the metaclass to dispatch on
+        val viewMetaClass = schema.getClass(dispatchClass)
+            ?: throw IllegalArgumentException("Unknown class for dispatch: $dispatchClass")
+
+        // Find the operation on the specified class (not the element's actual class)
+        val operation = findOperation(viewMetaClass, operationName)
+            ?: throw IllegalArgumentException("Operation '$operationName' not found on class: $dispatchClass")
+
+        return when (val body = operation.body) {
+            null -> {
+                logger.warn { "Operation $operationName has no body" }
+                null
+            }
+            is OperationBody.Native -> {
+                logger.debug { "Invoking native operation $operationName as $dispatchClass" }
+                body.impl(element, args, this)
+            }
+            is OperationBody.Expression -> {
+                when (body.language) {
+                    BodyLanguage.PROPERTY_REF -> getPropertyValue(element, body.code)
+                    else -> {
+                        val evaluator = evaluators[body.language.name]
+                        if (evaluator == null) {
+                            logger.warn { "No evaluator registered for language: ${body.language}" }
+                            null
+                        } else {
+                            logger.debug { "Invoking operation $operationName as $dispatchClass using ${body.language}" }
+                            evaluator.evaluate(body.code, element, this, args)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get a property value, looking up the property definition on a specific class.
+     * This is used by oclAsType() to access properties as defined on a parent class.
+     *
+     * When viewing an object as a parent type via oclAsType(), we need to use the
+     * parent class's property definitions, including derivation constraints.
+     * This allows `self.oclAsType(Parent).derivedProp` to use Parent's derivation
+     * constraint rather than the subclass's potentially-overridden version.
+     */
+    fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any? {
+        val element = getElement(instanceId)
+            ?: throw IllegalArgumentException("Instance not found: $instanceId")
+
+        // Look up the metaclass to view as
+        val viewMetaClass = schema.getClass(viewAsClass)
+            ?: throw IllegalArgumentException("Unknown class: $viewAsClass")
+
+        // Check if it's a stored property (on the view class)
+        val property = findPropertyOnClass(viewMetaClass, propertyName)
+        if (property != null) {
+            return if (property.isDerived) {
+                computeDerivedPropertyAs(element, property, viewMetaClass)
+            } else {
+                element.getProperty(propertyName)
+            }
+        }
+
+        // Check if it's an association end (on the view class)
+        val associationEnd = findAssociationEndOnClass(viewMetaClass, propertyName)
+        if (associationEnd != null) {
+            val (_, end, _) = associationEnd
+            // Check if it's a derived association end
+            if (end.isDerived && end.derivationConstraint != null) {
+                return computeDerivedAssociationEndAs(element, end, viewMetaClass)
+            }
+            val results = navigateAssociation(element, propertyName)
+            return normalizeForMultiplicity(results, end, element, propertyName)
+        }
+
+        // Not found on view class
+        return null
+    }
+
+    /**
+     * Find a property on a specific metaclass (not the element's actual class).
+     */
+    private fun findPropertyOnClass(metaClass: MetaClass, propertyName: String): MetaProperty? {
+        metaClass.attributes.firstOrNull { it.name == propertyName }?.let { return it }
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                findPropertyOnClass(superclass, propertyName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Find an association end on a specific metaclass (not the element's actual class).
+     */
+    private fun findAssociationEndOnClass(
+        metaClass: MetaClass,
+        propertyName: String
+    ): Triple<MetaAssociation, MetaAssociationEnd, Boolean>? {
+        // Check all associations for matching end name on the view class
+        for (association in schema.getAllAssociations()) {
+            if (association.targetEnd.name == propertyName &&
+                (association.sourceEnd.type == metaClass.name ||
+                        schema.isSubclassOf(metaClass.name, association.sourceEnd.type))
+            ) {
+                return Triple(association, association.targetEnd, true)
+            }
+            if (association.sourceEnd.name == propertyName &&
+                (association.targetEnd.type == metaClass.name ||
+                        schema.isSubclassOf(metaClass.name, association.targetEnd.type))
+            ) {
+                return Triple(association, association.sourceEnd, false)
+            }
+        }
+        return null
+    }
+
+    /**
+     * Compute a derived property using a specific metaclass's constraint definition.
+     */
+    private fun computeDerivedPropertyAs(element: MDMObject, property: MetaProperty, viewMetaClass: MetaClass): Any? {
+        // Check if it's a union property (computed from subsetters)
+        if (property.isUnion) {
+            return computeFromSubsetters(element, property)
+        }
+
+        // Check for derivation constraint - look it up on the view class
+        val derivationConstraintName = property.derivationConstraint
+        if (derivationConstraintName != null) {
+            // Look up the constraint on the VIEW class, not the element's actual class
+            val constraint = findConstraintOnClass(viewMetaClass, derivationConstraintName)
+            if (constraint != null) {
+                val evaluator = evaluators[constraint.language.uppercase()]
+                if (evaluator != null) {
+                    logger.debug { "Computing derived property ${property.name} via ${constraint.language} as $viewMetaClass" }
+                    return evaluator.evaluate(constraint.expression, element, this)
+                } else {
+                    logger.warn { "No evaluator for ${constraint.language} to compute ${property.name}" }
+                }
+            } else {
+                logger.warn { "Derivation constraint '$derivationConstraintName' not found on ${viewMetaClass.name} for ${property.name}" }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Find a constraint on a specific metaclass.
+     */
+    private fun findConstraintOnClass(metaClass: MetaClass, constraintName: String): MetaConstraint? {
+        metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
+        for (superclassName in metaClass.superclasses) {
+            schema.getClass(superclassName)?.let { superclass ->
+                findConstraintOnClass(superclass, constraintName)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /**
+     * Compute a derived association end using a specific metaclass's constraint.
+     */
+    private fun computeDerivedAssociationEndAs(
+        element: MDMObject,
+        end: MetaAssociationEnd,
+        viewMetaClass: MetaClass
+    ): Any? {
+        val derivationConstraintName = end.derivationConstraint ?: return null
+
+        // Look up the constraint on the VIEW class
+        val constraint = findConstraintOnClass(viewMetaClass, derivationConstraintName)
+        if (constraint != null) {
+            val evaluator = evaluators[constraint.language.uppercase()]
+            if (evaluator != null) {
+                val result = evaluator.evaluate(constraint.expression, element, this)
+                return normalizeForMultiplicity(
+                    when (result) {
+                        null -> emptyList()
+                        is Collection<*> -> result.filterNotNull()
+                        else -> listOf(result)
+                    },
+                    end,
+                    element,
+                    end.name
+                )
+            } else {
+                logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
+            }
+        } else {
+            logger.warn { "Derivation constraint '$derivationConstraintName' not found on ${viewMetaClass.name} for association end ${end.name}" }
+        }
+
+        return null
+    }
+
+    /**
      * Compute a derived association end value.
      */
     private fun computeDerivedAssociationEnd(
@@ -609,7 +851,9 @@ open class MDMEngine(
                         is Collection<*> -> result.filterNotNull()
                         else -> listOf(result)
                     },
-                    end.upperBound
+                    end,
+                    element,
+                    end.name
                 )
             } else {
                 logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
@@ -681,10 +925,12 @@ open class MDMEngine(
 
     /**
      * Validate a single element.
-     * Compatibility method - validates all constraints on the given element.
+     * Runs all VERIFICATION constraints including inherited ones from MDMBaseClass.
      */
     fun validate(element: MDMObject): List<ValidationError> {
         val errors = mutableListOf<ValidationError>()
+
+        // Run all constraints (including native constraints from MDMBaseClass)
         val constraints = getConstraintsForClass(element.metaClass, emptyList())
         for (constraint in constraints) {
             val result = runValidationConstraint(element, constraint)
@@ -829,9 +1075,16 @@ open class MDMEngine(
         return emptyList()
     }
 
-    private fun normalizeForMultiplicity(values: List<Any>, upperBound: Int): Any? {
-        return if (upperBound == 1) {
+    private fun normalizeForMultiplicity(
+        values: List<Any>,
+        end: MetaAssociationEnd,
+        element: MDMObject,
+        propertyName: String
+    ): Any? {
+        return if (end.upperBound == 1) {
             // Single-valued: return the first element or null
+            // Note: Required associations with no value are allowed during construction.
+            // Model validation should catch missing required associations.
             values.firstOrNull()
         } else {
             // Multi-valued: return the list
@@ -906,6 +1159,17 @@ open class MDMEngine(
     private fun runValidationConstraint(element: MDMObject, constraint: MetaConstraint): ValidationResult {
         return when (constraint.type) {
             ConstraintType.VERIFICATION -> {
+                // Check for body-based constraint (new style)
+                val body = constraint.body
+                if (body != null) {
+                    return runConstraintBody(element, constraint, body)
+                }
+
+                // Fall back to legacy expression-based constraint
+                if (constraint.expression.isEmpty()) {
+                    return ValidationResult(true, null) // No expression, skip
+                }
+
                 // Dispatch to evaluator based on constraint.language
                 val evaluator = evaluators[constraint.language.uppercase()]
                 if (evaluator == null) {
@@ -931,6 +1195,50 @@ open class MDMEngine(
             }
 
             else -> ValidationResult(true, null)
+        }
+    }
+
+    /**
+     * Run a constraint body (expression or native).
+     */
+    private fun runConstraintBody(
+        element: MDMObject,
+        constraint: MetaConstraint,
+        body: ConstraintBody
+    ): ValidationResult {
+        return when (body) {
+            is ConstraintBody.Native -> {
+                try {
+                    val result = body.impl(element, this)
+                    ValidationResult(result.isValid, result.message)
+                } catch (e: Exception) {
+                    logger.error(e) { "Error in native constraint ${constraint.name}" }
+                    ValidationResult(false, "Native constraint error: ${e.message}")
+                }
+            }
+
+            is ConstraintBody.Expression -> {
+                val evaluator = evaluators[body.language.uppercase()]
+                if (evaluator == null) {
+                    logger.warn { "No evaluator registered for language: ${body.language}" }
+                    return ValidationResult(true, null)
+                }
+
+                try {
+                    val result = evaluator.evaluate(body.code, element, this)
+                    when (result) {
+                        is Boolean -> ValidationResult(
+                            result,
+                            if (!result) "Constraint ${constraint.name} failed" else null
+                        )
+                        is ValidationResult -> result
+                        else -> ValidationResult(true, null)
+                    }
+                } catch (e: Exception) {
+                    logger.error(e) { "Error evaluating constraint ${constraint.name}" }
+                    ValidationResult(false, "Evaluation error: ${e.message}")
+                }
+            }
         }
     }
 

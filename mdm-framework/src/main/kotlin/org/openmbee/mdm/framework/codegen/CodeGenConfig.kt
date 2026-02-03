@@ -58,7 +58,7 @@ data class CodeGenConfig(
     val includeClasses: Set<String> = emptySet(),
 
     /**
-     * List of class names to exclude.
+     * List of class names to exclude from code generation.
      */
     val excludeClasses: Set<String> = emptySet(),
 
