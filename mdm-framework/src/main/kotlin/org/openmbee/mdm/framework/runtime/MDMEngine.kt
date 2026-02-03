@@ -16,16 +16,7 @@
 package org.openmbee.mdm.framework.runtime
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.mdm.framework.meta.AggregationKind
-import org.openmbee.mdm.framework.meta.BodyLanguage
-import org.openmbee.mdm.framework.meta.ConstraintType
-import org.openmbee.mdm.framework.meta.MetaAssociation
-import org.openmbee.mdm.framework.meta.MetaAssociationEnd
-import org.openmbee.mdm.framework.meta.MetaClass
-import org.openmbee.mdm.framework.meta.MetaConstraint
-import org.openmbee.mdm.framework.meta.MetaOperation
-import org.openmbee.mdm.framework.meta.MetaProperty
-import java.io.File
+import org.openmbee.mdm.framework.meta.*
 import java.util.UUID
 import kotlin.collections.ArrayDeque
 
@@ -271,9 +262,40 @@ open class MDMEngine(
 
     /**
      * Get linked targets via association (GearshiftEngine compatibility).
+     *
+     * Supports both forward and reverse navigation:
+     * - Forward: Uses associationName as the edge label to find outgoing links
+     * - Reverse: If forward returns empty and associationName matches a source end name,
+     *   finds associations where the current element is the target and returns sources
+     *
+     * This enables OCL navigation like `.typing` on a Feature to find FeatureTyping elements,
+     * where the association is defined as FeatureTyping(typing) -> Feature(typedFeature).
      */
     open fun getLinkedTargets(associationName: String, sourceId: String): List<MDMObject> {
-        return graph.getTargets(sourceId, associationName).mapNotNull { elements[it] }
+        // First try direct/forward navigation
+        val directResults = graph.getTargets(sourceId, associationName).mapNotNull { elements[it] }
+        if (directResults.isNotEmpty()) {
+            return directResults
+        }
+
+        // If the associationName is a known association, don't try reverse navigation
+        if (schema.getAssociation(associationName) != null) {
+            return emptyList()
+        }
+
+        // Try reverse navigation: find associations where associationName matches source end name
+        // and the current element's class matches the target end type
+        val element = elements[sourceId] ?: return emptyList()
+        val assocInfo = schema.findAssociationBySourceEndName(associationName, element.className)
+
+        if (assocInfo != null) {
+            val (association, _) = assocInfo
+            // Reverse navigation: get sources (elements that link TO this element)
+            val reverseResults = graph.getSources(sourceId, association.name).mapNotNull { elements[it] }
+            return reverseResults
+        }
+
+        return emptyList()
     }
 
     /**
@@ -343,7 +365,6 @@ open class MDMEngine(
             val (_, end, _) = associationEnd
             // Check if it's a derived association end
             if (end.isDerived && end.derivationConstraint != null) {
-                System.err.println("DEBUG getProperty: ${metaClass.name}.$propertyName is derived association end, constraint=${end.derivationConstraint}")
                 return computeDerivedAssociationEnd(element, end)
             }
             val results = navigateAssociation(element, propertyName)
@@ -351,7 +372,6 @@ open class MDMEngine(
         }
 
         // Not found
-        System.err.println("DEBUG getProperty: ${metaClass.name}.$propertyName NOT FOUND")
         return null
     }
 
@@ -384,18 +404,20 @@ open class MDMEngine(
 
     /**
      * Set a property by instance ID (for generated code compatibility).
+     * Uses getElement() to support mounted elements in MountableEngine.
      */
     fun setProperty(instanceId: String, propertyName: String, value: Any?) {
-        val element = elements[instanceId]
+        val element = getElement(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         setPropertyValue(element, propertyName, value)
     }
 
     /**
      * Get a property by instance ID (for generated code compatibility).
+     * Uses getElement() to support mounted elements in MountableEngine.
      */
     fun getProperty(instanceId: String, propertyName: String): Any? {
-        val element = elements[instanceId]
+        val element = getElement(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return getProperty(element, propertyName)
     }
@@ -408,13 +430,11 @@ open class MDMEngine(
     open fun link(sourceId: String, targetId: String, associationName: String) {
         val association = schema.getAssociation(associationName)
         if (association == null) {
-            println("DEBUG MDMEngine.link: Unknown association '$associationName'")
             throw IllegalArgumentException("Unknown association: $associationName")
         }
 
         val linkId = UUID.randomUUID().toString()
         val link = MDMLink(linkId, association, sourceId, targetId)
-        System.err.println("DEBUG MDMEngine.link: $sourceId --[$associationName]--> $targetId")
         graph.addEdge(link)
 
         val source = elements[sourceId]
@@ -464,7 +484,6 @@ open class MDMEngine(
 
         val associationEnd = findAssociationEnd(metaClass, propertyName)
         if (associationEnd == null) {
-            System.err.println("DEBUG navigateAssociation: No association found for ${metaClass.name}.$propertyName")
             return emptyList()
         }
 
@@ -478,8 +497,6 @@ open class MDMEngine(
             graph.getSources(elementId, association.name)
         }
         allTargetIds.addAll(directResults)
-        File("/tmp/nav-debug.log")
-            .appendText("navigateAssociation: ${metaClass.name}.$propertyName via ${association.name}, isTargetEnd=$isTargetEnd -> ${directResults.size} direct results\n")
 
         // Also collect from redefining associations (e.g., subclassifier redefines specific)
         val redefiningEnds = schema.findRedefiningEnds(propertyName)
@@ -494,38 +511,27 @@ open class MDMEngine(
                 } else {
                     graph.getSources(elementId, redefiningAssoc.name)
                 }
-                System.err.println("DEBUG navigateAssociation: + redefining ${redefiningEnd.name} via ${redefiningAssoc.name} -> ${redefiningResults.size} results")
                 allTargetIds.addAll(redefiningResults)
             }
         }
 
         // Also collect from subsetting associations (e.g., ownedMembership subsets ownedRelationship)
         val subsettingEnds = schema.findSubsettingEnds(propertyName)
-        File("/tmp/nav-debug.log")
-            .appendText("navigateAssociation: ${metaClass.name}.$propertyName - found ${subsettingEnds.size} subsetting ends\n")
         for ((subsettingAssoc, subsettingEnd) in subsettingEnds) {
-            File("/tmp/nav-debug.log")
-                .appendText("  checking subsetting: ${subsettingEnd.name} via ${subsettingAssoc.name}\n")
             // Check if the subsetting association applies to this element's class hierarchy
             val subsettingIsTargetEnd = subsettingEnd == subsettingAssoc.targetEnd
             val applicableType =
                 if (subsettingIsTargetEnd) subsettingAssoc.sourceEnd.type else subsettingAssoc.targetEnd.type
-            File("/tmp/nav-debug.log")
-                .appendText("  subsettingIsTargetEnd=$subsettingIsTargetEnd, applicableType=$applicableType, metaClass=${metaClass.name}\n")
             if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
                 val subsettingResults = if (subsettingIsTargetEnd) {
                     graph.getTargets(elementId, subsettingAssoc.name)
                 } else {
                     graph.getSources(elementId, subsettingAssoc.name)
                 }
-                File("/tmp/nav-debug.log").appendText("  -> ${subsettingResults.size} results\n")
                 allTargetIds.addAll(subsettingResults)
-            } else {
-                File("/tmp/nav-debug.log").appendText("  -> not applicable\n")
             }
         }
 
-        System.err.println("DEBUG navigateAssociation: Total results: ${allTargetIds.size}")
         return allTargetIds.mapNotNull { elements[it] }
     }
 
@@ -539,38 +545,45 @@ open class MDMEngine(
         val operation = findOperation(metaClass, operationName)
             ?: throw IllegalArgumentException("Operation '$operationName' not found on class: ${element.className}")
 
-        val body = operation.body
-        if (body == null) {
-            logger.warn { "Operation $operationName has no body" }
-            return null
-        }
+        return when (val body = operation.body) {
+            null -> {
+                logger.warn { "Operation $operationName has no body" }
+                null
+            }
 
-        // Map BodyLanguage enum to evaluator key
-        val languageKey = when (operation.bodyLanguage) {
-            BodyLanguage.OCL -> "OCL"
-            BodyLanguage.GQL -> "GQL"
-            BodyLanguage.KOTLIN_DSL -> "KOTLIN_DSL"
-            BodyLanguage.PROPERTY_REF -> {
-                // Simple property reference - just get the property
-                return getPropertyValue(element, body)
+            is OperationBody.Native -> {
+                logger.debug { "Invoking native operation $operationName on ${element.className}" }
+                body.impl(element, args, this)
+            }
+
+            is OperationBody.Expression -> {
+                when (body.language) {
+                    BodyLanguage.PROPERTY_REF -> {
+                        // Simple property reference - just get the property
+                        getPropertyValue(element, body.code)
+                    }
+
+                    else -> {
+                        val evaluator = evaluators[body.language.name]
+                        if (evaluator == null) {
+                            logger.warn { "No evaluator registered for language: ${body.language}" }
+                            null
+                        } else {
+                            logger.debug { "Invoking operation $operationName on ${element.className} using ${body.language}" }
+                            evaluator.evaluate(body.code, element, this, args)
+                        }
+                    }
+                }
             }
         }
-
-        val evaluator = evaluators[languageKey]
-        if (evaluator == null) {
-            logger.warn { "No evaluator registered for language: $languageKey" }
-            return null
-        }
-
-        logger.debug { "Invoking operation $operationName on ${element.className} using $languageKey" }
-        return evaluator.evaluate(body, element, this, args)
     }
 
     /**
      * Invoke an operation by instance ID (for generated code compatibility).
+     * Uses getElement() to support mounted elements in MountableEngine.
      */
     fun invokeOperation(instanceId: String, operationName: String, args: Map<String, Any?> = emptyMap()): Any? {
-        val element = elements[instanceId]
+        val element = getElement(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return invokeOperation(element, operationName, args)
     }
@@ -589,8 +602,6 @@ open class MDMEngine(
         if (constraint != null) {
             val evaluator = evaluators[constraint.language.uppercase()]
             if (evaluator != null) {
-                logger.debug { "Computing derived association end ${end.name} via ${constraint.language}" }
-                System.err.println("DEBUG MDMEngine: Computing ${end.name} with OCL: ${constraint.expression}")
                 val result = evaluator.evaluate(constraint.expression, element, this)
                 return normalizeForMultiplicity(
                     when (result) {

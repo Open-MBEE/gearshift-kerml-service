@@ -91,7 +91,7 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
             ),
             redefines = "evaluate",
             preconditions = listOf("isModelLevelEvaluable"),
-            body = """
+            body = MetaOperation.ocl("""
                 if not target.oclIsKindOf(Type) then Sequence{}
                 else
                     let feature: Sequence(Feature) =
@@ -105,7 +105,7 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
                     else Sequence{}
                     endif endif
                 endif
-            """.trimIndent(),
+            """.trimIndent()),
             description = "Evaluate the FeatureReferenceExpression on the target element."
         ),
         MetaOperation(
@@ -115,7 +115,7 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = """
+            body = MetaOperation.ocl("""
                 referent.conformsTo('Anything::self') or
                 visited->excludes(referent) and
                 (referent.oclIsKindOf(Expression) and
@@ -126,7 +126,7 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
                 referent.featuringType->isEmpty() and
                     (referent.valuation = null or
                     referent.valuation.modelLevelEvaluable(visited->including(referent))))
-            """.trimIndent(),
+            """.trimIndent()),
             description = "A FeatureReferenceExpression is model-level evaluable based on specific conditions related to its referent."
         )
     ),

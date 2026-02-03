@@ -110,7 +110,7 @@ fun createConstructorExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = "argument->forAll(modelLevelEvaluable(visited))",
+            body = MetaOperation.ocl("argument->forAll(modelLevelEvaluable(visited))"),
             description = "A ConstructorExpression is model-level evaluable if all its argument Expressions are model-level evaluable."
         )
     ),

@@ -61,7 +61,7 @@ fun createLiteralExpressionMetaClass() = MetaClass(
             ),
             redefines = "evaluate",
             preconditions = listOf("isModelLevelEvaluable"),
-            body = "Sequence{self}",
+            body = MetaOperation.ocl("Sequence{self}"),
             description = "The model-level value of a LiteralExpression is itself."
         ),
         MetaOperation(
@@ -71,7 +71,7 @@ fun createLiteralExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = "true",
+            body = MetaOperation.ocl("true"),
             description = "A LiteralExpression is always model-level evaluable."
         )
     ),

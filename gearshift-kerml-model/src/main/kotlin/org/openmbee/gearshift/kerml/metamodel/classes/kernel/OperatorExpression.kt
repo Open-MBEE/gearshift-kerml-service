@@ -43,7 +43,7 @@ fun createOperatorExpressionMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             redefines = "instantiatedType",
-            body = "let libFunctions : Sequence(Element) = Sequence{'BaseFunctions', 'DataFunctions', 'ControlFunctions'}->collect(ns | resolveGlobal(ns + \"::\'\" + operator + \"'\").memberElement) in if libFunctions->isEmpty() then null else libFunctions->first().oclAsType(Type) endif",
+            body = MetaOperation.ocl("""let libFunctions : Sequence(Element) = Sequence{'BaseFunctions', 'DataFunctions', 'ControlFunctions'}->collect(ns | resolveGlobal(ns + "::'" + operator + "'").memberElement) in if libFunctions->isEmpty() then null else libFunctions->first().oclAsType(Type) endif"""),
             description = "The instantiatedType of an OperatorExpression is the resolution of its operator from one of the packages BaseFunctions, DataFunctions, or ControlFunctions from the Kernel Function Library."
         )
     ),

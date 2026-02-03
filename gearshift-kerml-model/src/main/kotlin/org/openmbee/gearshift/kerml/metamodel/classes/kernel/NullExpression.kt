@@ -51,7 +51,7 @@ fun createNullExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "target", type = "Element")
             ),
             redefines = "evaluate",
-            body = "Sequence{}",
+            body = MetaOperation.ocl("Sequence{}"),
             description = "The model-level value of a NullExpression is an empty sequence."
         ),
         MetaOperation(
@@ -61,7 +61,7 @@ fun createNullExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = "true",
+            body = MetaOperation.ocl("true"),
             description = "A NullExpression is always model-level evaluable."
         )
     ),

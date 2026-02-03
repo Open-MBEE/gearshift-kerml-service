@@ -27,7 +27,22 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.openmbee.mdm.framework.runtime.MDMObject
-import org.openmbee.gearshift.kerml.KerMLModelFactory
+import org.openmbee.mdm.framework.runtime.MountableEngine
+import org.openmbee.mdm.framework.runtime.MountRegistry
+import org.openmbee.gearshift.kerml.KerMLModel
+
+/**
+ * Response for the library status endpoint.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class LibraryStatusResponse(
+    val enabled: Boolean,
+    val mounted: Boolean,
+    val libraryId: String? = null,
+    val libraryName: String? = null,
+    val elementCount: Int? = null,
+    val rootNamespaces: List<String> = emptyList()
+)
 
 /**
  * Response data class representing an element in the tree.
@@ -64,11 +79,71 @@ data class ParseRequest(
 
 /**
  * Demo API server for the Gearshift KerML Service.
- * Uses the visitor-based parsing architecture via KerMLModelFactory.
+ * Uses the visitor-based parsing architecture via KerMLModel.
+ *
+ * If enableMounts is true, the kernel library is initialized and mounted,
+ * allowing references to library types like Base::Anything.
  */
-class DemoApi(private val port: Int = 8080) {
-    private val factory = KerMLModelFactory()
-    private val engine get() = factory.engine
+class DemoApi(
+    private val port: Int = 8080,
+    private val enableMounts: Boolean = false
+) {
+    private val model: KerMLModel
+
+    init {
+        model = if (enableMounts) {
+            // Initialize kernel library once (idempotent)
+            KerMLModel.initializeKernelLibrary()
+            // Create model with mount support
+            KerMLModel.createWithMounts()
+        } else {
+            // Simple model without library support
+            KerMLModel()
+        }
+    }
+
+    private val engine get() = model.engine
+
+    /**
+     * Build a tree from the parsed model, showing elements owned by the root namespace.
+     * The root namespace itself is an unnamed container, so we create a synthetic "Model" root
+     * containing its direct children (packages, classes, etc.).
+     */
+    private fun buildTreeFromRoot(rootId: String): ElementNode {
+        val visited = mutableSetOf<String>()
+        val children = mutableListOf<ElementNode>()
+
+        // Get owned memberships from the root namespace
+        val ownedMemberships = engine.getLinkedTargets(
+            "membershipOwningNamespaceOwnedMembershipAssociation",
+            rootId
+        )
+
+        // For each membership, get the owned member element
+        for (membership in ownedMemberships) {
+            val membershipId = membership.id ?: continue
+
+            // Try OwningMembership -> ownedMemberElement
+            val ownedElements = engine.getLinkedTargets(
+                "owningMembershipOwnedMemberElementAssociation",
+                membershipId
+            )
+            for (ownedElement in ownedElements) {
+                ownedElement.id?.let { id ->
+                    children.add(buildTreeNode(id, visited))
+                }
+            }
+        }
+
+        // Return a synthetic root node representing the model
+        return ElementNode(
+            id = rootId,
+            type = "Model",
+            name = "Model",
+            declaredName = null,
+            children = children
+        )
+    }
 
     /**
      * Build a tree from the parsed model starting at the given root element.
@@ -304,16 +379,56 @@ class DemoApi(private val port: Int = 8080) {
                     call.respond(mapOf("status" to "ok"))
                 }
 
+                get("/library-status") {
+                    val mountableEngine = engine as? MountableEngine
+                    if (mountableEngine == null || !enableMounts) {
+                        call.respond(
+                            LibraryStatusResponse(
+                                enabled = false,
+                                mounted = false
+                            )
+                        )
+                        return@get
+                    }
+
+                    val libraryMount = MountRegistry.get(KerMLModel.KERNEL_LIBRARY_MOUNT_ID)
+                    val isMounted = mountableEngine.isMounted(KerMLModel.KERNEL_LIBRARY_MOUNT_ID)
+
+                    if (libraryMount != null && isMounted) {
+                        val rootNamespaces = libraryMount.getRootNamespaces().mapNotNull { ns ->
+                            ns.getProperty("declaredName") as? String
+                                ?: ns.getProperty("name") as? String
+                        }
+                        call.respond(
+                            LibraryStatusResponse(
+                                enabled = true,
+                                mounted = true,
+                                libraryId = libraryMount.id,
+                                libraryName = libraryMount.name,
+                                elementCount = libraryMount.engine.getAllElements().size,
+                                rootNamespaces = rootNamespaces
+                            )
+                        )
+                    } else {
+                        call.respond(
+                            LibraryStatusResponse(
+                                enabled = true,
+                                mounted = false
+                            )
+                        )
+                    }
+                }
+
                 post("/parse") {
                     try {
                         val request = call.receive<ParseRequest>()
 
                         // Reset factory state for fresh parse
-                        factory.reset()
+                        model.reset()
 
                         // Parse the KerML using visitor-based architecture
-                        val pkg = factory.parseString(request.kerml)
-                        val result = factory.getLastParseResult()
+                        val pkg = model.parseString(request.kerml)
+                        val result = model.getLastParseResult()
 
                         if (result == null || !result.success) {
                             val errors = result?.errors?.map { it.message } ?: listOf("Unknown parse error")
@@ -327,23 +442,46 @@ class DemoApi(private val port: Int = 8080) {
                             return@post
                         }
 
-                        // Build the tree from root element
-                        val rootElement = factory.getRootElement()
-                        val tree = rootElement?.elementId?.let { buildTree(it) }
+                        // Build the tree from elements owned by the root namespace
+                        // The root namespace itself is an unnamed container, so we show its children
+                        val rootElement = model.getRootElement()
+                        val tree = rootElement?.id?.let { rootId ->
+                            buildTreeFromRoot(rootId)
+                        }
 
                         // Compute simple statistics from engine
-                        val allElements = engine.getAllElements()
-                        val typeDistribution = allElements.groupBy { it.className }
+                        val mountableEngine = engine as? MountableEngine
+                        val localElements = mountableEngine?.getLocalElements() ?: engine.getAllElements()
+                        val typeDistribution = localElements.groupBy { it.className }
                             .mapValues { it.value.size }
+
+                        // Build mount info if available
+                        val mountInfo = if (enableMounts && mountableEngine != null) {
+                            val activeMounts = mountableEngine.getActiveMounts()
+                            mapOf(
+                                "libraryEnabled" to true,
+                                "activeMounts" to activeMounts.map { mount ->
+                                    mapOf(
+                                        "id" to mount.id,
+                                        "name" to mount.name,
+                                        "elementCount" to mount.engine.getAllElements().size,
+                                        "isImplicit" to mount.isImplicit
+                                    )
+                                }
+                            )
+                        } else {
+                            mapOf("libraryEnabled" to false)
+                        }
 
                         call.respond(
                             ParseResponse(
                                 success = true,
-                                rootId = rootElement?.elementId,
+                                rootId = rootElement?.id,
                                 tree = tree,
                                 statistics = mapOf(
-                                    "totalObjects" to allElements.size,
-                                    "typeDistribution" to typeDistribution
+                                    "totalObjects" to localElements.size,
+                                    "typeDistribution" to typeDistribution,
+                                    "mounts" to mountInfo
                                 )
                             )
                         )
@@ -364,9 +502,18 @@ class DemoApi(private val port: Int = 8080) {
 
 /**
  * Main entry point for the Demo API server.
+ *
+ * Usage: DemoApi [port] [--with-library]
+ *   port: Server port (default: 8080)
+ *   --with-library: Enable kernel library mounting for library type resolution
  */
 fun main(args: Array<String>) {
-    val port = args.firstOrNull()?.toIntOrNull() ?: 8080
+    val port = args.firstOrNull { it.toIntOrNull() != null }?.toInt() ?: 8080
+    val enableMounts = args.contains("--with-library")
+
     println("Starting Gearshift KerML Demo API on port $port...")
-    DemoApi(port).start()
+    if (enableMounts) {
+        println("Library mounting enabled - loading kernel library...")
+    }
+    DemoApi(port, enableMounts).start()
 }

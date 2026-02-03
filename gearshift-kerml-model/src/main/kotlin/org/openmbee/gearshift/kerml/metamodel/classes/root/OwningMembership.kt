@@ -74,13 +74,12 @@ fun createOwningMembershipMetaClass() = MetaClass(
             returnLowerBound = 1,
             returnUpperBound = 1,
             redefines = "path",
-            body = """
+            body = MetaOperation.ocl("""
                 if ownedMemberElement.qualifiedName <> null then
                     ownedMemberElement.qualifiedName + '/owningMembership'
                 else self.oclAsType(Relationship).path()
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             isQuery = true,
             description = """
                 If the ownedMemberElement of this OwningMembership has a non-null qualifiedName,

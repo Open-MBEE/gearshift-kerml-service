@@ -78,7 +78,7 @@ fun createMultiplicityRangeMetaClass() = MetaClass(
                 MetaParameter(name = "lower", type = "Integer"),
                 MetaParameter(name = "upper", type = "UnlimitedNatural")
             ),
-            body = "valueOf(upperBound) = upper and let lowerValue: UnlimitedNatural = valueOf(lowerBound) in (lowerValue = lower or lowerValue = null and (lower = upper or lower = 0 and upper = *))",
+            body = MetaOperation.ocl("valueOf(upperBound) = upper and let lowerValue: UnlimitedNatural = valueOf(lowerBound) in (lowerValue = lower or lowerValue = null and (lower = upper or lower = 0 and upper = *))"),
             description = "Check whether this MultiplicityRange represents the range bounded by the given values lower and upper, presuming the lowerBound and upperBound Expressions are model-level evaluable."
         ),
         MetaOperation(
@@ -89,7 +89,7 @@ fun createMultiplicityRangeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "bound", type = "Expression", lowerBound = 0, upperBound = 1)
             ),
-            body = "if bound = null or not bound.isModelLevelEvaluable then null else let boundEval: Sequence(Element) = bound.evaluate(owningType) in if boundEval->size() <> 1 then null else let valueEval: Element = boundEval->at(1) in if valueEval.oclIsKindOf(LiteralInfinity) then * else if valueEval.oclIsKindOf(LiteralInteger) then let value : Integer = valueEval.oclAsKindOf(LiteralInteger).value in if value >= 0 then value else null endif else null endif endif endif endif",
+            body = MetaOperation.ocl("if bound = null or not bound.isModelLevelEvaluable then null else let boundEval: Sequence(Element) = bound.evaluate(owningType) in if boundEval->size() <> 1 then null else let valueEval: Element = boundEval->at(1) in if valueEval.oclIsKindOf(LiteralInfinity) then * else if valueEval.oclIsKindOf(LiteralInteger) then let value : Integer = valueEval.oclAsKindOf(LiteralInteger).value in if value >= 0 then value else null endif else null endif endif endif endif"),
             description = "Evaluate the given bound Expression (at model level) and return the result represented as a MOF UnlimitedNatural value."
         )
     ),

@@ -99,8 +99,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnType = "Feature",
             returnLowerBound = 0,
             returnUpperBound = -1,
-            body = "ownedRedefinition.redefinedFeature->closure(ownedRedefinition.redefinedFeature)->asOrderedSet()->prepend(self)",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("ownedRedefinition.redefinedFeature->closure(ownedRedefinition.redefinedFeature)->asOrderedSet()->prepend(self)"),
             description = "Return this Feature and all the Features that are directly or indirectly redefined by this Feature."
         ),
         MetaOperation(
@@ -108,8 +107,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnType = "Type",
             returnLowerBound = 0,
             returnUpperBound = -1,
-            body = "featuringType->select(t | t.owner <> self)->union(featuringType->select(t | t.owner = self)->selectByKind(Feature).asCartesianProduct())->union(type)",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("featuringType->select(t | t.owner <> self)->union(featuringType->select(t | t.owner = self)->selectByKind(Feature).asCartesianProduct())->union(type)"),
             description = "If isCartesianProduct is true, then return the list of Types whose Cartesian product can be represented by this Feature."
         ),
         MetaOperation(
@@ -118,7 +116,7 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "feature", type = "Feature")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let anythingType: Element = resolveGlobal('Base::Anything').memberElement in
                 let allFeaturingTypes: Sequence(Type) = featuringType->closure(t |
                     if not t.oclIsKindOf(Feature) then Sequence{}
@@ -129,8 +127,7 @@ fun createFeatureMetaClass() = MetaClass(
                         endif
                     endif) in
                 allFeaturingTypes->exists(t | feature.isFeaturedWithin(t))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "A Feature can access another feature if the other feature is featured within one of the direct or indirect featuringTypes of this Feature."
         ),
         MetaOperation(
@@ -141,8 +138,7 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "type", type = "Type")
             ),
-            body = "type.directionOf(self)",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("type.directionOf(self)"),
             description = "Return the direction of this Feature relative to the given type."
         ),
         MetaOperation(
@@ -151,7 +147,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             redefines = "effectiveName",
-            body = """
+            body = MetaOperation.ocl("""
                 if declaredShortName <> null or declaredName <> null then
                     declaredName
                 else
@@ -162,8 +158,7 @@ fun createFeatureMetaClass() = MetaClass(
                         namingFeature.effectiveName()
                     endif
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "If a Feature has no declaredName or declaredShortName, then its effective name is given by the effective name of the Feature returned by the namingFeature() operation, if any."
         ),
         MetaOperation(
@@ -172,7 +167,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             redefines = "effectiveShortName",
-            body = """
+            body = MetaOperation.ocl("""
                 if declaredShortName <> null or declaredName <> null then
                     declaredShortName
                 else
@@ -183,21 +178,19 @@ fun createFeatureMetaClass() = MetaClass(
                         namingFeature.effectiveShortName()
                     endif
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "If a Feature has no declaredShortName or declaredName, then its effective shortName is given by the effective shortName of the Feature returned by the namingFeature() operation, if any."
         ),
         MetaOperation(
             name = "isCartesianProduct",
             returnType = "Boolean",
-            body = """
+            body = MetaOperation.ocl("""
                 type->size() = 1 and
                 featuringType->size() = 1 and
                 (featuringType->first().owner = self implies
                     featuringType->first().oclIsKindOf(Feature) and
                     featuringType->first().oclAsType(Feature).isCartesianProduct())
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Check whether this Feature can be used to represent a Cartesian product of Types."
         ),
         MetaOperation(
@@ -209,7 +202,7 @@ fun createFeatureMetaClass() = MetaClass(
                 MetaParameter(name = "otherType", type = "Type")
             ),
             redefines = "isCompatibleWith",
-            body = """
+            body = MetaOperation.ocl("""
                 specializes(otherType) or
                 otherType.oclIsKindOf(Feature) and
                 ownedFeature->isEmpty() and
@@ -217,8 +210,7 @@ fun createFeatureMetaClass() = MetaClass(
                 ownedRedefinition.allRedefinedFeatures()->exists(f |
                     otherType.oclAsType(Feature).allRedefinedFeatures()->includes(f)) and
                 canAccess(otherType.oclAsType(Feature))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "A Feature is compatible with another Type if it either directly or indirectly specializes the otherType or if the otherType is also a Feature and meets compatibility requirements."
         ),
         MetaOperation(
@@ -227,7 +219,7 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "type", type = "Type", lowerBound = 0, upperBound = 1)
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 if type = null then
                     featuringType->forAll(f | f = resolveGlobal('Base::Anything').memberElement)
                 else
@@ -236,8 +228,7 @@ fun createFeatureMetaClass() = MetaClass(
                     chainingFeature->notEmpty() and chainingFeature->first().isVariable and
                     type.specializes(chainingFeature->first().owningType)
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return if the featuringTypes of this Feature are compatible with the given type. If type is null, then check if this Feature is explicitly or implicitly featured by Base::Anything."
         ),
         MetaOperation(
@@ -246,7 +237,7 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "type", type = "Type")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 owningType <> null and
                 if not isVariable then type = owningType
                 else if owningType = resolveGlobal('Occurrences::Occurrence').memberElement then
@@ -257,19 +248,17 @@ fun createFeatureMetaClass() = MetaClass(
                     feature.featuringType->includes(owningType) and
                     feature.redefinesFromLibrary('Occurrences::Occurrence::snapshots')
                 endif endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return whether the given type must be a featuringType of this Feature."
         ),
         MetaOperation(
             name = "isOwnedCrossFeature",
             returnType = "Boolean",
-            body = """
+            body = MetaOperation.ocl("""
                 owningNamespace <> null and
                 owningNamespace.oclIsKindOf(Feature) and
                 owningNamespace.oclAsType(Feature).ownedCrossFeature() = self
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return whether this Feature is an owned crossFeature of an endFeature."
         ),
         MetaOperation(
@@ -277,14 +266,13 @@ fun createFeatureMetaClass() = MetaClass(
             returnType = "Feature",
             returnLowerBound = 0,
             returnUpperBound = 1,
-            body = """
+            body = MetaOperation.ocl("""
                 if ownedRedefinition->isEmpty() then
                     null
                 else
                     ownedRedefinition->at(1).redefinedFeature
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "By default, the namingFeature of a Feature is given by its first redefinedFeature of its first ownedRedefinition, if any."
         ),
         MetaOperation(
@@ -292,7 +280,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnType = "Feature",
             returnLowerBound = 0,
             returnUpperBound = 1,
-            body = """
+            body = MetaOperation.ocl("""
                 if not isEnd or owningType = null then null
                 else
                     let ownedMemberFeatures: Sequence(Feature) =
@@ -305,8 +293,7 @@ fun createFeatureMetaClass() = MetaClass(
                     else ownedMemberFeatures->first()
                     endif
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "If this Feature is an endFeature of its owningType, then return the first ownedMember of the Feature that is a Feature, but not a Multiplicity or a MetadataFeature, and whose owningMembership is not a FeatureMembership."
         ),
         MetaOperation(
@@ -315,8 +302,7 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "redefinedFeature", type = "Feature")
             ),
-            body = "ownedRedefinition.redefinedFeature->includes(redefinedFeature)",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("ownedRedefinition.redefinedFeature->includes(redefinedFeature)"),
             description = "Check whether this Feature directly redefines the given redefinedFeature."
         ),
         MetaOperation(
@@ -325,12 +311,11 @@ fun createFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "libraryFeatureName", type = "String")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let mem: Membership = resolveGlobal(libraryFeatureName) in
                 mem <> null and mem.memberElement.oclIsKindOf(Feature) and
                 redefines(mem.memberElement.oclAsType(Feature))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Check whether this Feature directly redefines the named library Feature. libraryFeatureName must conform to the syntax of a KerML qualified name and must resolve to a Feature in global scope."
         ),
         MetaOperation(
@@ -340,14 +325,13 @@ fun createFeatureMetaClass() = MetaClass(
                 MetaParameter(name = "first", type = "Feature"),
                 MetaParameter(name = "second", type = "Feature")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 allSupertypes()->selectByKind(Feature)->
                 exists(f | let n: Integer = f.chainingFeature->size() in
                     n >= 2 and
                     f.chainingFeature->at(n-1) = first and
                     f.chainingFeature->at(n) = second)
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Check whether this Feature directly or indirectly specializes a Feature whose last two chainingFeatures are the given Features first and second."
         ),
         MetaOperation(
@@ -359,13 +343,12 @@ fun createFeatureMetaClass() = MetaClass(
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
             redefines = "supertypes",
-            body = """
+            body = MetaOperation.ocl("""
                 let supertypes: OrderedSet(Type) = self.oclAsType(Type).supertypes(excludeImplied) in
                 if featureTarget = self then supertypes
                 else supertypes->append(featureTarget)
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return the supertypes of this Feature, including the featureTarget if different from self."
         ),
         MetaOperation(
@@ -373,7 +356,7 @@ fun createFeatureMetaClass() = MetaClass(
             returnType = "Feature",
             returnLowerBound = 0,
             returnUpperBound = -1,
-            body = """
+            body = MetaOperation.ocl("""
                 if not isConjugated then
                     let subsettedFeatures: OrderedSet(Feature) =
                         ownedSubsetting->reject(s | s.oclIsKindOf(CrossSubsetting)).subsettedFeature in
@@ -386,8 +369,7 @@ fun createFeatureMetaClass() = MetaClass(
                     OrderedSet{conjugator.originalType.oclAsType(Feature)}
                 else OrderedSet{}
                 endif endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return the Features used to determine the types of this Feature (other than this Feature itself). If this Feature is not conjugated, then the typingFeatures consist of all subsettedFeatures, except from CrossSubsetting, and the last chainingFeature (if any). If this Feature is conjugated, then the typingFeatures are only its originalType (if the originalType is a Feature)."
         )
     ),

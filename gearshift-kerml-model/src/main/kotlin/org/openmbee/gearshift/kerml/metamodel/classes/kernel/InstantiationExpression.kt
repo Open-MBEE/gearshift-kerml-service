@@ -64,13 +64,13 @@ fun createInstantiationExpressionMetaClass() = MetaClass(
             returnType = "Type",
             returnLowerBound = 0,
             returnUpperBound = 1,
-            body = """
+            body = MetaOperation.ocl("""
                 let members : Sequence(Element) = ownedMembership->
                     reject(oclIsKindOf(FeatureMembership)).memberElement in
                 if members->isEmpty() or not members->first().oclIsKindOf(Type) then null
                 else members->first().oclAsType(Type)
                 endif
-            """.trimIndent(),
+            """.trimIndent()),
             description = "Return the Type to act as the instantiatedType for this InstantiationExpression. By default, this is the memberElement of the first ownedMembership that is not a FeatureMembership, which must be a Type."
         )
     ),

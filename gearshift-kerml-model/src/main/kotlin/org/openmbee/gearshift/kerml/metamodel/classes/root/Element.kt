@@ -167,14 +167,14 @@ fun createElementMetaClass() = MetaClass(
             name = "effectiveName",
             returnType = "String",
             description = "Return an effective name for this Element. By default this is the same as its declaredName.",
-            body = "declaredName",
+            body = MetaOperation.ocl("declaredName"),
             isQuery = true
         ),
         MetaOperation(
             name = "effectiveShortName",
             returnType = "String",
             description = "Return an effective short name for this Element. By default this is the same as its declaredShortName.",
-            body = "declaredShortName",
+            body = MetaOperation.ocl("declaredShortName"),
             isQuery = true
         ),
         MetaOperation(
@@ -182,20 +182,20 @@ fun createElementMetaClass() = MetaClass(
             returnType = "String",
             description = "Return name if not null, otherwise shortName if not null, otherwise null. " +
                     "If non-null, returned as-is if it has the form of a basic name, otherwise as a restricted name.",
-            body = """
+            body = MetaOperation.ocl("""
                 let n : String = if name <> null then name else shortName endif in
                 if n = null then null
                 else if n.isBasicName() then n
                 else n.asRestrictedName()
                 endif endif
-            """.trimIndent(),
+            """.trimIndent()),
             isQuery = true
         ),
         MetaOperation(
             name = "libraryNamespace",
             returnType = "Namespace",
             description = "Return the library Namespace of the owningRelationship of this Element, if it has one.",
-            body = "if owningRelationship <> null then owningRelationship.libraryNamespace() else null endif",
+            body = MetaOperation.ocl("if owningRelationship <> null then owningRelationship.libraryNamespace() else null endif"),
             isQuery = true
         ),
         MetaOperation(
@@ -207,13 +207,13 @@ fun createElementMetaClass() = MetaClass(
                     "rooted in a root Namespace. If the Element has a non-null qualifiedName, return that. " +
                     "Otherwise, if it has an owningRelationship, return the path of the owningRelationship " +
                     "followed by '/' and the 1-based index in ownedRelatedElement. Otherwise, return empty string.",
-            body = """
+            body = MetaOperation.ocl("""
                 if qualifiedName <> null then qualifiedName
                 else if owningRelationship <> null then
                     owningRelationship.path() + '/' + owningRelationship.ownedRelatedElement->indexOf(self).toString()
                 else ''
                 endif endif
-            """.trimIndent(),
+            """.trimIndent()),
             isQuery = true
         )
     )

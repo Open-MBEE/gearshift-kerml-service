@@ -123,12 +123,9 @@ class KerMLSemanticHandler(
         val elements = pendingElements.toList()
         pendingElements.clear()
 
-        println("DEBUG: processPendingElements processing ${elements.size} elements")
-
         for (element in elements) {
             val metaClass = element.metaClass
             val allBindings = collectAllSemanticBindings(metaClass)
-            println("DEBUG:   Element ${element.className} (${element.getProperty("declaredName")}) has ${allBindings.size} bindings from metaclass hierarchy")
             if (allBindings.isNotEmpty()) {
                 processSemanticBindings(element, allBindings)
             }
@@ -136,33 +133,25 @@ class KerMLSemanticHandler(
     }
 
     private fun processSemanticBindings(instance: MDMObject, bindings: List<SemanticBinding>) {
-        println("DEBUG:     processSemanticBindings for ${instance.className} with ${bindings.size} bindings")
         for (binding in bindings) {
-            println("DEBUG:       Binding: ${binding.name} (${binding.bindingKind}) -> ${binding.baseConcept}")
-
             // Check if binding condition applies
             val conditionResult = evaluateCondition(binding.condition, instance)
-            println("DEBUG:         Condition ${binding.condition}: $conditionResult")
             if (!conditionResult) {
                 continue
             }
 
             // Resolve the base concept
             val baseConcept = resolveBaseConcept(binding.baseConcept)
-            println("DEBUG:         Resolved baseConcept: ${baseConcept?.id}")
             if (baseConcept == null) {
-                println("DEBUG:         SKIPPING - baseConcept not found")
                 continue
             }
 
             // Don't create self-referential relationships
             if (instance.id == baseConcept.id) {
-                println("DEBUG:         SKIPPING - self-referential")
                 continue
             }
 
             // Create the implied relationship based on binding kind
-            println("DEBUG:         Creating implied relationship...")
             when (binding.bindingKind) {
                 BindingKind.SPECIALIZES -> {
                     // For SPECIALIZES: use Subclassification for Classifiers, Specialization for other Types
@@ -175,13 +164,9 @@ class KerMLSemanticHandler(
                             } == true
 
                     if (instanceIsClassifier) {
-                        println("DEBUG:           Instance is Classifier, creating Subclassification")
                         createImpliedSubclassificationIfNeeded(instance as Classifier, baseConcept as Classifier)
-                    } else {
-                        // For non-Classifier Types (like Feature), skip creating implied specialization
-                        // Features get their implied relationships via SUBSETS bindings instead
-                        println("DEBUG:           Instance is not Classifier (${instance.className}), skipping Subclassification")
                     }
+                    // For non-Classifier Types (like Feature), skip - they get implied relationships via SUBSETS
                 }
 
                 BindingKind.SUBSETS -> {
@@ -198,8 +183,7 @@ class KerMLSemanticHandler(
             is BindingCondition.TypedBy -> {
                 // Check if instance is typed by the specified metaclass
                 if (instance is Feature) {
-                    val types = instance.type
-                    types.any { (it as MDMObject).className == condition.metaclass }
+                    instance.type.any { (it as MDMObject).className == condition.metaclass }
                 } else false
             }
 
@@ -296,13 +280,7 @@ class KerMLSemanticHandler(
     private fun alreadySpecializesTransitively(classifier: Classifier, general: Classifier): Boolean {
         // If classifier has any explicit specializations, skip the implied one
         // The explicit specialization's target will get its own implied relationship if needed
-        val allSpecs = classifier.ownedSpecialization
-        println("DEBUG:           ${classifier.declaredName} has ${allSpecs.size} total ownedSpecializations")
-        allSpecs.forEach { spec ->
-            println("DEBUG:             - Specialization id=${spec.id}, isImplied=${spec.isImplied}")
-        }
-        val explicitSpecs = allSpecs.filter { it.isImplied != true }
-        println("DEBUG:           ${classifier.declaredName} has ${explicitSpecs.size} explicit specializations")
+        val explicitSpecs = classifier.ownedSpecialization.filter { it.isImplied != true }
         return explicitSpecs.isNotEmpty()
     }
 
@@ -310,18 +288,21 @@ class KerMLSemanticHandler(
         // Check cache first
         libraryCache[qualifiedName]?.let { return it }
 
-        // Try to find in engine by searching all elements
-        // Parse qualified name (e.g., "Base::Anything" -> package "Base", element "Anything")
-        val parts = qualifiedName.split("::")
-        if (parts.isEmpty()) return null
+        // Use proper qualified name resolution via Namespace.resolveGlobal operation
+        // Get any root namespace to call resolveGlobal on (it walks up to root internally)
+        val rootNamespaces = engine.getRootNamespaces()
+        if (rootNamespaces.isEmpty()) return null
 
-        val elementName = parts.last()
+        // Call the resolveGlobal operation - returns a Membership
+        val membership = engine.invokeOperation(
+            rootNamespaces.first().id!!,
+            "resolveGlobal",
+            mapOf("qualifiedName" to qualifiedName)
+        ) as? MDMObject
 
-        // Search for element by name
-        val found = engine.getAllElements().find { element ->
-            val declaredName = element.getProperty("declaredName") as? String
-            val name = element.getProperty("name") as? String
-            declaredName == elementName || name == elementName
+        // Get the memberElement from the membership
+        val found = membership?.let {
+            engine.getProperty(it.id!!, "memberElement") as? MDMObject
         }
 
         // Cache for future lookups
@@ -341,7 +322,6 @@ class KerMLSemanticHandler(
         // Check if classifier already transitively specializes this general type through explicit specializations
         if (alreadySpecializesTransitively(classifier, general)) {
             logger.debug { "Classifier ${classifier.declaredName} already transitively specializes ${general.declaredName}, skipping implied" }
-            println("DEBUG:           Skipping - already transitively specializes through explicit relationships")
             return
         }
 
@@ -430,7 +410,6 @@ class KerMLSemanticHandler(
         // Check if feature already transitively subsets this target through explicit subsettings
         if (alreadySubsetsTransitively(feature, subsettedFeature)) {
             logger.debug { "Feature ${feature.declaredName} already transitively subsets ${subsettedFeature.declaredName}, skipping implied" }
-            println("DEBUG:           Skipping - already transitively subsets through explicit relationships")
             return
         }
 
@@ -505,16 +484,6 @@ class KerMLSemanticHandler(
      */
     fun processAllPending() {
         val allElements = engine.getAllElements()
-        println("DEBUG: processAllPending - total elements in engine: ${allElements.size}")
-
-        // Print all elements with names for debugging
-        allElements.take(20).forEach { elem ->
-            val declaredName = elem.getProperty("declaredName") as? String
-            println("DEBUG:   Element ${elem.className}: declaredName=$declaredName, id=${elem.id}")
-        }
-        if (allElements.size > 20) {
-            println("DEBUG:   ... and ${allElements.size - 20} more elements")
-        }
 
         // Search for library elements if not already cached
         if (libraryCache["Base::Anything"] == null) {
@@ -524,10 +493,7 @@ class KerMLSemanticHandler(
             }
             if (anything != null) {
                 libraryCache["Base::Anything"] = anything
-                println("DEBUG: Found Base::Anything: ${anything.id}")
                 logger.debug { "Found Base::Anything: ${anything.id}" }
-            } else {
-                println("DEBUG: WARNING - Base::Anything NOT FOUND in ${allElements.size} elements")
             }
         }
 
@@ -538,15 +504,11 @@ class KerMLSemanticHandler(
             }
             if (things != null) {
                 libraryCache["Base::things"] = things
-                println("DEBUG: Found Base::things: ${things.id}")
                 logger.debug { "Found Base::things: ${things.id}" }
-            } else {
-                println("DEBUG: WARNING - Base::things NOT FOUND in ${allElements.size} elements")
             }
         }
 
         baseLibraryLoaded = true
-        println("DEBUG: Processing ${pendingElements.size} pending elements")
         logger.debug { "Processing ${pendingElements.size} pending elements" }
         processPendingElements()
     }

@@ -84,6 +84,35 @@
             font-weight: 400;
         }
 
+        .library-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .library-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .library-status-indicator.enabled {
+            background: var(--ve-green-base);
+            box-shadow: 0 0 6px var(--ve-green-base);
+        }
+
+        .library-status-indicator.disabled {
+            background: var(--ve-silver-darker-2);
+        }
+
+        .library-status-text {
+            color: var(--ve-silver-base);
+        }
+
         /* Main layout - 3 column */
         .main-container {
             display: grid;
@@ -672,6 +701,10 @@
                 <div class="header-subtitle">Metadata-driven KerML Implementation</div>
             </div>
         </h1>
+        <div class="library-status" id="libraryStatus">
+            <span class="library-status-indicator disabled" id="libraryIndicator"></span>
+            <span class="library-status-text" id="libraryStatusText">Checking library...</span>
+        </div>
     </header>
 
     <main class="main-container">
@@ -888,7 +921,16 @@ package Vehicle {
                     elementIndex = {};
                     indexElements(data.tree);
                     renderTree(data);
-                    showStatus('success', `Parsed successfully: ${data.statistics?.totalObjects || 0} elements, ${data.statistics?.totalLinks || 0} links`);
+
+                    // Build status message with mount info
+                    let statusMsg = `Parsed successfully: ${data.statistics?.totalObjects || 0} elements`;
+                    const mountInfo = data.statistics?.mounts;
+                    if (mountInfo?.libraryEnabled && mountInfo?.activeMounts?.length > 0) {
+                        const mountCount = mountInfo.activeMounts.length;
+                        const totalMountedElements = mountInfo.activeMounts.reduce((sum, m) => sum + (m.elementCount || 0), 0);
+                        statusMsg += ` (+ ${totalMountedElements} from ${mountCount} mounted library)`;
+                    }
+                    showStatus('success', statusMsg);
                     // Clear element details
                     elementDetails.innerHTML = `
                         <div class="empty-state">
@@ -1248,6 +1290,40 @@ package Vehicle {
 
         // Initialize with a simple example
         editor.value = examples.simple;
+
+        // Library status elements
+        const libraryIndicator = document.getElementById('libraryIndicator');
+        const libraryStatusText = document.getElementById('libraryStatusText');
+
+        // Fetch library status on page load
+        async function checkLibraryStatus() {
+            try {
+                const response = await fetch('/library-status');
+                const data = await response.json();
+
+                if (data.mounted) {
+                    libraryIndicator.classList.remove('disabled');
+                    libraryIndicator.classList.add('enabled');
+                    const namespaces = data.rootNamespaces?.length || 0;
+                    libraryStatusText.textContent = `Library: ${data.libraryName || 'Enabled'} (${data.elementCount || 0} elements, ${namespaces} namespaces)`;
+                } else if (data.enabled) {
+                    libraryIndicator.classList.remove('disabled');
+                    libraryIndicator.classList.add('enabled');
+                    libraryStatusText.textContent = 'Library: Enabled (not mounted)';
+                } else {
+                    libraryIndicator.classList.remove('enabled');
+                    libraryIndicator.classList.add('disabled');
+                    libraryStatusText.textContent = 'Library: Not enabled (start with --with-library)';
+                }
+            } catch (err) {
+                libraryIndicator.classList.remove('enabled');
+                libraryIndicator.classList.add('disabled');
+                libraryStatusText.textContent = 'Library: Status unavailable';
+            }
+        }
+
+        // Check library status on page load
+        checkLibraryStatus();
     </script>
 </body>
 </html>

@@ -232,6 +232,34 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
         val featureTyping = kermlParseContext.create<FeatureTyping>()
         featureTyping.typedFeature = feature
 
+        // Establish ownership - link FeatureTyping as owned by the Feature
+        // This makes it accessible via feature.ownedTyping (derived from ownedRelationship)
+        kermlParseContext.engine.link(
+            sourceId = feature.id!!,
+            targetId = featureTyping.id!!,
+            associationName = "owningRelatedElementOwnedRelationshipAssociation"
+        )
+        // Also link via base association for Specialization.owningType
+        kermlParseContext.engine.link(
+            sourceId = feature.id!!,
+            targetId = featureTyping.id!!,
+            associationName = "owningTypeOwnedSpecializationAssociation"
+        )
+
+        // Link FeatureTyping -> Feature via the typing association
+        kermlParseContext.engine.link(
+            sourceId = featureTyping.id!!,
+            targetId = feature.id!!,
+            associationName = "typingTypedFeatureAssociation"
+        )
+
+        // Also link via base association for Specialization.specific
+        kermlParseContext.engine.link(
+            sourceId = featureTyping.id!!,
+            targetId = feature.id!!,
+            associationName = "specializationSpecificAssociation"
+        )
+
         ctx.generalType()?.qualifiedName()?.let { qnCtx ->
             val typeName = extractQualifiedName(qnCtx)
             // Register pending reference for type resolution

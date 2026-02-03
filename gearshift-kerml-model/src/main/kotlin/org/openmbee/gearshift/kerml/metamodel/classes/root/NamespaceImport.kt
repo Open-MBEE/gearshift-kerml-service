@@ -53,12 +53,11 @@ fun createNamespaceImportMetaClass() = MetaClass(
                 MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
             ),
             redefines = "Import::importedMemberships",
-            body = """
+            body = MetaOperation.ocl("""
                 if excluded->includes(importedNamespace) then Sequence{}
                 else importedNamespace.visibleMemberships(excluded, isRecursive, isImportAll)
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Returns at least the visibleMemberships of the importedNamespace. If isRecursive = true,
                 then Memberships are also recursively imported from any ownedMembers of the

@@ -51,11 +51,11 @@ fun createRelationshipMetaClass() = MetaClass(
             returnType = "Namespace",
             redefines = "Element::libraryNamespace",
             description = "Return whether this Relationship has either an owningRelatedElement or owningRelationship that is a library element.",
-            body = """
+            body = MetaOperation.ocl("""
                 if owningRelatedElement <> null then owningRelatedElement.libraryNamespace()
                 else if owningRelationship <> null then owningRelationship.libraryNamespace()
                 else null endif endif
-            """.trimIndent(),
+            """.trimIndent()),
             isQuery = true
         ),
         MetaOperation(
@@ -67,12 +67,12 @@ fun createRelationshipMetaClass() = MetaClass(
             description = "If the owningRelationship of the Relationship is null but its owningRelatedElement is non-null, " +
                     "construct the path using the position of the Relationship in the list of ownedRelationships of its " +
                     "owningRelatedElement. Otherwise, return the path of the Relationship as specified for an Element in general.",
-            body = """
+            body = MetaOperation.ocl("""
                 if owningRelationship = null and owningRelatedElement <> null then
                     owningRelatedElement.path() + '/' + owningRelatedElement.ownedRelationship->indexOf(self).toString()
                 else self.oclAsType(Element).path()
                 endif
-            """.trimIndent(),
+            """.trimIndent()),
             isQuery = true
         )
     ),

@@ -253,12 +253,11 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "membership", type = "Membership")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 if not membership.memberElement.oclIsKindOf(Feature) then Set{}
                 else membership.memberElement.oclAsType(Feature).allRedefinedFeatures()
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 If the memberElement of the given membership is a Feature, then return all
                 Features directly or indirectly redefined by the memberElement.
@@ -268,8 +267,7 @@ fun createTypeMetaClass() = MetaClass(
             name = "allSupertypes",
             returnType = "Type",
             returnUpperBound = -1,
-            body = "OrderedSet{self}->closure(supertypes(false))",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("OrderedSet{self}->closure(supertypes(false))"),
             description = """
                 Return this Type and all Types that are directly or transitively supertypes
                 of this Type (as determined by the supertypes operation with excludeImplied = false).
@@ -281,8 +279,7 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "feature", type = "Feature")
             ),
-            body = "directionOfExcluding(feature, Set{})",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("directionOfExcluding(feature, Set{})"),
             description = """
                 If the given feature is a feature of this Type, then return its direction
                 relative to this Type, taking conjugation into account.
@@ -295,7 +292,7 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "feature", type = "Feature"),
                 MetaParameter(name = "excluded", type = "Type", lowerBound = 0, upperBound = -1)
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let excludedSelf : Set(Type) = excluded->including(self) in
                 if feature.owningType = self then feature.direction
                 else
@@ -313,8 +310,7 @@ fun createTypeMetaClass() = MetaClass(
                         endif endif endif
                     endif
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Return the direction of the given feature relative to this Type, excluding
                 a given set of Types from the search of supertypes of this Type.
@@ -329,12 +325,11 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let excludingSelf : Set(Type) = excludedTypes->including(self) in
                 supertypes(excludeImplied)->reject(t | excludingSelf->includes(t)).
                     nonPrivateMemberships(excludedNamespaces, excludingSelf, excludeImplied)
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Return all the non-private Memberships of all the supertypes of this Type,
                 excluding any supertypes that are this Type or are in the given set of
@@ -351,11 +346,10 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 removeRedefinedFeatures(
                     inheritableMemberships(excludedNamespaces, excludedTypes, excludeImplied))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Return the Memberships inheritable from supertypes of this Type with
                 redefinedFeatures removed. When computing inheritableMemberships, exclude
@@ -371,8 +365,7 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "otherType", type = "Type")
             ),
-            body = "specializes(otherType)",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("specializes(otherType)"),
             description = """
                 By default, this Type is compatible with another Type if it directly
                 or indirectly specializes the otherType.
@@ -382,7 +375,7 @@ fun createTypeMetaClass() = MetaClass(
             name = "multiplicities",
             returnType = "Multiplicity",
             returnUpperBound = -1,
-            body = """
+            body = MetaOperation.ocl("""
                 if multiplicity <> null then OrderedSet{multiplicity}
                 else
                     ownedSpecialization.general->closure(t |
@@ -391,8 +384,7 @@ fun createTypeMetaClass() = MetaClass(
                         endif
                     )->select(multiplicity <> null).multiplicity->asOrderedSet()
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "Return the owned or inherited Multiplicities for this Type."
         ),
         MetaOperation(
@@ -404,7 +396,7 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let publicMemberships : OrderedSet(Membership) =
                     membershipsOfVisibility(VisibilityKind::public, excludedNamespaces) in
                 let protectedMemberships : OrderedSet(Membership) =
@@ -414,8 +406,7 @@ fun createTypeMetaClass() = MetaClass(
                 publicMemberships->
                     union(protectedMemberships)->
                     union(inheritedMemberships)
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Return the public, protected and inherited Memberships of this Type. When computing
                 imported Memberships, exclude the given set of excludedNamespaces. When computing
@@ -430,7 +421,7 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "memberships", type = "Membership", lowerBound = 0, upperBound = -1)
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let reducedMemberships : Sequence(Membership) =
                     memberships->reject(mem1 |
                         memberships->excluding(mem1)->
@@ -440,8 +431,7 @@ fun createTypeMetaClass() = MetaClass(
                     ownedFeature.redefinition.redefinedFeature->asSet() in
                 reducedMemberships->reject(mem | allRedefinedFeaturesOf(mem)->
                     exists(feature | redefinedFeatures->includes(feature)))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Return a subset of memberships, removing those Memberships whose memberElements
                 are Features and for which either: (1) The memberElement of the Membership is
@@ -458,14 +448,13 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "supertype", type = "Type")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 if isConjugated then
                     ownedConjugator.originalType.specializes(supertype)
                 else
                     allSupertypes()->includes(supertype)
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Check whether this Type is a direct or indirect specialization of the given supertype.
             """.trimIndent()
@@ -478,12 +467,11 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "libraryTypeName", type = "String")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let mem : Membership = resolveGlobal(libraryTypeName) in
                 mem <> null and mem.memberElement.oclIsKindOf(Type) and
                 specializes(mem.memberElement.oclAsType(Type))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Check whether this Type is a direct or indirect specialization of the named library Type.
                 libraryTypeName must conform to the syntax of a KerML qualified name and must resolve
@@ -497,13 +485,12 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 if isConjugated then Sequence{conjugator.originalType}
                 else if not excludeImplied then ownedSpecialization.general
                 else ownedSpecialization->reject(isImplied).general
                 endif endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 If this Type is conjugated, then return just the originalType of the Conjugation.
                 Otherwise, return the general Types from all ownedSpecializations of this Type,
@@ -520,7 +507,7 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "includeAll", type = "Boolean")
             ),
             redefines = "Namespace::visibleMemberships",
-            body = """
+            body = MetaOperation.ocl("""
                 let visibleMemberships : OrderedSet(Membership) =
                     self.oclAsType(Namespace).
                     visibleMemberships(excluded, isRecursive, includeAll) in
@@ -528,8 +515,7 @@ fun createTypeMetaClass() = MetaClass(
                     inheritedMemberships(excluded->including(self), Set{}, isRecursive)->
                     select(includeAll or visibility = VisibilityKind::public) in
                 visibleMemberships->union(visibleInheritedMemberships)
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = "The visibleMemberships of a Type include inheritedMemberships."
         )
     ),

@@ -139,7 +139,7 @@ fun createInvocationExpressionMetaClass() = MetaClass(
             ),
             redefines = "evaluate",
             preconditions = listOf("isModelLevelEvaluable"),
-            body = "Sequence{}",  // Actual implementation is complex - apply Function to argument values
+            body = MetaOperation.ocl("Sequence{}"),  // Actual implementation is complex - apply Function to argument values
             description = "Apply the Function that is the type of this InvocationExpression to the argument values resulting from evaluating each of the argument Expressions on the given target."
         ),
         MetaOperation(
@@ -149,10 +149,10 @@ fun createInvocationExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = """
+            body = MetaOperation.ocl("""
                 argument->forAll(modelLevelEvaluable(visited)) and
                 function.isModelLevelEvaluable
-            """.trimIndent(),
+            """.trimIndent()),
             description = "An InvocationExpression is model-level evaluable if all its argument Expressions are model-level evaluable and its function is model-level evaluable."
         )
     ),

@@ -19,7 +19,10 @@ import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import org.openmbee.gearshift.generated.interfaces.*
+import org.openmbee.gearshift.generated.interfaces.Feature
+import org.openmbee.gearshift.generated.interfaces.Redefinition
+import org.openmbee.gearshift.generated.interfaces.Subsetting
+import org.openmbee.gearshift.generated.interfaces.TypeFeaturing
 
 /**
  * Tests for KerML 8.4.3 Table 9 - Core Semantics Implied Relationships Supporting Kernel Semantics.
@@ -40,18 +43,57 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
 
                 // Parse a structure with a feature typed by a DataType
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         datatype Temperature;
                         class Sensor {
                             feature currentTemp : Temperature;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the currentTemp feature
                 val currentTemp = factory.findByName<Feature>("currentTemp")
                 currentTemp.shouldNotBeNull()
+
+                // DEBUG: Check intermediate derivations
+                println("DEBUG: currentTemp.ownedRelationship.size = ${currentTemp.ownedRelationship.size}")
+                currentTemp.ownedRelationship.forEach { rel ->
+                    val mdmObj = rel as org.openmbee.mdm.framework.runtime.MDMObject
+                    println("DEBUG:   ownedRelationship: ${mdmObj.className} id=${mdmObj.id}")
+                }
+
+                println("DEBUG: currentTemp.ownedSpecialization.size = ${currentTemp.ownedSpecialization.size}")
+                currentTemp.ownedSpecialization.forEach { spec ->
+                    val mdmObj = spec as org.openmbee.mdm.framework.runtime.MDMObject
+                    println("DEBUG:   ownedSpecialization: ${mdmObj.className} id=${mdmObj.id}")
+                }
+
+                println("DEBUG: currentTemp.ownedTyping.size = ${currentTemp.ownedTyping.size}")
+                currentTemp.ownedTyping.forEach { typing ->
+                    val typeObj = try {
+                        typing.type
+                    } catch (e: Exception) {
+                        null
+                    }
+                    println("DEBUG:   ownedTyping: type=${typeObj?.declaredName}")
+                }
+
+                // DEBUG: Check what types currentTemp has
+                println("DEBUG: currentTemp.type.size = ${currentTemp.type.size}")
+                currentTemp.type.forEach { t ->
+                    val mdmObj = t as org.openmbee.mdm.framework.runtime.MDMObject
+                    println("DEBUG:   type: ${t.declaredName} (className=${mdmObj.className})")
+                }
+
+                // DEBUG: Check if Temperature is a DataType
+                val temperature = factory.findByName<org.openmbee.gearshift.generated.interfaces.Type>("Temperature")
+                if (temperature != null) {
+                    val mdmObj = temperature as org.openmbee.mdm.framework.runtime.MDMObject
+                    println("DEBUG: Temperature className = ${mdmObj.className}")
+                }
 
                 // Find all Subsetting instances for currentTemp
                 val subsettings = factory.allOfType<Subsetting>()
@@ -60,10 +102,15 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                     subsettingFeature.name == "currentTemp" || subsettingFeature.declaredName == "currentTemp"
                 }
 
+                println("DEBUG: currentTempSubsettings.size = ${currentTempSubsettings.size}")
+                currentTempSubsettings.forEach { sub ->
+                    println("DEBUG:   subsetting: isImplied=${sub.isImplied}, subsettedFeature=${sub.subsettedFeature.declaredName ?: sub.subsettedFeature.name}")
+                }
+
                 // Should have implied subsetting to Base::dataValues
                 val toDataValues = currentTempSubsettings.filter { sub ->
                     sub.isImplied == true &&
-                    (sub.subsettedFeature.name == "dataValues" || sub.subsettedFeature.declaredName == "dataValues")
+                            (sub.subsettedFeature.name == "dataValues" || sub.subsettedFeature.declaredName == "dataValues")
                 }
 
                 toDataValues.shouldNotBeEmpty()
@@ -76,14 +123,16 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
 
                 // Parse a class with a feature typed by a Class (not DataType)
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class Part;
                         class Vehicle {
                             feature engine : Part;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the engine feature
                 val engine = factory.findByName<Feature>("engine")
@@ -99,7 +148,7 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 // Should NOT have implied subsetting to Base::dataValues
                 val toDataValues = engineSubsettings.filter { sub ->
                     sub.isImplied == true &&
-                    (sub.subsettedFeature.name == "dataValues" || sub.subsettedFeature.declaredName == "dataValues")
+                            (sub.subsettedFeature.name == "dataValues" || sub.subsettedFeature.declaredName == "dataValues")
                 }
 
                 toDataValues.size shouldBe 0
@@ -118,14 +167,16 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadLibrary(factory)
 
                 // Parse a class with a feature typed by a class (which is an Occurrence subtype)
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class Event;
                         class Process {
                             feature currentEvent : Event;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the currentEvent feature
                 val currentEvent = factory.findByName<Feature>("currentEvent")
@@ -141,7 +192,7 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 // Should have implied subsetting to Occurrences::occurrences
                 val toOccurrences = currentEventSubsettings.filter { sub ->
                     sub.isImplied == true &&
-                    (sub.subsettedFeature.name == "occurrences" || sub.subsettedFeature.declaredName == "occurrences")
+                            (sub.subsettedFeature.name == "occurrences" || sub.subsettedFeature.declaredName == "occurrences")
                 }
 
                 toOccurrences.shouldNotBeEmpty()
@@ -158,14 +209,16 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadLibrary(factory)
 
                 // Parse a class with a composite feature
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class SubProcess;
                         class Process {
                             composite feature steps : SubProcess[0..*];
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the steps feature
                 val steps = factory.findByName<Feature>("steps")
@@ -181,7 +234,7 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 // Should have implied subsetting to Occurrences::Occurrence::suboccurrences
                 val toSuboccurrences = stepsSubsettings.filter { sub ->
                     sub.isImplied == true &&
-                    (sub.subsettedFeature.name == "suboccurrences" || sub.subsettedFeature.declaredName == "suboccurrences")
+                            (sub.subsettedFeature.name == "suboccurrences" || sub.subsettedFeature.declaredName == "suboccurrences")
                 }
 
                 toSuboccurrences.shouldNotBeEmpty()
@@ -198,13 +251,15 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
 
                 // Parse a class with a feature
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class Vehicle {
                             feature wheels : Integer;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the Vehicle class and wheels feature
                 val vehicle = factory.findByName<org.openmbee.gearshift.generated.interfaces.Class>("Vehicle")
@@ -221,7 +276,7 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                     val feature = tf.featureOfType
                     val type = tf.featuringType
                     (feature.name == "wheels" || feature.declaredName == "wheels") &&
-                    (type.name == "Vehicle" || type.declaredName == "Vehicle")
+                            (type.name == "Vehicle" || type.declaredName == "Vehicle")
                 }
 
                 wheelsTypeFeaturing.shouldNotBeEmpty()
@@ -237,7 +292,8 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadLibrary(factory)
 
                 // Parse a flow connection
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class Producer {
                             out feature output;
@@ -251,7 +307,8 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                             flow from p.output to c.input;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find all Redefinition instances
                 val redefinitions = factory.allOfType<Redefinition>()
@@ -271,13 +328,15 @@ class KernelSemanticsImpliedRelationshipsTest : DescribeSpec({
                 KerMLSemanticLibraryLoader.loadBaseLibrary(factory)
 
                 // Parse a class with a feature that has a default value
-                factory.parseString("""
+                factory.parseString(
+                    """
                     package Test {
                         class Vehicle {
                             feature wheels : Integer default 4;
                         }
                     }
-                """.trimIndent())
+                """.trimIndent()
+                )
 
                 // Find the wheels feature
                 val wheels = factory.findByName<Feature>("wheels")

@@ -112,7 +112,7 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
             returnType = "Feature",
             returnLowerBound = 0,
             returnUpperBound = 1,
-            body = """
+            body = MetaOperation.ocl("""
                 let inputParameters : Feature = ownedFeatures->
                     select(direction = _'in') in
                 if inputParameters->isEmpty() or
@@ -120,7 +120,7 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
                 then null
                 else inputParameters->first().ownedFeature->first()
                 endif
-            """.trimIndent(),
+            """.trimIndent()),
             description = "Return the first ownedFeature of the first owned input parameter of this FeatureChainExpression (if any)."
         )
     ),

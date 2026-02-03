@@ -17,6 +17,7 @@ package org.openmbee.gearshift.kerml.parser.visitors.base
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
@@ -116,12 +117,13 @@ fun KermlParseContext.registerReference(
 ) {
     val collector = this.referenceCollector ?: return
 
-    // Get the source element ID
-    val sourceId = (sourceElement as? Element)?.elementId
+    // Get the source element ID - use MDM's id (UUID) not KerML's elementId
+    // MDM's getInstance() uses the MDM id for lookups
+    val sourceId = (sourceElement as? MDMObject)?.id
         ?: return
 
     // Get the local namespace ID for resolution context
-    val localNamespaceId = (this.parent as? Element)?.elementId
+    val localNamespaceId = (this.parent as? MDMObject)?.id
         ?: ""
 
     collector.addReference(
@@ -149,24 +151,17 @@ class ReferenceResolver(private val engine: MDMEngine) {
         val references = collector.getReferences()
         var resolved = 0
 
-        System.err.println("DEBUG ReferenceResolver: resolving ${references.size} references")
         for (ref in references) {
-            System.err.println("DEBUG ReferenceResolver: processing ${ref.targetProperty} -> '${ref.qualifiedName}'")
             try {
                 if (resolveReference(ref)) {
                     resolved++
-                    System.err.println("DEBUG ReferenceResolver: RESOLVED ${ref.targetProperty} -> '${ref.qualifiedName}'")
-                } else {
-                    System.err.println("DEBUG ReferenceResolver: FAILED ${ref.targetProperty} -> '${ref.qualifiedName}'")
                 }
             } catch (e: Exception) {
-                System.err.println("DEBUG ReferenceResolver: EXCEPTION ${ref.targetProperty} -> '${ref.qualifiedName}': ${e.message}")
                 logger.warn { "Failed to resolve reference ${ref.qualifiedName} for property ${ref.targetProperty}: ${e.message}" }
             }
         }
 
         logger.debug { "Resolved $resolved of ${references.size} references" }
-        System.err.println("DEBUG ReferenceResolver: resolved $resolved of ${references.size} total")
         collector.clear()
         return resolved
     }

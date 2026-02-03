@@ -43,7 +43,7 @@ fun createReturnParameterMembershipMetaClass() = MetaClass(
         MetaOperation(
             name = "parameterDirection",
             returnType = "FeatureDirectionKind",
-            body = "FeatureDirectionKind::out",
+            body = MetaOperation.ocl("FeatureDirectionKind::out"),
             redefines = "parameterDirection",
             description = "The ownedMemberParameter of a ReturnParameterMembership must have direction out. (This is a leaf operation that cannot be further redefined.)"
         )

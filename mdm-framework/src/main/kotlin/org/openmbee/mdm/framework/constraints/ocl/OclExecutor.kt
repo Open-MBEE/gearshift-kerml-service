@@ -166,11 +166,18 @@ class OclExecutor(
                     when (element) {
                         is MDMObject -> {
                             var value = element.getProperty(exp.propertyName)
-                            if (value == null) {
-                                val objectId = findObjectId(element)
-                                value = objectId?.let { engineAccessor.getProperty(it, exp.propertyName) }
+                            val objectId = findObjectId(element)
+                            if (value == null && objectId != null) {
+                                // Try derived property via engine
+                                value = engineAccessor.getProperty(objectId, exp.propertyName)
                             }
-                            System.err.println("DEBUG OCL implicit collect: ${element.className}.${exp.propertyName} -> value=$value")
+                            if (value == null && objectId != null) {
+                                // Try association navigation (including reverse navigation)
+                                val linkedTargets = engineAccessor.getLinkedTargets(exp.propertyName, objectId)
+                                if (linkedTargets.isNotEmpty()) {
+                                    value = linkedTargets
+                                }
+                            }
                             when (value) {
                                 is Collection<*> -> value.filterNotNull()
                                 null -> emptyList()
@@ -331,11 +338,9 @@ class OclExecutor(
                     else -> throw OclEvaluationException("selectByKind requires a type name")
                 }
                 val mdmObjects = collection.filterIsInstance<MDMObject>()
-                val result = mdmObjects.filter { obj ->
+                mdmObjects.filter { obj ->
                     isKindOf(obj, typeName)
                 }
-                System.err.println("DEBUG OCL selectByKind($typeName): input=${mdmObjects.map { it.className }}, output=${result.map { it.className }}")
-                result
             }
 
             "selectAsKind" -> {
@@ -411,9 +416,7 @@ class OclExecutor(
     // ===== Type Operations =====
 
     override fun visitTypeOp(exp: TypeExp): Any? {
-        System.err.println("DEBUG OCL visitTypeOp: ${exp.operationName}(${exp.typeName}), source expression = ${exp.source}")
         val source = exp.source.accept(this)
-        System.err.println("DEBUG OCL visitTypeOp: source evaluated to = ${if (source is Collection<*>) source.filterIsInstance<MDMObject>().map { it.className } else source}")
 
         return when (exp.operationName) {
             "oclIsKindOf" -> {
@@ -439,18 +442,12 @@ class OclExecutor(
             "selectByKind" -> {
                 // Filter collection to only include elements that are instances of typeName (including subtypes)
                 val collection = asCollection(source)
-                val result = collection.filter { element ->
+                collection.filter { element ->
                     when (element) {
                         is MDMObject -> isKindOf(element, exp.typeName)
                         else -> false
                     }
                 }
-                System.err.println(
-                    "DEBUG OCL TypeOp selectByKind(${exp.typeName}): input=${
-                        collection.filterIsInstance<MDMObject>().map { it.className }
-                    }, output=${result.filterIsInstance<MDMObject>().map { it.className }}"
-                )
-                result
             }
 
             "selectByType" -> {

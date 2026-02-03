@@ -68,7 +68,7 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
             ),
             redefines = "evaluate",
             preconditions = listOf("isModelLevelEvaluable"),
-            body = "referencedElement.metadataFeature->collect(m | m.metaclass)->selectByKind(Metaclass)->collect(mc | metaclassFeature(mc))",
+            body = MetaOperation.ocl("referencedElement.metadataFeature->collect(m | m.metaclass)->selectByKind(Metaclass)->collect(mc | metaclassFeature(mc))"),
             description = "The model-level evaluation of a MetadataAccessExpression results in instances of Metaclasses representing metadata."
         ),
         MetaOperation(
@@ -79,7 +79,7 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "metaclass", type = "Metaclass")
             ),
-            body = "metaclass.ownedFeature->select(f | f.name = referencedElement.name)->any(true)",
+            body = MetaOperation.ocl("metaclass.ownedFeature->select(f | f.name = referencedElement.name)->any(true)"),
             description = "Returns the Feature of the given Metaclass with the same name as the referencedElement."
         ),
         MetaOperation(
@@ -89,7 +89,7 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
             redefines = "modelLevelEvaluable",
-            body = "true",
+            body = MetaOperation.ocl("true"),
             description = "A MetadataAccessExpression is always model-level evaluable."
         )
     ),

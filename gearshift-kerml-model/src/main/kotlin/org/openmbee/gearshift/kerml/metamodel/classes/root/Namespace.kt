@@ -15,12 +15,8 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
-import org.openmbee.mdm.framework.meta.BodyLanguage
-import org.openmbee.mdm.framework.meta.ConstraintType
-import org.openmbee.mdm.framework.meta.MetaClass
-import org.openmbee.mdm.framework.meta.MetaConstraint
-import org.openmbee.mdm.framework.meta.MetaOperation
-import org.openmbee.mdm.framework.meta.MetaParameter
+import org.openmbee.mdm.framework.meta.*
+import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Namespace metaclass.
@@ -86,8 +82,7 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
             ),
-            body = "ownedImport.importedMemberships(excluded->including(self))",
-            bodyLanguage = BodyLanguage.OCL,
+            body = MetaOperation.ocl("ownedImport.importedMemberships(excluded->including(self))"),
             description = """
                 Derive the importedMemberships of this Namespace as the importedMembership of all
                 ownedImports, excluding those Imports whose importOwningNamespace is in the excluded
@@ -103,14 +98,15 @@ fun createNamespaceMetaClass() = MetaClass(
                 MetaParameter(name = "visibility", type = "VisibilityKind", lowerBound = 0),
                 MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 ownedMembership->
                     select(mem | visibility = null or mem.visibility = visibility)->
                     union(ownedImport->
                         select(imp | visibility = null or imp.visibility = visibility).
                         importedMemberships(excluded->including(self)))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             description = """
                 If visibility is not null, return the Memberships of this Namespace with the given
                 visibility, including ownedMemberships with the given visibility and Memberships
@@ -126,14 +122,15 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "element", type = "Element")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 let elementMemberships : Sequence(Membership) =
                     memberships->select(memberElement = element) in
                 elementMemberships.memberShortName->
                     union(elementMemberships.memberName)->
                     asSet()
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = "Return the names of the given element as it is known in this Namespace."
         ),
@@ -143,20 +140,15 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody(
-                """
-                val qn = args["qualifiedName"] as? String ?: return@kotlinBody null
-                // Parse the qualified name segments (handling both :: and single names)
+            body = MetaOperation.native { _, args, _ ->
+                val qn = args["qualifiedName"] as? String ?: return@native null
                 val segments = qn.split("::")
                 if (segments.size <= 1) {
-                    null  // Single segment has no qualification
+                    null
                 } else {
-                    // Return all segments except the last, joined by ::
                     segments.dropLast(1).joinToString("::")
                 }
-            """
-            ),
-            bodyLanguage = BodyLanguage.KOTLIN_DSL,
+            },
             isQuery = true,
             description = """
                 Return a string with valid KerML syntax representing the qualification part of a
@@ -171,7 +163,8 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 let qualification : String = qualificationOf(qualifiedName) in
                 let name : String = unqualifiedNameOf(qualifiedName) in
                 if qualification = null then resolveLocal(name)
@@ -186,8 +179,8 @@ fun createNamespaceMetaClass() = MetaClass(
                             resolveVisible(name)
                     endif
                 endif endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = """
                 Resolve the given qualified name to the named Membership (if any), starting with
@@ -203,15 +196,62 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody(
-                """
-                val qn = args["qualifiedName"] as? String ?: return@kotlinBody null
-                // Delegate to engine's resolveGlobal which finds the root namespace
-                // and resolves the qualified name from there
-                engine.resolveGlobal(qn)
-            """
-            ),
-            bodyLanguage = BodyLanguage.KOTLIN_DSL,
+            body = MetaOperation.native { _, args, engine ->
+                val qn = args["qualifiedName"] as? String ?: return@native null
+                val segments = qn.split("::")
+                if (segments.isEmpty()) return@native null
+
+                // Helper to find a member by name in a namespace's ownedMembership
+                fun findMemberInNamespace(namespace: MDMObject, targetName: String): Pair<MDMObject, MDMObject>? {
+                    val ownedMemberships = engine.getProperty(namespace.id!!, "ownedMembership")
+                    val memberships: List<MDMObject> = when (ownedMemberships) {
+                        is List<*> -> ownedMemberships.filterIsInstance<MDMObject>()
+                        is MDMObject -> listOf(ownedMemberships)
+                        else -> emptyList()
+                    }
+
+                    for (membership in memberships) {
+                        val memberElement = engine.getProperty(membership.id!!, "memberElement") as? MDMObject ?: continue
+                        val memberName = engine.getProperty(membership.id!!, "memberName") as? String
+                            ?: engine.getProperty(memberElement.id!!, "declaredName") as? String
+                            ?: engine.getProperty(memberElement.id!!, "name") as? String
+                        if (memberName == targetName) {
+                            return membership to memberElement
+                        }
+                    }
+                    return null
+                }
+
+                // Get all root namespaces from the engine
+                val rootNamespaces = engine.getRootNamespaces()
+                if (rootNamespaces.isEmpty()) return@native null
+
+                // Per KerML 7.2.5.3: Root namespaces are implicit and unnamed.
+                // Search for the first segment among ownedMembers of all root namespaces.
+                var currentMembership: MDMObject? = null
+                var currentElement: MDMObject? = null
+
+                for (root in rootNamespaces) {
+                    val found = findMemberInNamespace(root, segments[0])
+                    if (found != null) {
+                        currentMembership = found.first
+                        currentElement = found.second
+                        break
+                    }
+                }
+
+                if (currentElement == null) return@native null
+                if (segments.size == 1) return@native currentMembership
+
+                // Resolve remaining segments by navigating through ownedMembership
+                for (i in 1 until segments.size) {
+                    val found = findMemberInNamespace(currentElement!!, segments[i]) ?: return@native null
+                    currentMembership = found.first
+                    currentElement = found.second
+                }
+
+                currentMembership
+            },
             isQuery = true,
             description = """
                 Resolve the given qualified name to the named Membership (if any) in the effective
@@ -225,7 +265,8 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "name", type = "String")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 if owningNamespace = null then self.resolveGlobal(name)
                 else
                     let memberships : Membership = membership->
@@ -234,8 +275,8 @@ fun createNamespaceMetaClass() = MetaClass(
                     else owningNamespace.resolveLocal(name)
                     endif
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = """
                 Resolve a simple name starting with this Namespace as the local scope, and continuing
@@ -249,15 +290,16 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "name", type = "String")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 let memberships : Sequence(Membership) =
                     visibleMemberships(Set{}, false, false)->
                     select(memberShortName = name or memberName = name) in
                 if memberships->isEmpty() then null
                 else memberships->first()
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = "Resolve a simple name from the visibleMemberships of this Namespace."
         ),
@@ -269,25 +311,20 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "qualifiedName", type = "String")
             ),
-            body = MetaOperation.kotlinBody(
-                """
-                val qn = args["qualifiedName"] as? String ?: return@kotlinBody ""
-                // Get the last segment of the qualified name
+            body = MetaOperation.native { _, args, _ ->
+                val qn = args["qualifiedName"] as? String ?: return@native ""
                 val segments = qn.split("::")
                 val lastSegment = segments.last()
 
                 // If it's an unrestricted name (surrounded by single quotes), unescape it
                 if (lastSegment.startsWith("'") && lastSegment.endsWith("'") && lastSegment.length >= 2) {
-                    // Remove surrounding quotes and unescape
                     lastSegment.substring(1, lastSegment.length - 1)
                         .replace("\\'", "'")
                         .replace("\\\\", "\\")
                 } else {
                     lastSegment
                 }
-            """
-            ),
-            bodyLanguage = BodyLanguage.KOTLIN_DSL,
+            },
             isQuery = true,
             description = """
                 Return the simple name that is the last segment name of the given qualifiedName.
@@ -304,7 +341,8 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "mem", type = "Membership")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 if importedMembership->includes(mem) then
                     ownedImport->
                         select(importedMemberships(Set{})->includes(mem)).
@@ -314,8 +352,8 @@ fun createNamespaceMetaClass() = MetaClass(
                 else
                     VisibilityKind::private
                 endif endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = """
                 Returns the visibility of mem relative to this Namespace. If mem is an
@@ -332,7 +370,8 @@ fun createNamespaceMetaClass() = MetaClass(
                 MetaParameter(name = "isRecursive", type = "Boolean"),
                 MetaParameter(name = "includeAll", type = "Boolean")
             ),
-            body = """
+            body = MetaOperation.ocl(
+                """
                 let visibleMemberships : OrderedSet(Membership) =
                     if includeAll then membershipsOfVisibility(null, excluded)
                     else membershipsOfVisibility(VisibilityKind::public, excluded)
@@ -343,8 +382,8 @@ fun createNamespaceMetaClass() = MetaClass(
                     select(includeAll or owningMembership.visibility = VisibilityKind::public)->
                     visibleMemberships(excluded->including(self), true, includeAll))
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+                """.trimIndent()
+            ),
             isQuery = true,
             description = """
                 If includeAll = true, then return all the Memberships of this Namespace. Otherwise,

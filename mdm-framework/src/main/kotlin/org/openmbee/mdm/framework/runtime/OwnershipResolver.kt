@@ -144,7 +144,7 @@ class OwnershipResolver(private val registry: MetamodelRegistry) {
         val mostSpecific = compatibleIntermediates
             .maxByOrNull { specificity(it, parentType, childType) }!!
 
-        logger.debug {
+        logger.trace {
             "Resolved ownership: $parentType → ${mostSpecific.metaClass.name} → $childType " +
                     "(owner end type: ${mostSpecific.ownerType}, owned end type: ${mostSpecific.ownedElementType})"
         }

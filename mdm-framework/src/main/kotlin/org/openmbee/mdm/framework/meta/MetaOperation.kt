@@ -15,8 +15,19 @@
  */
 package org.openmbee.mdm.framework.meta
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.intellij.lang.annotations.Language
+import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.mdm.framework.runtime.MDMObject
+
+/**
+ * Type alias for native operation implementation lambdas.
+ * Parameters:
+ * - element: The MDMObject on which the operation is invoked
+ * - args: Map of operation arguments
+ * - engine: The MDMEngine for model access
+ */
+typealias OperationImplementation = (element: MDMObject, args: Map<String, Any?>, engine: MDMEngine) -> Any?
 
 /**
  * Language used to express operation bodies and constraint expressions.
@@ -29,10 +40,27 @@ enum class BodyLanguage {
     OCL,
 
     /** Graph Query Language - for graph-based queries */
-    GQL,
+    GQL
+}
 
-    /** Kotlin DSL - type-safe Kotlin expressions (future) */
-    KOTLIN_DSL
+/**
+ * Represents an operation body - either a string expression or native Kotlin implementation.
+ */
+sealed class OperationBody {
+    /**
+     * String-based expression (OCL, GQL, property ref, etc.) - serializable.
+     */
+    data class Expression(
+        val code: String,
+        val language: BodyLanguage = BodyLanguage.OCL
+    ) : OperationBody()
+
+    /**
+     * Native Kotlin implementation - not serializable, but type-safe and fast.
+     */
+    data class Native(
+        val impl: OperationImplementation
+    ) : OperationBody()
 }
 
 /**
@@ -54,11 +82,12 @@ data class MetaOperation(
     @JsonProperty
     val parameters: List<MetaParameter> = emptyList(),
 
-    @JsonProperty
-    val body: String? = null,
-
-    @JsonProperty
-    val bodyLanguage: BodyLanguage = BodyLanguage.OCL,
+    /**
+     * The operation body - either an expression string or native implementation.
+     * Use companion helpers: ocl(), native(), propertyRef()
+     */
+    @JsonIgnore
+    val body: OperationBody? = null,
 
     @JsonProperty
     val description: String? = null,
@@ -76,10 +105,16 @@ data class MetaOperation(
     val redefines: String? = null
 ) {
     companion object {
-        /** Helper for Kotlin DSL bodies with IDE language support */
-        fun kotlinBody(@Language("kotlin") code: String): String = code
+        /** Create an OCL expression body */
+        fun ocl(code: String) = OperationBody.Expression(code, BodyLanguage.OCL)
 
-        /** Helper for OCL bodies (for consistency) */
-        fun oclBody(code: String): String = code
+        /** Create a GQL expression body */
+        fun gql(code: String) = OperationBody.Expression(code, BodyLanguage.GQL)
+
+        /** Create a simple property reference body */
+        fun propertyRef(propertyName: String) = OperationBody.Expression(propertyName, BodyLanguage.PROPERTY_REF)
+
+        /** Create a native Kotlin implementation body */
+        fun native(impl: OperationImplementation) = OperationBody.Native(impl)
     }
 }

@@ -91,19 +91,19 @@ fun createMetadataFeatureMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "baseFeature", type = "Feature")
             ),
-            body = "let selectedFeatures : Sequence(Feature) = feature->select(closure(ownedRedefinition.redefinedFeature)->includes(baseFeature)) in if selectedFeatures->isEmpty() then null else let selectedFeature : Feature = selectedFeatures->first() in let featureValues : FeatureValue = selectedFeature->closure(ownedRedefinition.redefinedFeature).ownedMember->selectAsKind(FeatureValue) in if featureValues->isEmpty() then null else featureValues->first().value.evaluate(self) endif",
+            body = MetaOperation.ocl("let selectedFeatures : Sequence(Feature) = feature->select(closure(ownedRedefinition.redefinedFeature)->includes(baseFeature)) in if selectedFeatures->isEmpty() then null else let selectedFeature : Feature = selectedFeatures->first() in let featureValues : FeatureValue = selectedFeature->closure(ownedRedefinition.redefinedFeature).ownedMember->selectAsKind(FeatureValue) in if featureValues->isEmpty() then null else featureValues->first().value.evaluate(self) endif"),
             description = "If the given baseFeature is a feature of this MetadataFeature, or is directly or indirectly redefined by a feature, then return the result of evaluating the appropriate (model-level evaluable) valueExpression for it (if any), with the MetadataFeature as the target."
         ),
         MetaOperation(
             name = "isSemantic",
             returnType = "Boolean",
-            body = "specializesFromLibrary('Metaobjects::SemanticMetadata')",
+            body = MetaOperation.ocl("specializesFromLibrary('Metaobjects::SemanticMetadata')"),
             description = "Check if this MetadataFeature has a metaclass which is a kind of SemanticMetadata."
         ),
         MetaOperation(
             name = "isSyntactic",
             returnType = "Boolean",
-            body = "specializesFromLibrary('KerML::Element')",
+            body = MetaOperation.ocl("specializesFromLibrary('KerML::Element')"),
             description = "Check if this MetadataFeature has a metaclass that is a kind of KerML::Element (that is, it is from the reflective abstract syntax model)."
         ),
         MetaOperation(
@@ -112,7 +112,7 @@ fun createMetadataFeatureMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             preconditions = listOf("isSyntactic()"),
-            body = "",
+            // TODO: Implement syntaxElement body - requires MOF reflection
             description = "If this MetadataFeature reflectively represents a model element, then return the corresponding Element instance from the MOF abstract syntax representation of the model."
         )
     ),

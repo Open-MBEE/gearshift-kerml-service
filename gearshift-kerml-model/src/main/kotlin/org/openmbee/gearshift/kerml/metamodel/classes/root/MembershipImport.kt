@@ -53,7 +53,7 @@ fun createMembershipImportMetaClass() = MetaClass(
                 MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
             ),
             redefines = "Import::importedMemberships",
-            body = """
+            body = MetaOperation.ocl("""
                 if not isRecursive or
                    not importedElement.oclIsKindOf(Namespace) or
                    excluded->includes(importedElement)
@@ -62,8 +62,7 @@ fun createMembershipImportMetaClass() = MetaClass(
                      visibleMemberships(excluded, true, isImportAll)->
                      prepend(importedMembership)
                 endif
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Returns at least the importedMembership. If isRecursive = true and the memberElement
                 of the importedMembership is a Namespace, then Memberships are also recursively

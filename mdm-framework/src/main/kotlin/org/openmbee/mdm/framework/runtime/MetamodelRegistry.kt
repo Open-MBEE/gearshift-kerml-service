@@ -267,4 +267,31 @@ class MetamodelRegistry {
         }
         return result
     }
+
+    /**
+     * Find an association by its source end name.
+     * Used for reverse navigation in OCL - when navigating from target to source,
+     * the property name used is the source end name.
+     *
+     * @param sourceEndName The name of the source end to find
+     * @param targetClassName The class of the element being navigated FROM (the target end type)
+     * @return The association and its source end, or null if not found
+     */
+    fun findAssociationBySourceEndName(
+        sourceEndName: String,
+        targetClassName: String
+    ): Pair<MetaAssociation, MetaAssociationEnd>? {
+        // Get all class names including superclasses for inheritance matching
+        val targetClassHierarchy = setOf(targetClassName) + getAllSuperclasses(targetClassName)
+
+        for (association in associations.values) {
+            // Check if source end name matches and target end type is compatible
+            if (association.sourceEnd.name == sourceEndName &&
+                targetClassHierarchy.contains(association.targetEnd.type)
+            ) {
+                return association to association.sourceEnd
+            }
+        }
+        return null
+    }
 }

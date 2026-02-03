@@ -122,12 +122,12 @@ fun createExpressionMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "target", type = "Element")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 let results: Sequence(Element) = evaluate(target) in
                 results->size() = 1 and
                 results->first().oclIsKindOf(LiteralBoolean) and
                 results->first().oclAsType(LiteralBoolean).value
-            """.trimIndent(),
+            """.trimIndent()),
             description = "Model-level evaluate this Expression with the given target. If the result is a LiteralBoolean, return its value. Otherwise return false."
         ),
         MetaOperation(
@@ -139,7 +139,7 @@ fun createExpressionMetaClass() = MetaClass(
                 MetaParameter(name = "target", type = "Element")
             ),
             preconditions = listOf("isModelLevelEvaluable"),
-            body = """
+            body = MetaOperation.ocl("""
                 let resultExprs : Sequence(Expression) =
                     ownedFeatureMembership->
                     selectByKind(ResultExpressionMembership).
@@ -147,7 +147,7 @@ fun createExpressionMetaClass() = MetaClass(
                 if resultExprs->isEmpty() then Sequence{}
                 else resultExprs->first().evaluate(target)
                 endif
-            """.trimIndent(),
+            """.trimIndent()),
             description = "If this Expression isModelLevelEvaluable, then evaluate it using the target as the contextElement for resolving Feature names and testing classification. The result is a collection of Elements, which, for a fully evaluable Expression, will be a LiteralExpression or a Feature that is not an Expression."
         ),
         MetaOperation(
@@ -156,7 +156,7 @@ fun createExpressionMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "visited", type = "Feature", lowerBound = 0, upperBound = -1)
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 ownedSpecialization->forAll(isImplied) and
                 ownedFeature->forAll(f |
                     (directionOf(f) = FeatureDirectionKind::_'in' or f = result) and
@@ -164,7 +164,7 @@ fun createExpressionMetaClass() = MetaClass(
                     f.owningFeatureMembership.oclIsKindOf(ResultExpressionMembership) and
                     f.oclAsType(Expression).modelLevelEvaluable(visited)
                 )
-            """.trimIndent(),
+            """.trimIndent()),
             description = "Return whether this Expression is model-level evaluable. The visited parameter is used to track possible circular Feature references made from FeatureReferenceExpressions. Such circular references are not allowed in model-level evaluable expressions."
         )
     ),

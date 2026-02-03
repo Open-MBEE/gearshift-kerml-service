@@ -76,7 +76,7 @@ fun createMembershipMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "other", type = "Membership")
             ),
-            body = """
+            body = MetaOperation.ocl("""
                 not (memberElement.oclIsKindOf(other.memberElement.oclType()) or
                      other.memberElement.oclIsKindOf(memberElement.oclType())) or
                 (memberShortName = null or
@@ -85,8 +85,7 @@ fun createMembershipMetaClass() = MetaClass(
                 (memberName = null or
                  (memberName <> other.memberShortName and
                   memberName <> other.memberName))
-            """.trimIndent(),
-            bodyLanguage = BodyLanguage.OCL,
+            """.trimIndent()),
             description = """
                 Whether this Membership is distinguishable from a given other Membership.
                 By default, this is true if this Membership has no memberShortName or memberName;

@@ -47,7 +47,7 @@ fun createPackageMetaClass() = MetaClass(
                 )
             ),
             description = "Exclude Elements that do not meet all the filterConditions.",
-            body = "self.oclAsType(Namespace).importedMemberships(excluded)->select(m | self.includeAsMember(m.memberElement))",
+            body = MetaOperation.ocl("self.oclAsType(Namespace).importedMemberships(excluded)->select(m | self.includeAsMember(m.memberElement))"),
             isQuery = true,
             redefines = "importedMemberships"
         ),
@@ -63,12 +63,12 @@ fun createPackageMetaClass() = MetaClass(
                 )
             ),
             description = "Determine whether the given element meets all the filterConditions.",
-            body = """
+            body = MetaOperation.ocl("""
                 let metadataFeatures: Sequence(AnnotatingElement) =
                     element.ownedAnnotation.annotatingElement->selectByKind(MetadataFeature) in
                 self.filterCondition->forAll(cond |
                     metadataFeatures->exists(elem | cond.checkCondition(elem)))
-            """.trimIndent(),
+            """.trimIndent()),
             isQuery = true
         )
     ),

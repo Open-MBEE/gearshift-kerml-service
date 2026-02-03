@@ -26,7 +26,7 @@ fun createParameterMembershipMetaClass() = MetaClass(
         MetaOperation(
             name = "parameterDirection",
             returnType = "FeatureDirectionKind",
-            body = "ownedMemberParameter.direction",
+            body = MetaOperation.ocl("ownedMemberParameter.direction"),
             description = "The direction of the ownedMemberParameter."
         )
     ),

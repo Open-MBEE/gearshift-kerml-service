@@ -41,7 +41,7 @@ fun createLibraryPackageMetaClass() = MetaClass(
             name = "libraryNamespace",
             returnType = "Namespace",
             description = "The libraryNamespace for a LibraryPackage is itself.",
-            body = "self",
+            body = MetaOperation.ocl("self"),
             isQuery = true,
             redefines = "libraryNamespace"
         )
