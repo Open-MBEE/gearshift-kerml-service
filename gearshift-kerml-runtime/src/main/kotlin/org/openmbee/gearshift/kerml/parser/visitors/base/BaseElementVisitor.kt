@@ -31,6 +31,9 @@ abstract class BaseTypedVisitor<Ctx, Result : ModelElement> : TypedKerMLVisitor<
     /**
      * Parse the standard identification pattern (declaredShortName, declaredName).
      * Many KerML elements share this pattern.
+     *
+     * Handles both basic names and unrestricted names (names in single quotes).
+     * For unrestricted names, strips the surrounding quotes and processes escape sequences.
      */
     protected fun parseIdentification(
         identification: KerMLParser.IdentificationContext?,
@@ -38,12 +41,44 @@ abstract class BaseTypedVisitor<Ctx, Result : ModelElement> : TypedKerMLVisitor<
     ) {
         identification?.let { id ->
             id.declaredShortName?.let { shortName ->
-                element.declaredShortName = shortName.text
+                element.declaredShortName = unescapeName(shortName.text)
             }
             id.declaredName?.let { name ->
-                element.declaredName = name.text
+                element.declaredName = unescapeName(name.text)
             }
         }
+    }
+
+    /**
+     * Process a KerML name, handling unrestricted names (in single quotes).
+     *
+     * Per KerML 8.2.2.3:
+     * - Unrestricted names are enclosed in single quotes
+     * - The quotes are NOT part of the name
+     * - Escape sequences within the name are processed
+     *
+     * @param rawName The raw name text from the parser (may include quotes)
+     * @return The unescaped name without surrounding quotes
+     */
+    protected fun unescapeName(rawName: String): String {
+        // Check if this is an unrestricted name (starts and ends with single quote)
+        if (rawName.startsWith("'") && rawName.endsWith("'") && rawName.length >= 2) {
+            // Strip the surrounding quotes
+            val inner = rawName.substring(1, rawName.length - 1)
+            // Process escape sequences per KerML Table 4
+            // Process \\ FIRST to avoid false matches like \\b being seen as \b
+            return inner
+                .replace("\\\\", "\u0000")  // temporarily replace \\ with null char
+                .replace("\\'", "'")    // escaped single quote
+                .replace("\\\"", "\"")  // escaped double quote
+                .replace("\\b", "\b")   // backspace
+                .replace("\\f", "\u000C") // form feed
+                .replace("\\t", "\t")   // tab
+                .replace("\\n", "\n")   // newline
+                .replace("\\r", "\r")   // carriage return
+                .replace("\u0000", "\\")    // restore \\ as single backslash
+        }
+        return rawName
     }
 
     /**
@@ -61,9 +96,10 @@ abstract class BaseTypedVisitor<Ctx, Result : ModelElement> : TypedKerMLVisitor<
 
     /**
      * Extract a qualified name from a QualifiedNameContext.
+     * Handles unrestricted names (in single quotes) in each segment.
      */
     protected fun extractQualifiedName(ctx: KerMLParser.QualifiedNameContext): String {
-        val names = ctx.NAME().map { it.text }
+        val names = ctx.NAME().map { unescapeName(it.text) }
         return if (ctx.DOLLAR() != null) {
             "\$::" + names.joinToString("::")
         } else {

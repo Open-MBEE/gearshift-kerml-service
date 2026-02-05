@@ -528,6 +528,46 @@ class OclExecutor(
         }
     }
 
+    override fun visitDynamicTypeOp(exp: DynamicTypeExp): Any? {
+        val source = exp.source.accept(this)
+        val typeValue = exp.typeExpression.accept(this)
+
+        // The type expression should evaluate to a type name (String) or an MDMObject whose className is the type
+        val typeName = when (typeValue) {
+            is String -> typeValue
+            is MDMObject -> typeValue.className
+            else -> throw OclEvaluationException(
+                "Dynamic type expression must evaluate to a type name, got: ${typeValue?.let { it::class.simpleName }}"
+            )
+        }
+
+        return when (exp.operationName) {
+            "oclIsKindOf" -> {
+                when (source) {
+                    is MDMObject -> isKindOf(source, typeName)
+                    else -> false
+                }
+            }
+
+            "oclIsTypeOf" -> {
+                when (source) {
+                    is MDMObject -> source.className == typeName
+                    else -> false
+                }
+            }
+
+            "oclAsType" -> {
+                when (source) {
+                    is MDMObject -> OclAsTypeView(source, typeName)
+                    is OclAsTypeView -> OclAsTypeView(source.obj, typeName)
+                    else -> source
+                }
+            }
+
+            else -> throw OclEvaluationException("Unknown dynamic type operation: ${exp.operationName}")
+        }
+    }
+
     // ===== Binary/Unary Operations =====
 
     override fun visitInfix(exp: InfixExp): Any? {

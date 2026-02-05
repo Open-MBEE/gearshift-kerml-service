@@ -212,14 +212,22 @@ object OclParser {
         }
 
         private fun applyTypeDotSuffix(source: OclExpression, ctx: OCLParser.TypeDotSuffixContext): OclExpression {
-            val typeName = ctx.typeName().text
             val opName = when {
                 ctx.text.contains("oclIsKindOf") -> "oclIsKindOf"
                 ctx.text.contains("oclIsTypeOf") -> "oclIsTypeOf"
                 ctx.text.contains("oclAsType") -> "oclAsType"
                 else -> throw OclParseException("Unknown type dot suffix: ${ctx.text}")
             }
-            return TypeExp(source, opName, typeName)
+            // The argument can be:
+            // - A variable expression (type name like "TestClass") -> use as type name
+            // - A string literal ('TestClass') -> extract string value as type name
+            // - An expression (other.oclType()) -> create DynamicTypeExp
+            val argExpr = visit(ctx.expression())
+            return when (argExpr) {
+                is VariableExp -> TypeExp(source, opName, argExpr.name)
+                is StringLiteralExp -> TypeExp(source, opName, argExpr.value)
+                else -> DynamicTypeExp(source, opName, argExpr)
+            }
         }
 
         private fun applyArrowSuffix(source: OclExpression, ctx: OCLParser.ArrowSuffixContext): OclExpression {

@@ -57,6 +57,7 @@ interface OclVisitor<T> {
     // ===== Type Operations =====
 
     fun visitTypeOp(exp: TypeExp): T
+    fun visitDynamicTypeOp(exp: DynamicTypeExp): T
 
     // ===== Binary/Unary =====
 

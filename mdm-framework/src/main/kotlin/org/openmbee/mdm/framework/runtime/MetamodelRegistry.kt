@@ -100,9 +100,16 @@ class MetamodelRegistry {
     fun getAssociation(name: String): MetaAssociation? = associations[name]
 
     /**
-     * Get all registered MetaClasses.
+     * Get all registered MetaClasses (excluding framework base classes).
+     * This returns only user-defined classes, not internal framework classes like MDMBaseClass.
      */
-    fun getAllClasses(): Collection<MetaClass> = classes.values
+    fun getAllClasses(): Collection<MetaClass> = classes.values.filter { it.name != DEFAULT_BASE_CLASS }
+
+    /**
+     * Get all registered MetaClasses including framework base classes.
+     * Use this for internal operations that need the complete class hierarchy.
+     */
+    fun getAllClassesIncludingFramework(): Collection<MetaClass> = classes.values
 
     /**
      * Get all registered MetaAssociations.

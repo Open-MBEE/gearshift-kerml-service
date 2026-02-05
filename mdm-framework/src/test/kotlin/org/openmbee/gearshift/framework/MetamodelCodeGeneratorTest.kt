@@ -296,18 +296,20 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
             code shouldContain "open class PackageImpl"
         }
 
-        it("should extend base class for root elements") {
+        it("should extend MDMObject for root elements") {
             val element = registry.getClass("Element")!!
             val code = generator.generateImplementation(element, registry)
 
-            code shouldContain ": BaseModelElementImpl(wrapped, engine)"
+            // Root classes extend MDMObject directly and implement their interface
+            code shouldContain ": MDMObject(className, metaClass), Element"
         }
 
         it("should extend superclass implementation") {
             val relationship = registry.getClass("Relationship")!!
             val code = generator.generateImplementation(relationship, registry)
 
-            code shouldContain ": ElementImpl(wrapped, engine)"
+            // Non-root classes extend their parent impl and pass engine up the chain
+            code shouldContain ": ElementImpl(className, metaClass, engine), Relationship"
         }
 
         it("should generate derived property getter using engine.getProperty") {
@@ -315,24 +317,26 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
             val code = generator.generateImplementation(element, registry)
 
             // Derived properties must use engine.getProperty for constraint evaluation
+            // Impl classes ARE MDMObjects, so we use id!! directly
             code shouldContain "override val name: String?"
-            code shouldContain "engine.getProperty(wrapped.id!!, \"name\")"
+            code shouldContain "engine.getProperty(id!!, \"name\")"
         }
 
-        it("should generate regular property getter using wrapped.getProperty") {
+        it("should generate regular property getter using getProperty directly") {
             val element = registry.getClass("Element")!!
             val code = generator.generateImplementation(element, registry)
 
-            // Regular properties access wrapped directly
+            // Regular properties access getProperty directly (impl classes ARE MDMObjects)
             code shouldContain "override var declaredName: String?"
-            code shouldContain "wrapped.getProperty(\"declaredName\")"
+            code shouldContain "getProperty(\"declaredName\")"
         }
 
         it("should generate property setter using engine.setProperty") {
             val element = registry.getClass("Element")!!
             val code = generator.generateImplementation(element, registry)
 
-            code shouldContain "engine.setProperty(wrapped.id!!, \"declaredName\", value)"
+            // Impl classes ARE MDMObjects, so we use id!! directly
+            code shouldContain "engine.setProperty(id!!, \"declaredName\", value)"
         }
 
         it("should not generate setter for derived properties") {
@@ -344,19 +348,22 @@ class MetamodelCodeGeneratorTest : DescribeSpec({
             nameSetterCount shouldBe 0
         }
 
-        it("should generate reference property with wrapping") {
+        it("should generate reference property with direct cast") {
             val relationship = registry.getClass("Relationship")!!
             val code = generator.generateImplementation(relationship, registry)
 
-            code shouldContain "Wrappers.wrap(it, engine)"
+            // In current architecture, impl classes ARE the model objects
+            // so we use direct cast instead of wrapping
+            code shouldContain "rawValue as? Element"
         }
 
         it("should generate operation delegating to engine.invokeOperation") {
             val element = registry.getClass("Element")!!
             val code = generator.generateImplementation(element, registry)
 
+            // Impl classes ARE MDMObjects, so we use id!! directly
             code shouldContain "override fun effectiveName(): String"
-            code shouldContain "engine.invokeOperation(wrapped.id!!, \"effectiveName\")"
+            code shouldContain "engine.invokeOperation(id!!, \"effectiveName\")"
         }
 
         it("should generate operation with parameters") {

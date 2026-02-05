@@ -144,10 +144,14 @@ dotSuffix
     ;
 
 // Dot-style type operations (standard OCL: element.oclIsKindOf(Type))
+// Accept expression instead of just typeName to support:
+// - Static types: element.oclIsKindOf(SomeType) -> ID as expression
+// - String literals: element.oclIsKindOf('SomeType') -> STRING as expression
+// - Dynamic types: element.oclIsKindOf(other.oclType()) -> expression
 typeDotSuffix
-    : '.oclIsKindOf' '(' typeName ')'
-    | '.oclIsTypeOf' '(' typeName ')'
-    | '.oclAsType' '(' typeName ')'
+    : '.oclIsKindOf' '(' expression ')'
+    | '.oclIsTypeOf' '(' expression ')'
+    | '.oclAsType' '(' expression ')'
     ;
 
 // Arrow suffixes - each category gets its own rule for clean visitor methods

@@ -107,6 +107,10 @@ class KerMLModel(
         get() = modelRoot as Namespace
 
     init {
+        // Set the root namespace name to "model" by default
+        // This provides a namespace for resolveGlobal operations
+        modelRoot.setProperty("declaredName", "model")
+
         // Register the KerML semantic handler for lifecycle events
         engine.registerLifecycleHandler(semanticHandler)
 

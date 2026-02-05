@@ -201,6 +201,25 @@ fun createNamespaceMetaClass() = MetaClass(
                 val segments = qn.split("::")
                 if (segments.isEmpty()) return@native null
 
+                // Helper to unescape a KerML name (handle unrestricted names in single quotes)
+                fun unescapeName(rawName: String): String {
+                    if (rawName.startsWith("'") && rawName.endsWith("'") && rawName.length >= 2) {
+                        val inner = rawName.substring(1, rawName.length - 1)
+                        // Process \\ FIRST to avoid false matches like \\b being seen as \b
+                        return inner
+                            .replace("\\\\", "\u0000")  // temporarily replace \\ with null char
+                            .replace("\\'", "'")
+                            .replace("\\\"", "\"")
+                            .replace("\\b", "\b")
+                            .replace("\\f", "\u000C")
+                            .replace("\\t", "\t")
+                            .replace("\\n", "\n")
+                            .replace("\\r", "\r")
+                            .replace("\u0000", "\\")    // restore \\ as single backslash
+                    }
+                    return rawName
+                }
+
                 // Helper to find a member by name in a namespace's ownedMembership
                 fun findMemberInNamespace(namespace: MDMObject, targetName: String): Pair<MDMObject, MDMObject>? {
                     val ownedMemberships = engine.getProperty(namespace.id!!, "ownedMembership")
@@ -232,7 +251,7 @@ fun createNamespaceMetaClass() = MetaClass(
                 var currentElement: MDMObject? = null
 
                 for (root in rootNamespaces) {
-                    val found = findMemberInNamespace(root, segments[0])
+                    val found = findMemberInNamespace(root, unescapeName(segments[0]))
                     if (found != null) {
                         currentMembership = found.first
                         currentElement = found.second
@@ -245,7 +264,7 @@ fun createNamespaceMetaClass() = MetaClass(
 
                 // Resolve remaining segments by navigating through ownedMembership
                 for (i in 1 until segments.size) {
-                    val found = findMemberInNamespace(currentElement!!, segments[i]) ?: return@native null
+                    val found = findMemberInNamespace(currentElement!!, unescapeName(segments[i])) ?: return@native null
                     currentMembership = found.first
                     currentElement = found.second
                 }

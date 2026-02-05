@@ -1,0 +1,182 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.openmbee.gearshift.kerml.generator
+
+import org.junit.jupiter.api.Test
+import org.openmbee.gearshift.kerml.KerMLModel
+import kotlin.test.assertContains
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+/**
+ * Tests for KerMLWriter - the KerML text generator.
+ */
+class KerMLWriterTest {
+
+    @Test
+    fun `generate simple class`() {
+        val kerml = """
+            package Vehicles {
+                class Vehicle;
+            }
+        """.trimIndent()
+
+        val model = KerMLModel().parseString(kerml)
+        assertNotNull(model, "Model should parse successfully")
+
+        val writer = KerMLWriter()
+        val generated = writer.write(model)
+
+        println("Generated KerML:")
+        println(generated)
+
+        assertContains(generated, "package Vehicles")
+        assertContains(generated, "class Vehicle")
+    }
+
+    @Test
+    fun `generate class with features`() {
+        // Define our own types to avoid library dependencies
+        val kerml = """
+            package Vehicles {
+                datatype Real;
+                class Vehicle {
+                    feature mass : Real;
+                    feature speed : Real;
+                }
+            }
+        """.trimIndent()
+
+        val model = KerMLModel().parseString(kerml)
+        assertNotNull(model, "Model should parse successfully")
+
+        val writer = KerMLWriter()
+        val generated = writer.write(model)
+
+        println("Generated KerML:")
+        println(generated)
+
+        assertContains(generated, "package Vehicles")
+        assertContains(generated, "class Vehicle")
+        assertContains(generated, "mass")
+        assertContains(generated, "speed")
+    }
+
+    @Test
+    fun `generate abstract class with specialization`() {
+        val kerml = """
+            package Vehicles {
+                abstract class Vehicle;
+                class Car :> Vehicle;
+            }
+        """.trimIndent()
+
+        val model = KerMLModel().parseString(kerml)
+        assertNotNull(model, "Model should parse successfully")
+
+        val writer = KerMLWriter()
+        val generated = writer.write(model)
+
+        println("Generated KerML:")
+        println(generated)
+
+        assertContains(generated, "abstract class Vehicle")
+        assertContains(generated, "class Car")
+        // Should contain specialization syntax
+        assertTrue(generated.contains(":>") || generated.contains("specializes"))
+    }
+
+    @Test
+    fun `round-trip parse and generate`() {
+        // Define our own types to avoid library dependencies
+        val originalKerml = """
+            package Example {
+                datatype String;
+                abstract class Base {
+                    feature id : String;
+                }
+                class Derived :> Base {
+                    feature name : String;
+                }
+            }
+        """.trimIndent()
+
+        // Parse original
+        val model1 = KerMLModel().parseString(originalKerml)
+        assertNotNull(model1, "First parse should succeed")
+
+        // Generate
+        val writer = KerMLWriter()
+        val generatedKerml = writer.write(model1)
+
+        println("Original KerML:")
+        println(originalKerml)
+        println("\nGenerated KerML:")
+        println(generatedKerml)
+
+        // Parse generated
+        val model2 = KerMLModel().parseString(generatedKerml)
+        assertNotNull(model2, "Second parse should succeed - generated KerML should be valid")
+    }
+
+    @Test
+    fun `generate with verbose options`() {
+        // Define B first so A can specialize it
+        val kerml = """
+            package Test {
+                class B;
+                class A :> B;
+            }
+        """.trimIndent()
+
+        val model = KerMLModel().parseString(kerml)
+        assertNotNull(model, "Model should parse successfully")
+
+        // Use verbose writer (keyword syntax)
+        val writer = KerMLWriter.verbose()
+        val generated = writer.write(model)
+
+        println("Generated KerML (verbose):")
+        println(generated)
+
+        // In verbose mode, should use 'specializes' instead of ':>'
+        assertContains(generated, "specializes")
+    }
+
+    @Test
+    fun `generate compact output`() {
+        val kerml = """
+            package Test {
+                class A;
+                class B;
+            }
+        """.trimIndent()
+
+        val model = KerMLModel().parseString(kerml)
+        assertNotNull(model, "Model should parse successfully")
+
+        // Use compact writer (no blank lines)
+        val writer = KerMLWriter.compact()
+        val generated = writer.write(model)
+
+        println("Generated KerML (compact):")
+        println(generated)
+
+        // Should not have consecutive blank lines
+        val consecutiveBlankLines = generated.contains("\n\n\n")
+        assertTrue(!consecutiveBlankLines, "Compact mode should not have excessive blank lines")
+    }
+}

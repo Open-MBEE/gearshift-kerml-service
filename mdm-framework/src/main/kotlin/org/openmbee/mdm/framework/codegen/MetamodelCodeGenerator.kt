@@ -97,7 +97,9 @@ class MetamodelCodeGenerator(
         }
 
         // Interface declaration
-        val superInterfaces = metaClass.superclasses.ifEmpty { listOf("ModelElement") }
+        // Filter out MDMBaseClass - it's a framework class, not a generated interface
+        val generatedSuperclasses = metaClass.superclasses.filter { it != DEFAULT_BASE_CLASS }
+        val superInterfaces = generatedSuperclasses.ifEmpty { listOf("ModelElement") }
         sb.append("interface ${metaClass.name}")
         sb.appendLine(" : ${superInterfaces.joinToString(", ")} {")
 
@@ -237,19 +239,21 @@ class MetamodelCodeGenerator(
         // Use alias for classes that conflict with Kotlin stdlib
         val interfaceName = TypeMapper.getAliasedTypeName(metaClass.name)
         val openModifier = if (metaClass.isAbstract) "abstract" else "open"
-        // Only the true root class (MDMBaseClass, with no superclasses) extends MDMObject directly
-        val isRootClass = metaClass.superclasses.isEmpty()
+        // Filter out MDMBaseClass to determine if this is a "generated root class"
+        // A generated root class has no generated superclasses (only MDMBaseClass)
+        val generatedSuperclasses = metaClass.superclasses.filter { it != DEFAULT_BASE_CLASS }
+        val isRootClass = generatedSuperclasses.isEmpty()
 
         if (isRootClass) {
-            // Root class (MDMBaseClass) extends MDMObject directly and defines engine
+            // Root class (like Element) extends MDMObject directly and defines engine
             sb.appendLine("$openModifier class ${metaClass.name}Impl(")
             sb.appendLine("    className: String,")
             sb.appendLine("    metaClass: FrameworkMetaClass,")
             sb.appendLine("    internal val engine: MDMEngine")
             sb.appendLine(") : MDMObject(className, metaClass), $interfaceName {")
         } else {
-            // Non-root class extends parent impl (Element extends MDMBaseClassImpl, etc.)
-            val parentImpl = "${metaClass.superclasses.first()}Impl"
+            // Non-root class extends parent impl (Relationship extends ElementImpl, etc.)
+            val parentImpl = "${generatedSuperclasses.first()}Impl"
             sb.appendLine("$openModifier class ${metaClass.name}Impl(")
             sb.appendLine("    className: String,")
             sb.appendLine("    metaClass: FrameworkMetaClass,")

@@ -111,8 +111,8 @@ class OclParserTest : DescribeSpec({
 
         it("should parse oclIsKindOf with dynamic type") {
             val ast = OclParser.parse("memberElement.oclIsKindOf(other.memberElement.oclType())")
-            ast.shouldBeInstanceOf<OperationCallExp>()
-            (ast as OperationCallExp).operationName shouldBe "oclIsKindOf"
+            ast.shouldBeInstanceOf<DynamicTypeExp>()
+            (ast as DynamicTypeExp).operationName shouldBe "oclIsKindOf"
         }
 
         it("should parse chained oclType call") {

@@ -196,7 +196,7 @@ data class LetExp(
 // ===== Type Operations =====
 
 /**
- * Type check (oclIsKindOf, oclIsTypeOf).
+ * Type check with static type name (oclIsKindOf, oclIsTypeOf).
  */
 data class TypeExp(
     val source: OclExpression,
@@ -204,6 +204,18 @@ data class TypeExp(
     val typeName: String
 ) : OclExpression {
     override fun <T> accept(visitor: OclVisitor<T>): T = visitor.visitTypeOp(this)
+}
+
+/**
+ * Type check with dynamic type expression (e.g., self.oclIsKindOf(other.oclType())).
+ * The typeExpression evaluates to a type at runtime.
+ */
+data class DynamicTypeExp(
+    val source: OclExpression,
+    val operationName: String,  // oclIsKindOf, oclIsTypeOf, oclAsType
+    val typeExpression: OclExpression
+) : OclExpression {
+    override fun <T> accept(visitor: OclVisitor<T>): T = visitor.visitDynamicTypeOp(this)
 }
 
 // ===== Binary/Unary Operations =====
