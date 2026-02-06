@@ -131,9 +131,13 @@ class OwnershipResolver(private val registry: MetamodelRegistry) {
      * @return The resolved ownership pattern, or null if no intermediate applies
      */
     fun resolve(parentType: String, childType: String): ResolvedOwnership? {
+        logger.debug { "OwnershipResolver.resolve($parentType, $childType) called. Available intermediates: ${intermediateBindings.map { "${it.metaClass.name}(owner=${it.ownerType}, owned=${it.ownedElementType})" }}" }
+
         // Find all compatible intermediates
         val compatibleIntermediates = intermediateBindings
             .filter { isCompatible(it, parentType, childType) }
+
+        logger.debug { "Compatible intermediates for $parentType → $childType: ${compatibleIntermediates.map { it.metaClass.name }}" }
 
         if (compatibleIntermediates.isEmpty()) {
             logger.debug { "No ownership intermediate found for $parentType → $childType" }

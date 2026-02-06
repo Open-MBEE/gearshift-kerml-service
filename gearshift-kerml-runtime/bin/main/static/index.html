@@ -807,6 +807,23 @@
             padding: 40px;
             color: var(--ve-light-text);
         }
+
+        /* Checkbox */
+        .checkbox-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--ve-slate-base);
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -908,6 +925,10 @@ RETURN c.name"></textarea>
                             Run Query
                         </button>
                         <button id="clear-query-btn" class="btn btn-secondary">Clear</button>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="include-library-checkbox">
+                            <span>Include library elements</span>
+                        </label>
                     </div>
                     <div id="gql-status" class="status-message"></div>
                 </div>
@@ -1083,6 +1104,8 @@ RETURN c.name"></textarea>
                 return;
             }
 
+            const includeLibrary = document.getElementById('include-library-checkbox').checked;
+
             const runBtn = document.getElementById('run-query-btn');
             runBtn.disabled = true;
             runBtn.innerHTML = '<span class="loading"></span> Running...';
@@ -1092,7 +1115,7 @@ RETURN c.name"></textarea>
                 const response = await fetch('/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ gql })
+                    body: JSON.stringify({ gql, includeLibrary })
                 });
 
                 const data = await response.json();

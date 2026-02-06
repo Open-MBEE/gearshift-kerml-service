@@ -15,17 +15,40 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.OwnershipBinding
 
 /**
  * KerML FeatureMembership metaclass.
  * Specializes: OwningMembership
  * A membership where the member is a feature.
+ *
+ * Association ends (defined in TypesAssociations.kt):
+ * - owningType : Type [1] {derived, subsets type, redefines membershipOwningNamespace}
+ * - ownedMemberFeature : Feature [1] {derived, composite, redefines ownedMemberElement}
  */
 fun createFeatureMembershipMetaClass() = MetaClass(
     name = "FeatureMembership",
     isAbstract = false,
     superclasses = listOf("OwningMembership"),
     attributes = emptyList(),
-    description = "A membership where the member is a feature"
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveFeatureMembershipOwningType",
+            type = ConstraintType.DERIVATION,
+            expression = "if membershipOwningNamespace.oclIsKindOf(Type) then membershipOwningNamespace.oclAsType(Type) else null endif",
+            description = "The Type that owns this FeatureMembership."
+        )
+    ),
+    description = "A membership where the member is a feature",
+
+    // FeatureMembership is an ownership intermediate for Type → Feature
+    // Type → FeatureMembership → Feature
+    // Types are derived from association ends: owningType->Type, ownedMemberFeature->Feature
+    ownershipBinding = OwnershipBinding(
+        ownedElementEnd = "ownedMemberFeature",
+        ownerEnd = "owningType"
+    )
 )

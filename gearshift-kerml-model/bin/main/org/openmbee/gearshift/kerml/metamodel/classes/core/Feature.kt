@@ -576,6 +576,18 @@ fun createFeatureMetaClass() = MetaClass(
             description = "The owningFeatureMembership is the owningMembership if it is a FeatureMembership, otherwise null."
         ),
         MetaConstraint(
+            name = "deriveFeatureOwningType",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                if owningFeatureMembership <> null then
+                    owningFeatureMembership.owningType
+                else
+                    null
+                endif
+            """.trimIndent(),
+            description = "The Type that is the owningType of the owningFeatureMembership of this Feature."
+        ),
+        MetaConstraint(
             name = "deriveFeatureOwnedFeatureChaining",
             type = ConstraintType.DERIVATION,
             expression = "ownedRelationship->selectByKind(FeatureChaining)",

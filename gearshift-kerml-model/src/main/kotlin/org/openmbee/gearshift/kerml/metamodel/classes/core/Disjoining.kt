@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Disjoining metaclass.
@@ -27,5 +29,13 @@ fun createDisjoiningMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveDisjoiningOwningType",
+            type = ConstraintType.DERIVATION,
+            expression = "if typeDisjoined = owningRelatedElement then typeDisjoined else null endif",
+            description = "A typeDisjoined that is also an owningRelatedElement."
+        )
+    ),
     description = "A relationship that specifies two types are disjoint"
 )

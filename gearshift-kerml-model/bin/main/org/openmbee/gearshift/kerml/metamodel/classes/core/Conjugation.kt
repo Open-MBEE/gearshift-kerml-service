@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Conjugation metaclass.
@@ -27,5 +29,13 @@ fun createConjugationMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveConjugationOwningType",
+            type = ConstraintType.DERIVATION,
+            expression = "if conjugatedType = owningRelatedElement then conjugatedType else null endif",
+            description = "The conjugatedType of this Conjugation that is also its owningRelatedElement."
+        )
+    ),
     description = "A relationship that creates a conjugated type"
 )

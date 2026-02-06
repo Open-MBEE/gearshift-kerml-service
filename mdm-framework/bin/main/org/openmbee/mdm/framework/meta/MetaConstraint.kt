@@ -191,6 +191,14 @@ data class MetaConstraint(
     @JsonProperty
     val redefines: String? = null,
 
+    /**
+     * Whether this constraint is normative (from the spec) or non-normative (implementation-inferred).
+     * Non-normative derivations are implementation-specific ways to compute derived values
+     * that are implied by spec semantics but not explicitly defined.
+     */
+    @JsonProperty
+    val isNormative: Boolean = true,
+
     @JsonProperty
     val description: String? = null
 ) {

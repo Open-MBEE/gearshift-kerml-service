@@ -17,6 +17,7 @@ package org.openmbee.mdm.framework.runtime
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.meta.*
+import org.openmbee.mdm.framework.query.ocl.OclAsTypeView
 import java.util.UUID
 import kotlin.collections.ArrayDeque
 
@@ -837,32 +838,47 @@ open class MDMEngine(
         element: MDMObject,
         end: MetaAssociationEnd
     ): Any? {
-        val derivationConstraintName = end.derivationConstraint ?: return null
+        val derivationConstraintName = end.derivationConstraint
 
-        // Look up the constraint by name to get the expression and language
-        val constraint = findConstraint(element.metaClass, derivationConstraintName)
-        if (constraint != null) {
-            val evaluator = evaluators[constraint.language.uppercase()]
-            if (evaluator != null) {
-                val result = evaluator.evaluate(constraint.expression, element, this)
-                return normalizeForMultiplicity(
-                    when (result) {
-                        null -> emptyList()
-                        is Collection<*> -> result.filterNotNull()
-                        else -> listOf(result)
-                    },
-                    end,
-                    element,
-                    end.name
-                )
+        // Try explicit derivation constraint first
+        if (derivationConstraintName != null) {
+            val constraint = findConstraint(element.metaClass, derivationConstraintName)
+            if (constraint != null) {
+                val evaluator = evaluators[constraint.language.uppercase()]
+                if (evaluator != null) {
+                    val result = evaluator.evaluate(constraint.expression, element, this)
+                    // Unwrap OclAsTypeView to get the underlying MDMObject
+                    val unwrappedResult = unwrapOclResult(result)
+                    return normalizeForMultiplicity(
+                        when (unwrappedResult) {
+                            null -> emptyList()
+                            is Collection<*> -> unwrappedResult.map { unwrapOclResult(it) }.filterNotNull()
+                            else -> listOf(unwrappedResult)
+                        },
+                        end,
+                        element,
+                        end.name
+                    )
+                } else {
+                    logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
+                }
             } else {
-                logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
+                logger.warn { "Derivation constraint '$derivationConstraintName' not found for association end ${end.name}" }
             }
-        } else {
-            logger.warn { "Derivation constraint '$derivationConstraintName' not found for association end ${end.name}" }
         }
 
         return null
+    }
+
+    /**
+     * Unwrap OCL wrapper types to get the underlying value.
+     * OclAsTypeView wraps an MDMObject with a view type for dispatching.
+     */
+    private fun unwrapOclResult(value: Any?): Any? {
+        return when (value) {
+            is OclAsTypeView -> value.obj
+            else -> value
+        }
     }
 
     /**

@@ -36,6 +36,12 @@ fun createSpecializationMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveSpecializationOwningType",
+            type = ConstraintType.DERIVATION,
+            expression = "if specific = owningRelatedElement then specific else null endif",
+            description = "The Type that is the specificType of this Specialization and owns it as its owningRelatedElement."
+        ),
+        MetaConstraint(
             name = "validateSpecializationSpecificNotConjugated",
             type = ConstraintType.VERIFICATION,
             expression = "not specific.isConjugated",

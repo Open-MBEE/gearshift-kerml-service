@@ -74,7 +74,8 @@ fun createConjugationAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("conjugatedType", "owningRelatedElement")
+            subsets = listOf("conjugatedType", "owningRelatedElement"),
+            derivationConstraint = "deriveConjugationOwningType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedConjugator",

@@ -74,7 +74,8 @@ fun createDisjoiningAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("typeDisjoined", "owningRelatedElement")
+            subsets = listOf("typeDisjoined", "owningRelatedElement"),
+            derivationConstraint = "deriveDisjoiningOwningType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedDisjoining",

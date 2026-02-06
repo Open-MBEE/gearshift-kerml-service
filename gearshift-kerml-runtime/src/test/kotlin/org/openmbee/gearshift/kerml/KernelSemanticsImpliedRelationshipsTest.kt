@@ -282,8 +282,24 @@ class KernelSemanticsImpliedRelationshipsTest : KerMLTestSpec({
                 val wheels = factory.findByName<Feature>("wheels")
                 wheels.shouldNotBeNull()
 
+                // DEBUG: Check ownership using typed interface methods
+                val owningMembership = wheels.owningMembership
+                val owningFeatureMembership = wheels.owningFeatureMembership
+                val owningType = wheels.owningType
+                println("DEBUG: wheels.owningMembership = $owningMembership (${(owningMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
+                println("DEBUG: wheels.owningFeatureMembership = $owningFeatureMembership (${(owningFeatureMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
+                println("DEBUG: wheels.owningType = $owningType (${(owningType as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
+
                 // Find all TypeFeaturing instances
                 val typeFeaturings = factory.allOfType<TypeFeaturing>()
+                println("DEBUG: Total TypeFeaturing count = ${typeFeaturings.size}")
+                typeFeaturings.forEach { tf ->
+                    try {
+                        println("DEBUG:   TypeFeaturing: featureOfType=${tf.featureOfType.declaredName}, featuringType=${tf.featuringType.declaredName}")
+                    } catch (e: Exception) {
+                        println("DEBUG:   TypeFeaturing: error - ${e.message}")
+                    }
+                }
 
                 // Should have a TypeFeaturing linking wheels to Vehicle
                 val wheelsTypeFeaturing = typeFeaturings.filter { tf ->

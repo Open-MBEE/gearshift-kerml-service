@@ -83,7 +83,8 @@ data class ParseRequest(
  * Request body for GQL query.
  */
 data class QueryRequest(
-    val gql: String
+    val gql: String,
+    val includeLibrary: Boolean = false
 )
 
 /**
@@ -536,8 +537,22 @@ class DemoApi(
                         // Execute GQL query
                         val result = engine.query(request.gql)
 
+                        // Filter out library elements if requested
+                        val mountableEngine = engine as? MountableEngine
+                        val filteredRows = if (!request.includeLibrary && mountableEngine != null) {
+                            val localIds = mountableEngine.getLocalElements().mapNotNull { it.id }.toSet()
+                            result.rows.filter { row ->
+                                // Keep row only if all MDMObject values are local
+                                row.values.all { value ->
+                                    !containsLibraryElement(value, localIds)
+                                }
+                            }
+                        } else {
+                            result.rows
+                        }
+
                         // Format values for JSON serialization
-                        val formattedRows = result.rows.map { row ->
+                        val formattedRows = filteredRows.map { row ->
                             row.mapValues { (_, value) -> formatQueryValue(value) }
                         }
 
@@ -546,7 +561,7 @@ class DemoApi(
                                 success = true,
                                 columns = result.columns,
                                 rows = formattedRows,
-                                rowCount = result.size
+                                rowCount = formattedRows.size
                             )
                         )
                     } catch (e: GqlParseException) {
@@ -589,6 +604,18 @@ class DemoApi(
             }
             is List<*> -> value.map { formatQueryValue(it) }
             else -> value
+        }
+    }
+
+    /**
+     * Check if a value contains any library (non-local) elements.
+     */
+    private fun containsLibraryElement(value: Any?, localIds: Set<String>): Boolean {
+        return when (value) {
+            null -> false
+            is MDMObject -> value.id != null && value.id !in localIds
+            is List<*> -> value.any { containsLibraryElement(it, localIds) }
+            else -> false
         }
     }
 }

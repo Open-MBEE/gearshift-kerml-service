@@ -73,7 +73,8 @@ fun createSpecializationAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("specific", "owningRelatedElement")
+            subsets = listOf("specific", "owningRelatedElement"),
+            derivationConstraint = "deriveSpecializationOwningType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedSpecialization",

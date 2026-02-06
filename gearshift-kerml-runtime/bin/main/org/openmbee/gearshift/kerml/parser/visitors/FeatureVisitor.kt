@@ -65,8 +65,9 @@ class FeatureVisitor : BaseFeatureVisitor<KerMLParser.FeatureContext, Feature>()
         // Create child context for nested elements
         val childContext = kermlParseContext.withParent(feature, feature.declaredName ?: "")
 
-        // Create membership with parent type (inherited from BaseTypeVisitor)
-        createFeatureMembership(feature, kermlParseContext)
+        // Note: Ownership is handled automatically by the FeatureImpl constructor
+        // via OwnershipResolver, which creates a FeatureMembership with the correct
+        // association ends (ownedMemberFeature, owningType).
 
         // Parse value part (inherited from BaseFeatureVisitor)
         parseValuePart(ctx.valuePart(), feature, childContext)
