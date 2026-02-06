@@ -43,12 +43,21 @@ import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
 class FeatureVisitor : BaseFeatureVisitor<KerMLParser.FeatureContext, Feature>() {
 
     override fun visit(ctx: KerMLParser.FeatureContext, kermlParseContext: KermlParseContext): Feature {
-        val feature = kermlParseContext.create<Feature>()
+        // Extract names before creating element (needed for deterministic library IDs)
+        val featureIdentification = ctx.featureDeclaration()?.featureIdentification()
+        val (shortName, name) = extractFeatureIdentificationNames(featureIdentification)
+
+        // Create feature with names for deterministic ID generation
+        val feature = kermlParseContext.create<Feature>(
+            declaredName = name,
+            declaredShortName = shortName
+        )
 
         // Parse feature prefix (handles featurePrefix, basicFeaturePrefix, endFeaturePrefix)
         parseFeaturePrefixFromContext(ctx, feature)
 
         // Parse feature declaration (inherited from BaseFeatureVisitor)
+        // Note: names are already set above
         ctx.featureDeclaration()?.let { decl ->
             parseFeatureDeclaration(decl, feature, kermlParseContext)
         }

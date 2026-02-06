@@ -49,16 +49,15 @@ class PackageVisitor : BaseTypedVisitor<KerMLParser.PackageContext, KerMLPackage
     private val namespaceVisitor = NamespaceVisitor()
 
     override fun visit(ctx: KerMLParser.PackageContext, kermlParseContext: KermlParseContext): KerMLPackage {
-        // Extract name first (needed for ownership in secondary constructor)
-        val declaredName = ctx.packageDeclaration()?.identification()?.declaredName?.text
+        // Extract names before creating element (needed for deterministic library IDs)
+        val identification = ctx.packageDeclaration()?.identification()
+        val (shortName, name) = extractIdentificationNames(identification)
 
-        // Create Package with parent and name - secondary constructor handles ownership
-        val pkg = kermlParseContext.create<KerMLPackage>(declaredName = declaredName)
-
-        // Parse identification (sets short name and other properties)
-        ctx.packageDeclaration()?.identification()?.let { id ->
-            parseIdentification(id, pkg)
-        }
+        // Create Package with names for deterministic ID generation
+        val pkg = kermlParseContext.create<KerMLPackage>(
+            declaredName = name,
+            declaredShortName = shortName
+        )
 
         // Create child context for nested elements
         val childContext = kermlParseContext.withParent(pkg, pkg.declaredName ?: "")

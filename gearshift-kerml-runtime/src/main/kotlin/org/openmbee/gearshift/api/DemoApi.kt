@@ -29,6 +29,8 @@ import io.ktor.server.routing.*
 import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.mdm.framework.runtime.MountableEngine
 import org.openmbee.mdm.framework.runtime.MountRegistry
+import org.openmbee.mdm.framework.query.gql.query
+import org.openmbee.mdm.framework.query.gql.parser.GqlParseException
 import org.openmbee.gearshift.kerml.KerMLModel
 
 /**
@@ -75,6 +77,25 @@ data class ParseResponse(
  */
 data class ParseRequest(
     val kerml: String
+)
+
+/**
+ * Request body for GQL query.
+ */
+data class QueryRequest(
+    val gql: String
+)
+
+/**
+ * Response for GQL query.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class QueryResponse(
+    val success: Boolean,
+    val columns: List<String> = emptyList(),
+    val rows: List<Map<String, Any?>> = emptyList(),
+    val rowCount: Int = 0,
+    val errors: List<String> = emptyList()
 )
 
 /**
@@ -495,8 +516,80 @@ class DemoApi(
                         )
                     }
                 }
+
+                post("/query") {
+                    try {
+                        val request = call.receive<QueryRequest>()
+
+                        // Check if model has been parsed
+                        if (engine.getAllElements().isEmpty()) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                QueryResponse(
+                                    success = false,
+                                    errors = listOf("No model loaded. Please parse KerML first.")
+                                )
+                            )
+                            return@post
+                        }
+
+                        // Execute GQL query
+                        val result = engine.query(request.gql)
+
+                        // Format values for JSON serialization
+                        val formattedRows = result.rows.map { row ->
+                            row.mapValues { (_, value) -> formatQueryValue(value) }
+                        }
+
+                        call.respond(
+                            QueryResponse(
+                                success = true,
+                                columns = result.columns,
+                                rows = formattedRows,
+                                rowCount = result.size
+                            )
+                        )
+                    } catch (e: GqlParseException) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            QueryResponse(
+                                success = false,
+                                errors = listOf("Parse error: ${e.message}")
+                            )
+                        )
+                    } catch (e: Exception) {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            QueryResponse(
+                                success = false,
+                                errors = listOf(e.message ?: "Unknown error")
+                            )
+                        )
+                    }
+                }
             }
         }.start(wait = wait)
+    }
+
+    /**
+     * Format a query result value for JSON serialization.
+     * Converts MDMObject references to readable strings.
+     */
+    private fun formatQueryValue(value: Any?): Any? {
+        return when (value) {
+            null -> null
+            is MDMObject -> {
+                val name = value.getProperty("declaredName") as? String
+                    ?: value.getProperty("name") as? String
+                if (name != null) {
+                    "${value.className}[$name]"
+                } else {
+                    "${value.className}[${value.id?.take(8)}...]"
+                }
+            }
+            is List<*> -> value.map { formatQueryValue(it) }
+            else -> value
+        }
     }
 }
 

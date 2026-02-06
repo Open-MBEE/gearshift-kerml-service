@@ -690,6 +690,123 @@
             font-style: italic;
             font-weight: 400;
         }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--ve-silver-darker-1);
+            border-radius: 4px;
+            padding: 2px;
+        }
+
+        .mode-btn {
+            padding: 6px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            color: var(--ve-slate-base);
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--white);
+            color: var(--ve-teal-darker-1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .mode-btn:hover:not(.active) {
+            background: rgba(255,255,255,0.5);
+        }
+
+        /* GQL Editor */
+        .editor-toolbar {
+            margin-bottom: 8px;
+        }
+
+        .status-message {
+            margin-top: 12px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .status-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-message.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-message.info {
+            background: var(--ve-teal-lighter-4);
+            color: var(--ve-teal-darker-2);
+        }
+
+        .status-message:empty {
+            display: none;
+        }
+
+        /* Results Table */
+        .gql-results {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-header {
+            padding: 8px 0;
+            font-size: 13px;
+            color: var(--ve-light-text);
+            border-bottom: 1px solid var(--ve-silver-darker-1);
+            margin-bottom: 12px;
+        }
+
+        .results-table-container {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .results-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: var(--ve-silver-base);
+            border-bottom: 2px solid var(--ve-silver-darker-1);
+            font-weight: 600;
+            color: var(--ve-slate-base);
+            position: sticky;
+            top: 0;
+        }
+
+        .results-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--ve-silver-darker-1);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .results-table tr:hover td {
+            background: var(--ve-teal-lighter-4);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--ve-light-text);
+        }
     </style>
 </head>
 <body>
@@ -729,7 +846,10 @@
         <!-- Middle Panel: Editor -->
         <div class="panel">
             <div class="panel-header">
-                <span class="panel-title">KerML Editor</span>
+                <div class="mode-toggle">
+                    <button class="mode-btn active" data-mode="kerml">KerML Editor</button>
+                    <button class="mode-btn" data-mode="gql">GQL Query</button>
+                </div>
                 <select class="examples-select" id="examples">
                     <option value="">Load example...</option>
                     <option value="simple">Simple Package</option>
@@ -739,7 +859,8 @@
                 </select>
             </div>
             <div class="panel-body">
-                <div class="editor-container">
+                <!-- KerML Editor Mode -->
+                <div id="kerml-mode" class="editor-container">
                     <textarea
                         class="editor-textarea"
                         id="editor"
@@ -762,21 +883,63 @@ package Vehicle {
                     </div>
                     <div id="parseStatus"></div>
                 </div>
+
+                <!-- GQL Query Mode (hidden by default) -->
+                <div id="gql-mode" class="editor-container" style="display: none;">
+                    <div class="editor-toolbar">
+                        <select class="examples-select" id="gql-example-select">
+                            <option value="">Select example...</option>
+                            <option value="all-classifiers">All Classifiers</option>
+                            <option value="features-by-name">Features by Name</option>
+                            <option value="type-hierarchy">Type Hierarchy</option>
+                            <option value="namespace-members">Namespace Members</option>
+                        </select>
+                    </div>
+                    <textarea id="gql-input" class="editor-textarea" placeholder="Enter GQL query...
+
+Example:
+MATCH (c:Classifier)
+RETURN c.name"></textarea>
+                    <div class="editor-actions">
+                        <button id="run-query-btn" class="btn btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Run Query
+                        </button>
+                        <button id="clear-query-btn" class="btn btn-secondary">Clear</button>
+                    </div>
+                    <div id="gql-status" class="status-message"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Right Panel: Element Details -->
+        <!-- Right Panel: Element Details / GQL Results -->
         <div class="panel details-pane">
             <div class="panel-header">
-                <span class="panel-title">Element Details</span>
+                <span class="panel-title" id="details-panel-title">Element Details</span>
             </div>
             <div class="panel-body">
-                <div id="elementDetails">
+                <!-- Element Details (shown in KerML mode) -->
+                <div id="element-details">
                     <div class="empty-state">
                         <div class="empty-state-icon">📋</div>
                         <div class="empty-state-text">
                             Click an element in the tree to view its metadata
                         </div>
+                    </div>
+                </div>
+
+                <!-- GQL Results (shown in GQL mode) -->
+                <div id="gql-results" class="gql-results" style="display: none;">
+                    <div class="results-header">
+                        <span id="result-count">0 results</span>
+                    </div>
+                    <div class="results-table-container">
+                        <table id="results-table" class="results-table">
+                            <thead id="results-thead"></thead>
+                            <tbody id="results-tbody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -851,6 +1014,7 @@ package Vehicle {
         // Global state
         let parsedData = null;
         let elementIndex = {};  // Map of id -> element node
+        let currentMode = 'kerml';
 
         // DOM Elements
         const editor = document.getElementById('editor');
@@ -860,7 +1024,144 @@ package Vehicle {
         const treeView = document.getElementById('treeView');
         const treeStats = document.getElementById('treeStats');
         const parseStatus = document.getElementById('parseStatus');
-        const elementDetails = document.getElementById('elementDetails');
+        const elementDetails = document.getElementById('element-details');
+        const detailsPanelTitle = document.getElementById('details-panel-title');
+
+        // GQL Example queries
+        const gqlExamples = {
+            'all-classifiers': 'MATCH (c:Classifier)\nRETURN c.name, c.isAbstract',
+            'features-by-name': "MATCH (f:Feature)\nFILTER WHERE f.name IS NOT NULL\nRETURN f.name, f.isOrdered",
+            'type-hierarchy': 'MATCH (sub:Classifier)-[:Superclassing]->(super:Classifier)\nRETURN sub.name AS subtype, super.name AS supertype',
+            'namespace-members': 'MATCH (n:Namespace)-[:NamespaceMembership]->(m)\nRETURN n.name AS namespace, m.name AS member'
+        };
+
+        // Mode toggle handlers
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                switchMode(mode);
+            });
+        });
+
+        function switchMode(mode) {
+            currentMode = mode;
+
+            // Update toggle buttons
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.mode === mode);
+            });
+
+            // Show/hide appropriate containers
+            document.getElementById('kerml-mode').style.display = mode === 'kerml' ? 'flex' : 'none';
+            document.getElementById('gql-mode').style.display = mode === 'gql' ? 'flex' : 'none';
+
+            // Show/hide results panels
+            document.getElementById('element-details').style.display = mode === 'kerml' ? 'block' : 'none';
+            document.getElementById('gql-results').style.display = mode === 'gql' ? 'flex' : 'none';
+
+            // Update the KerML examples dropdown visibility
+            document.getElementById('examples').style.display = mode === 'kerml' ? 'inline-block' : 'none';
+
+            // Update panel title
+            detailsPanelTitle.textContent = mode === 'kerml' ? 'Element Details' : 'Query Results';
+        }
+
+        // GQL example dropdown
+        document.getElementById('gql-example-select').addEventListener('change', (e) => {
+            if (e.target.value && gqlExamples[e.target.value]) {
+                document.getElementById('gql-input').value = gqlExamples[e.target.value];
+            }
+        });
+
+        // Run query button
+        document.getElementById('run-query-btn').addEventListener('click', runQuery);
+
+        async function runQuery() {
+            const gql = document.getElementById('gql-input').value.trim();
+            if (!gql) {
+                showGqlStatus('Please enter a GQL query', 'error');
+                return;
+            }
+
+            const runBtn = document.getElementById('run-query-btn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="loading"></span> Running...';
+            showGqlStatus('Running query...', 'info');
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gql })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showGqlStatus(`Query returned ${data.rowCount} results`, 'success');
+                    displayResults(data.columns, data.rows);
+                } else {
+                    showGqlStatus(data.errors.join(', '), 'error');
+                    clearResults();
+                }
+            } catch (e) {
+                showGqlStatus('Error: ' + e.message, 'error');
+                clearResults();
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Run Query
+                `;
+            }
+        }
+
+        function displayResults(columns, rows) {
+            const thead = document.getElementById('results-thead');
+            const tbody = document.getElementById('results-tbody');
+
+            // Build header
+            thead.innerHTML = '<tr>' + columns.map(col => `<th>${escapeHtml(col)}</th>`).join('') + '</tr>';
+
+            // Build rows
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="' + columns.length + '" class="no-results">No results</td></tr>';
+            } else {
+                tbody.innerHTML = rows.map(row =>
+                    '<tr>' + columns.map(col => `<td title="${escapeHtml(formatValue(row[col]))}">${escapeHtml(formatValue(row[col]))}</td>`).join('') + '</tr>'
+                ).join('');
+            }
+
+            document.getElementById('result-count').textContent = `${rows.length} result${rows.length !== 1 ? 's' : ''}`;
+        }
+
+        function clearResults() {
+            document.getElementById('results-thead').innerHTML = '';
+            document.getElementById('results-tbody').innerHTML = '';
+            document.getElementById('result-count').textContent = '0 results';
+        }
+
+        function showGqlStatus(message, type) {
+            const status = document.getElementById('gql-status');
+            status.textContent = message;
+            status.className = 'status-message ' + type;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Clear query button
+        document.getElementById('clear-query-btn').addEventListener('click', () => {
+            document.getElementById('gql-input').value = '';
+            document.getElementById('gql-example-select').value = '';
+            clearResults();
+            showGqlStatus('', '');
+        });
 
         // Load example
         examplesSelect.addEventListener('change', (e) => {
