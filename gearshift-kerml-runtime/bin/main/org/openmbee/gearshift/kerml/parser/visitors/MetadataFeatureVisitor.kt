@@ -1,0 +1,179 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.openmbee.gearshift.kerml.parser.visitors
+
+import org.openmbee.gearshift.generated.interfaces.Annotation
+import org.openmbee.gearshift.generated.interfaces.FeatureTyping
+import org.openmbee.gearshift.generated.interfaces.MetadataFeature
+import org.openmbee.gearshift.generated.interfaces.Redefinition
+import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.parser.KermlParseContext
+import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
+
+/**
+ * Visitor for MetadataFeature elements.
+ *
+ * Per KerML spec 8.2.3.3.4: MetadataFeature is both an AnnotatingElement and a Feature.
+ *
+ * Grammar:
+ * ```
+ * metadataFeature
+ *     : prefixMetadataMember*
+ *       ( AT | METADATA )
+ *       metadataFeatureDeclaration
+ *       ( ABOUT annotation
+ *         ( COMMA annotation )*
+ *       )?
+ *       metadataBody
+ *     ;
+ * ```
+ *
+ * MetadataFeature extends Feature and AnnotatingElement.
+ */
+class MetadataFeatureVisitor : BaseFeatureVisitor<KerMLParser.MetadataFeatureContext, MetadataFeature>() {
+
+    override fun visit(ctx: KerMLParser.MetadataFeatureContext, kermlParseContext: KermlParseContext): MetadataFeature {
+        val metadata = kermlParseContext.create<MetadataFeature>()
+
+        // Parse metadata feature declaration
+        ctx.metadataFeatureDeclaration()?.let { decl ->
+            parseMetadataFeatureDeclaration(decl, metadata, kermlParseContext)
+        }
+
+        // Create child context for nested elements
+        val childContext = kermlParseContext.withParent(metadata, metadata.declaredName ?: "")
+
+        // Create membership with parent type (inherited from BaseTypeVisitor)
+        createFeatureMembership(metadata, kermlParseContext)
+
+        // Parse annotations (about clause)
+        ctx.annotation()?.forEach { annotationCtx ->
+            parseAnnotationAbout(annotationCtx, metadata, kermlParseContext)
+        }
+
+        // Parse metadata body
+        ctx.metadataBody()?.let { body ->
+            parseMetadataBody(body, childContext)
+        }
+
+        return metadata
+    }
+
+    /**
+     * Parse metadata feature declaration.
+     */
+    private fun parseMetadataFeatureDeclaration(
+        ctx: KerMLParser.MetadataFeatureDeclarationContext,
+        metadata: MetadataFeature,
+        kermlParseContext: KermlParseContext
+    ) {
+        // Parse identification (optional)
+        ctx.identification()?.let { id ->
+            parseIdentification(id, metadata)
+        }
+
+        // Parse owned feature typing
+        ctx.ownedFeatureTyping()?.let { typingCtx ->
+            typingCtx.generalType()?.qualifiedName()?.let { qn ->
+                val featureTyping = kermlParseContext.create<FeatureTyping>()
+                featureTyping.typedFeature = metadata
+                val typeName = extractQualifiedName(qn)
+                kermlParseContext.registerReference(featureTyping, "type", typeName)
+            }
+        }
+    }
+
+    /**
+     * Parse an annotation reference in the 'about' clause.
+     */
+    private fun parseAnnotationAbout(
+        ctx: KerMLParser.AnnotationContext,
+        metadata: MetadataFeature,
+        kermlParseContext: KermlParseContext
+    ) {
+        val annotation = kermlParseContext.create<Annotation>()
+        annotation.ownedAnnotatingElement = metadata
+
+        ctx.qualifiedName()?.let { qn ->
+            val targetName = extractQualifiedName(qn)
+            kermlParseContext.registerReference(annotation, "annotatedElement", targetName)
+        }
+    }
+
+    /**
+     * Parse metadata body.
+     */
+    private fun parseMetadataBody(
+        ctx: KerMLParser.MetadataBodyContext,
+        kermlParseContext: KermlParseContext
+    ) {
+        ctx.metadataBodyElement()?.forEach { bodyElement ->
+            // Non-feature member
+            bodyElement.nonFeatureMember()?.let { nonFeature ->
+                NamespaceVisitor().parseNonFeatureMember(nonFeature, kermlParseContext)
+            }
+
+            // Metadata body feature member
+            bodyElement.metadataBodyFeatureMember()?.metadataBodyFeature()?.let { bodyFeature ->
+                parseMetadataBodyFeature(bodyFeature, kermlParseContext)
+            }
+        }
+    }
+
+    /**
+     * Parse metadata body feature.
+     */
+    private fun parseMetadataBodyFeature(
+        ctx: KerMLParser.MetadataBodyFeatureContext,
+        kermlParseContext: KermlParseContext
+    ) {
+        // Creates a feature with redefinition and optional value
+        val feature = kermlParseContext.create<org.openmbee.gearshift.generated.interfaces.Feature>()
+
+        // Parse redefinition
+        ctx.ownedRedefinition()?.let { redef ->
+            redef.generalType()?.qualifiedName()?.let { qn ->
+                val redefinition = kermlParseContext.create<Redefinition>()
+                redefinition.redefiningFeature = feature
+                val redefinedName = extractQualifiedName(qn)
+                kermlParseContext.registerReference(
+                    redefinition,
+                    "redefinedFeature",
+                    redefinedName,
+                    isRedefinitionContext = true
+                )
+            }
+        }
+
+        // Parse feature specialization part (inherited)
+        ctx.featureSpecializationPart()?.let { specPart ->
+            parseFeatureSpecializationPart(specPart, feature, kermlParseContext)
+        }
+
+        // Parse value part (inherited)
+        parseValuePart(ctx.valuePart(), feature, kermlParseContext)
+
+        // Create feature membership
+        createFeatureMembership(feature, kermlParseContext)
+
+        // Recursively parse nested metadata body
+        val childContext = kermlParseContext.withParent(feature, feature.declaredName ?: "")
+        ctx.metadataBody()?.let { body ->
+            parseMetadataBody(body, childContext)
+        }
+    }
+}

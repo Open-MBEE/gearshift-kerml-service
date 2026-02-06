@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gearshift KerML Demo</title>
+    <style>
+        /* Color palette inspired by exec-ve */
+        :root {
+            --ve-teal-base: #2c7e8f;
+            --ve-teal-lighter-1: #369cb1;
+            --ve-teal-lighter-2: #58b9cc;
+            --ve-teal-lighter-3: #bfdae0;
+            --ve-teal-lighter-4: #f4f9fa;
+            --ve-teal-darker-1: #296f83;
+            --ve-teal-darker-2: #1a5e71;
+            --ve-slate-base: #404040;
+            --ve-slate-darker-1: #383838;
+            --ve-slate-darker-2: #313131;
+            --ve-slate-darker-3: #212121;
+            --ve-slate-lighter-1: #505050;
+            --ve-silver-base: #f0f0f0;
+            --ve-silver-lighter-1: #f9f9f9;
+            --ve-silver-darker-1: #e2e2e2;
+            --ve-silver-darker-2: #d8d8d8;
+            --ve-light-text: #7a7a7a;
+            --ve-warning: #c5544e;
+            --ve-green-base: #439886;
+            --ve-accent: #456e9d;
+            --white: #fff;
+            --black: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--black);
+            background-color: var(--ve-silver-lighter-1);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--ve-slate-darker-2) 0%, var(--ve-slate-base) 100%);
+            color: var(--white);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--ve-teal-base);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .header-subtitle {
+            color: var(--ve-silver-darker-2);
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .library-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .library-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .library-status-indicator.enabled {
+            background: var(--ve-green-base);
+            box-shadow: 0 0 6px var(--ve-green-base);
+        }
+
+        .library-status-indicator.disabled {
+            background: var(--ve-silver-darker-2);
+        }
+
+        .library-status-text {
+            color: var(--ve-silver-base);
+        }
+
+        /* Main layout - 3 column */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 16px;
+            padding: 16px;
+            max-width: 1800px;
+            margin: 0 auto;
+            min-height: calc(100vh - 80px);
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .panel.details-pane {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            .panel.details-pane {
+                grid-column: span 1;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--white);
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: var(--ve-silver-base);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--ve-silver-darker-1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ve-slate-base);
+            letter-spacing: 0.02em;
+        }
+
+        .panel-body {
+            flex: 1;
+            padding: 16px;
+            overflow: auto;
+        }
+
+        /* Editor */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-textarea {
+            flex: 1;
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            border: 1px solid var(--ve-silver-darker-1);
+            border-radius: 4px;
+            resize: vertical;
+            background: var(--ve-slate-darker-3);
+            color: #e0e0e0;
+        }
+
+        .editor-textarea:focus {
+            outline: none;
+            border-color: var(--ve-teal-base);
+            box-shadow: 0 0 0 3px rgba(44, 126, 143, 0.15);
+        }
+
+        .editor-textarea::placeholder {
+            color: #666;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--ve-teal-base);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: var(--ve-teal-darker-1);
+        }
+
+        .btn-primary:active {
+            background: var(--ve-teal-darker-2);
+        }
+
+        .btn-primary:disabled {
+            background: var(--ve-silver-darker-2);
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--ve-silver-base);
+            color: var(--ve-slate-base);
+            border: 1px solid var(--ve-silver-darker-1);
+        }
+
+        .btn-secondary:hover {
+            background: var(--ve-silver-darker-1);
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Tree view */
+        .tree-container {
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 13px;
+        }
+
+        .tree-node {
+            margin-left: 20px;
+            border-left: 1px solid var(--ve-silver-darker-1);
+            padding-left: 12px;
+        }
+
+        .tree-node:first-child {
+            margin-left: 0;
+            border-left: none;
+            padding-left: 0;
+        }
+
+        .tree-item {
+            padding: 6px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .tree-item:hover {
+            background: var(--ve-teal-lighter-4);
+        }
+
+        .tree-item.selected {
+            background: var(--ve-teal-lighter-3);
+        }
+
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--ve-light-text);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .tree-toggle.has-children {
+            cursor: pointer;
+        }
+
+        .tree-toggle.has-children:hover {
+            color: var(--ve-teal-base);
+        }
+
+        .tree-content {
+            flex: 1;
+        }
+
+        .tree-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .tree-type.namespace { background: #e8f4f8; color: #2c7e8f; }
+        .tree-type.package { background: #e8f0e8; color: #439886; }
+        .tree-type.class { background: #f0e8f4; color: #7a5ba0; }
+        .tree-type.feature { background: #f4f0e8; color: #a08040; }
+        .tree-type.datatype { background: #f4e8e8; color: #a05050; }
+        .tree-type.structure { background: #e8e8f4; color: #5050a0; }
+        .tree-type.association { background: #f0f4e8; color: #60a040; }
+        .tree-type.membership { background: #f4f4f4; color: #707070; }
+        .tree-type.default { background: #f0f0f0; color: #606060; }
+
+        .tree-name {
+            font-weight: 500;
+            color: var(--black);
+        }
+
+        .tree-name.unnamed {
+            color: var(--ve-light-text);
+            font-style: italic;
+        }
+
+        .tree-id {
+            font-size: 11px;
+            color: var(--ve-light-text);
+            margin-left: 8px;
+        }
+
+        /* Statistics */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--ve-teal-lighter-4);
+            border: 1px solid var(--ve-teal-lighter-3);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--ve-teal-base);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--ve-light-text);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 4px;
+        }
+
+        /* Type distribution */
+        .type-distribution {
+            margin-top: 16px;
+        }
+
+        .type-distribution h4 {
+            font-size: 12px;
+            color: var(--ve-slate-base);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .type-bar {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+            gap: 8px;
+        }
+
+        .type-bar-label {
+            width: 120px;
+            font-size: 12px;
+            color: var(--ve-slate-lighter-1);
+        }
+
+        .type-bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--ve-silver-darker-1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .type-bar-fill {
+            height: 100%;
+            background: var(--ve-teal-base);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .type-bar-count {
+            width: 30px;
+            text-align: right;
+            font-size: 12px;
+            color: var(--ve-light-text);
+        }
+
+        /* Messages */
+        .message {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .message-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+        }
+
+        .message.success {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .message.error {
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+        }
+
+        .message.info {
+            background: var(--ve-teal-lighter-4);
+            border: 1px solid var(--ve-teal-lighter-3);
+            color: var(--ve-teal-darker-2);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--ve-light-text);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--white);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Examples dropdown */
+        .examples-select {
+            padding: 8px 12px;
+            font-size: 13px;
+            border: 1px solid var(--ve-silver-darker-1);
+            border-radius: 4px;
+            background: var(--white);
+            color: var(--ve-slate-base);
+            cursor: pointer;
+        }
+
+        .examples-select:focus {
+            outline: none;
+            border-color: var(--ve-teal-base);
+        }
+
+        /* Details panel */
+        .details-panel {
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--ve-silver-lighter-1);
+            border-radius: 4px;
+            border: 1px solid var(--ve-silver-darker-1);
+        }
+
+        .details-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ve-slate-base);
+            margin-bottom: 8px;
+        }
+
+        .details-row {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--ve-silver-darker-1);
+        }
+
+        .details-row:last-child {
+            border-bottom: none;
+        }
+
+        .details-key {
+            width: 100px;
+            font-size: 12px;
+            color: var(--ve-light-text);
+        }
+
+        .details-value {
+            flex: 1;
+            font-size: 12px;
+            color: var(--ve-slate-base);
+            word-break: break-all;
+        }
+
+        /* Hidden children */
+        .tree-children.collapsed {
+            display: none;
+        }
+
+        /* Metadata pane */
+        .metadata-section {
+            margin-bottom: 16px;
+        }
+
+        .metadata-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .metadata-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ve-light-text);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--ve-silver-darker-1);
+        }
+
+        .metadata-field {
+            display: flex;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--ve-silver-base);
+        }
+
+        .metadata-field:last-child {
+            border-bottom: none;
+        }
+
+        .metadata-key {
+            width: 110px;
+            flex-shrink: 0;
+            font-size: 12px;
+            color: var(--ve-light-text);
+            font-weight: 500;
+        }
+
+        .metadata-value {
+            flex: 1;
+            font-size: 12px;
+            color: var(--ve-slate-base);
+            word-break: break-all;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        }
+
+        .metadata-value.empty {
+            color: var(--ve-silver-darker-2);
+            font-style: italic;
+        }
+
+        .metadata-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .metadata-id {
+            background: var(--ve-silver-base);
+            color: var(--ve-slate-lighter-1);
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+
+        .metadata-links {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .metadata-link-item {
+            padding: 6px 8px;
+            margin: 4px 0;
+            background: var(--ve-silver-lighter-1);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metadata-link-item:hover {
+            background: var(--ve-teal-lighter-4);
+        }
+
+        .metadata-link-direction {
+            font-size: 10px;
+            color: var(--ve-light-text);
+            width: 16px;
+        }
+
+        .metadata-link-type {
+            font-size: 10px;
+            color: var(--ve-teal-darker-1);
+            flex: 1;
+        }
+
+        .metadata-link-target {
+            font-weight: 500;
+            color: var(--ve-slate-base);
+        }
+
+        .selected-element-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--ve-teal-lighter-3);
+        }
+
+        .selected-element-type {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .selected-element-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--ve-slate-base);
+        }
+
+        .selected-element-name.unnamed {
+            color: var(--ve-light-text);
+            font-style: italic;
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>
+            <div class="header-logo">G</div>
+            <div>
+                Gearshift KerML Service
+                <div class="header-subtitle">Metadata-driven KerML Implementation</div>
+            </div>
+        </h1>
+        <div class="library-status" id="libraryStatus">
+            <span class="library-status-indicator disabled" id="libraryIndicator"></span>
+            <span class="library-status-text" id="libraryStatusText">Checking library...</span>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Left Panel: Model Tree -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Model Tree</span>
+                <span id="treeStats" class="header-subtitle"></span>
+            </div>
+            <div class="panel-body">
+                <div id="treeView">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🌳</div>
+                        <div class="empty-state-text">
+                            Parse KerML code to see the element tree
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Panel: Editor -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">KerML Editor</span>
+                <select class="examples-select" id="examples">
+                    <option value="">Load example...</option>
+                    <option value="simple">Simple Package</option>
+                    <option value="classes">Classes with Inheritance</option>
+                    <option value="features">Features and Types</option>
+                    <option value="nested">Nested Packages</option>
+                </select>
+            </div>
+            <div class="panel-body">
+                <div class="editor-container">
+                    <textarea
+                        class="editor-textarea"
+                        id="editor"
+                        placeholder="Enter KerML code here...
+
+Example:
+package Vehicle {
+    class Car;
+    class Wheel;
+}"
+                    ></textarea>
+                    <div class="editor-actions">
+                        <button class="btn btn-primary" id="parseBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Parse
+                        </button>
+                        <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                    </div>
+                    <div id="parseStatus"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Element Details -->
+        <div class="panel details-pane">
+            <div class="panel-header">
+                <span class="panel-title">Element Details</span>
+            </div>
+            <div class="panel-body">
+                <div id="elementDetails">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <div class="empty-state-text">
+                            Click an element in the tree to view its metadata
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Example KerML snippets
+        const examples = {
+            simple: `package SimpleModel {
+    class Entity;
+    class Resource;
+    class Action;
+}`,
+            classes: `package Vehicles {
+    abstract class Vehicle;
+
+    class Car :> Vehicle {
+        feature wheels : Wheel[4];
+        feature engine : Engine;
+    }
+
+    class Truck :> Vehicle {
+        feature wheels : Wheel[6..18];
+        feature payload : Mass;
+    }
+
+    class Wheel;
+    class Engine;
+    datatype Mass;
+}`,
+            features: `package Geometry {
+    datatype Length;
+    datatype Area;
+
+    class Shape {
+        feature area : Area;
+    }
+
+    class Rectangle :> Shape {
+        feature width : Length;
+        feature height : Length;
+    }
+
+    class Circle :> Shape {
+        feature radius : Length;
+    }
+}`,
+            nested: `package Organization {
+    package Engineering {
+        class Engineer;
+        class Project;
+
+        package Software {
+            class Developer :> Engineer;
+            class Repository;
+        }
+
+        package Hardware {
+            class Designer :> Engineer;
+            class Component;
+        }
+    }
+
+    package Management {
+        class Manager;
+        class Budget;
+    }
+}`
+        };
+
+        // Global state
+        let parsedData = null;
+        let elementIndex = {};  // Map of id -> element node
+
+        // DOM Elements
+        const editor = document.getElementById('editor');
+        const parseBtn = document.getElementById('parseBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const examplesSelect = document.getElementById('examples');
+        const treeView = document.getElementById('treeView');
+        const treeStats = document.getElementById('treeStats');
+        const parseStatus = document.getElementById('parseStatus');
+        const elementDetails = document.getElementById('elementDetails');
+
+        // Load example
+        examplesSelect.addEventListener('change', (e) => {
+            if (e.target.value && examples[e.target.value]) {
+                editor.value = examples[e.target.value];
+                examplesSelect.value = '';
+            }
+        });
+
+        // Clear button
+        clearBtn.addEventListener('click', () => {
+            editor.value = '';
+            parsedData = null;
+            elementIndex = {};
+            treeView.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🌳</div>
+                    <div class="empty-state-text">
+                        Parse KerML code to see the element tree
+                    </div>
+                </div>
+            `;
+            treeStats.textContent = '';
+            parseStatus.innerHTML = '';
+            elementDetails.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">
+                        Click an element in the tree to view its metadata
+                    </div>
+                </div>
+            `;
+        });
+
+        // Parse button
+        parseBtn.addEventListener('click', async () => {
+            const kerml = editor.value.trim();
+            if (!kerml) {
+                showStatus('error', 'Please enter some KerML code to parse.');
+                return;
+            }
+
+            parseBtn.disabled = true;
+            parseBtn.innerHTML = '<span class="loading"></span> Parsing...';
+            parseStatus.innerHTML = '';
+
+            try {
+                const response = await fetch('/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kerml })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    parsedData = data;
+                    elementIndex = {};
+                    indexElements(data.tree);
+                    renderTree(data);
+
+                    // Build status message with mount info
+                    let statusMsg = `Parsed successfully: ${data.statistics?.totalObjects || 0} elements`;
+                    const mountInfo = data.statistics?.mounts;
+                    if (mountInfo?.libraryEnabled && mountInfo?.activeMounts?.length > 0) {
+                        const mountCount = mountInfo.activeMounts.length;
+                        const totalMountedElements = mountInfo.activeMounts.reduce((sum, m) => sum + (m.elementCount || 0), 0);
+                        statusMsg += ` (+ ${totalMountedElements} from ${mountCount} mounted library)`;
+                    }
+                    showStatus('success', statusMsg);
+                    // Clear element details
+                    elementDetails.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div class="empty-state-text">
+                                Click an element in the tree to view its metadata
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showStatus('error', 'Parse failed: ' + (data.errors?.join(', ') || 'Unknown error'));
+                }
+            } catch (err) {
+                showStatus('error', 'Network error: ' + err.message);
+            } finally {
+                parseBtn.disabled = false;
+                parseBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Parse
+                `;
+            }
+        });
+
+        // Index all elements for quick lookup
+        function indexElements(node) {
+            if (!node) return;
+            elementIndex[node.id] = node;
+            if (node.children) {
+                node.children.forEach(child => indexElements(child));
+            }
+        }
+
+        // Show status message
+        function showStatus(type, text) {
+            const icons = { success: '✓', error: '✕', info: 'ℹ' };
+            parseStatus.innerHTML = `
+                <div class="message ${type}" style="margin-top: 12px;">
+                    <span class="message-icon">${icons[type]}</span>
+                    <span>${text}</span>
+                </div>
+            `;
+        }
+
+        // Render tree
+        function renderTree(data) {
+            const stats = data.statistics || {};
+            treeStats.textContent = `${stats.totalObjects || 0} elements`;
+
+            treeView.innerHTML = `
+                <div class="tree-container">
+                    ${renderTreeNode(data.tree)}
+                </div>
+            `;
+
+            // Add toggle event listeners
+            document.querySelectorAll('.tree-toggle.has-children').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const item = toggle.closest('.tree-item');
+                    const children = item.nextElementSibling;
+                    if (children && children.classList.contains('tree-children')) {
+                        children.classList.toggle('collapsed');
+                        toggle.textContent = children.classList.contains('collapsed') ? '▶' : '▼';
+                    }
+                });
+            });
+
+            // Add click event listeners for selection
+            document.querySelectorAll('.tree-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Deselect previous
+                    document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
+                    // Select current
+                    item.classList.add('selected');
+                    // Show metadata
+                    const elementId = item.dataset.id;
+                    showElementDetails(elementId);
+                });
+            });
+        }
+
+        // Render tree node
+        function renderTreeNode(node, depth = 0) {
+            if (!node) return '<div class="empty-state"><div class="empty-state-text">No tree data</div></div>';
+
+            const hasChildren = node.children && node.children.length > 0;
+            const typeClass = getTypeClass(node.type);
+            // Prefer derived name over declaredName
+            const displayName = node.name || node.declaredName || '(unnamed)';
+            const isUnnamed = !node.name && !node.declaredName;
+
+            let html = `
+                <div class="tree-item" data-id="${node.id}">
+                    <span class="tree-toggle ${hasChildren ? 'has-children' : ''}">${hasChildren ? '▼' : '·'}</span>
+                    <div class="tree-content">
+                        <span class="tree-type ${typeClass}">${node.type}</span>
+                        <span class="tree-name ${isUnnamed ? 'unnamed' : ''}">${displayName}</span>
+                    </div>
+                </div>
+            `;
+
+            if (hasChildren) {
+                html += `<div class="tree-children tree-node">`;
+                node.children.forEach(child => {
+                    html += renderTreeNode(child, depth + 1);
+                });
+                html += `</div>`;
+            }
+
+            return html;
+        }
+
+        // Show element details in the right pane
+        function showElementDetails(elementId) {
+            const element = elementIndex[elementId];
+            if (!element) {
+                elementDetails.innerHTML = `
+                    <div class="message error">
+                        <span class="message-icon">✕</span>
+                        <span>Element not found</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const typeClass = getTypeClass(element.type);
+            // Prefer derived name over declaredName
+            const displayName = element.name || element.declaredName || '(unnamed)';
+            const isUnnamed = !element.name && !element.declaredName;
+
+            // Build properties section
+            const properties = element.properties || {};
+            const propEntries = Object.entries(properties);
+
+            // Find parent by searching tree
+            const parent = findParent(parsedData.tree, elementId);
+
+            let html = `
+                <div class="selected-element-header">
+                    <span class="selected-element-type tree-type ${typeClass}">${element.type}</span>
+                    <span class="selected-element-name ${isUnnamed ? 'unnamed' : ''}">${displayName}</span>
+                </div>
+
+                <div class="metadata-section">
+                    <div class="metadata-section-title">Identity</div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">ID</span>
+                        <span class="metadata-value metadata-id">${element.id}</span>
+                    </div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">Type</span>
+                        <span class="metadata-value">${element.type}</span>
+                    </div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">Name</span>
+                        <span class="metadata-value ${!element.name ? 'empty' : ''}">${element.name || '(not computed)'}</span>
+                    </div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">Declared Name</span>
+                        <span class="metadata-value ${!element.declaredName ? 'empty' : ''}">${element.declaredName || '(none)'}</span>
+                    </div>
+                </div>
+
+                <div class="metadata-section">
+                    <div class="metadata-section-title">Hierarchy</div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">Parent</span>
+                        <span class="metadata-value">
+                            ${parent ? `
+                                <span class="tree-type ${getTypeClass(parent.type)}" style="font-size: 10px;">${parent.type}</span>
+                                ${parent.declaredName || parent.name || '(unnamed)'}
+                            ` : '<span class="empty">(root)</span>'}
+                        </span>
+                    </div>
+                    <div class="metadata-field">
+                        <span class="metadata-key">Children</span>
+                        <span class="metadata-value">${element.children?.length || 0} direct children</span>
+                    </div>
+                </div>
+            `;
+
+            // Properties section
+            if (propEntries.length > 0) {
+                html += `
+                    <div class="metadata-section">
+                        <div class="metadata-section-title">Properties</div>
+                        ${propEntries.map(([key, value]) => `
+                            <div class="metadata-field">
+                                <span class="metadata-key">${key}</span>
+                                <span class="metadata-value">${formatValue(value)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Children section
+            if (element.children && element.children.length > 0) {
+                html += `
+                    <div class="metadata-section">
+                        <div class="metadata-section-title">Children (${element.children.length})</div>
+                        <ul class="metadata-links">
+                            ${element.children.map(child => `
+                                <li class="metadata-link-item" data-id="${child.id}">
+                                    <span class="metadata-link-direction">→</span>
+                                    <span class="tree-type ${getTypeClass(child.type)}" style="font-size: 10px;">${child.type}</span>
+                                    <span class="metadata-link-target">${child.name || child.declaredName || '(unnamed)'}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Raw Properties section (all attributes)
+            const rawProps = element.rawProperties || {};
+            const rawEntries = Object.entries(rawProps).sort((a, b) => a[0].localeCompare(b[0]));
+            html += `
+                <div class="metadata-section">
+                    <div class="metadata-section-title">Attributes (${rawEntries.length})</div>
+                    ${rawEntries.length === 0 ? '<div class="metadata-field"><span class="metadata-value empty">(none)</span></div>' : ''}
+                    ${rawEntries.map(([key, value]) => `
+                        <div class="metadata-field">
+                            <span class="metadata-key">${key}</span>
+                            <span class="metadata-value ${value === null || value === undefined ? 'empty' : ''}">${formatValue(value)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Association Ends section
+            const assocEnds = element.associationEnds || {};
+            const assocEntries = Object.entries(assocEnds).sort((a, b) => a[0].localeCompare(b[0]));
+            html += `
+                <div class="metadata-section">
+                    <div class="metadata-section-title">Association Ends (${assocEntries.length})</div>
+                    ${assocEntries.length === 0 ? '<div class="metadata-field"><span class="metadata-value empty">(none)</span></div>' : ''}
+                    ${assocEntries.map(([key, value]) => `
+                        <div class="metadata-field">
+                            <span class="metadata-key">${key}</span>
+                            <span class="metadata-value ${value === null || value === undefined || (Array.isArray(value) && value.length === 0) ? 'empty' : ''}">${formatAssocValue(value)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            elementDetails.innerHTML = html;
+
+            // Add click handlers for children links
+            elementDetails.querySelectorAll('.metadata-link-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const targetId = item.dataset.id;
+                    // Find and select the tree item
+                    const treeItem = document.querySelector(`.tree-item[data-id="${targetId}"]`);
+                    if (treeItem) {
+                        // Expand parents if needed
+                        expandToElement(targetId);
+                        // Deselect previous
+                        document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
+                        // Select and scroll to
+                        treeItem.classList.add('selected');
+                        treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    showElementDetails(targetId);
+                });
+            });
+        }
+
+        // Find parent of an element in the tree
+        function findParent(node, targetId, parent = null) {
+            if (!node) return null;
+            if (node.id === targetId) return parent;
+            if (node.children) {
+                for (const child of node.children) {
+                    const result = findParent(child, targetId, node);
+                    if (result !== null) return result;
+                }
+            }
+            return null;
+        }
+
+        // Expand tree to show element
+        function expandToElement(targetId) {
+            // Find path to element
+            const path = findPathToElement(parsedData.tree, targetId);
+            if (!path) return;
+
+            // Expand each node in path
+            for (const nodeId of path) {
+                const treeItem = document.querySelector(`.tree-item[data-id="${nodeId}"]`);
+                if (treeItem) {
+                    const children = treeItem.nextElementSibling;
+                    if (children && children.classList.contains('tree-children')) {
+                        children.classList.remove('collapsed');
+                        const toggle = treeItem.querySelector('.tree-toggle');
+                        if (toggle) toggle.textContent = '▼';
+                    }
+                }
+            }
+        }
+
+        // Find path from root to element
+        function findPathToElement(node, targetId, path = []) {
+            if (!node) return null;
+            const newPath = [...path, node.id];
+            if (node.id === targetId) return newPath;
+            if (node.children) {
+                for (const child of node.children) {
+                    const result = findPathToElement(child, targetId, newPath);
+                    if (result) return result;
+                }
+            }
+            return null;
+        }
+
+        // Format value for display
+        function formatValue(value) {
+            if (value === null || value === undefined) return '<span class="empty">(null)</span>';
+            if (typeof value === 'boolean') return value ? 'true' : 'false';
+            if (typeof value === 'object') return JSON.stringify(value);
+            return String(value);
+        }
+
+        // Format association end value for display
+        function formatAssocValue(value) {
+            if (value === null || value === undefined) return '<span class="empty">(null)</span>';
+            if (Array.isArray(value)) {
+                if (value.length === 0) return '<span class="empty">(empty list)</span>';
+                return value.join(', ');
+            }
+            return String(value);
+        }
+
+        // Get CSS class for element type
+        function getTypeClass(type) {
+            const typeMap = {
+                'Namespace': 'namespace',
+                'Package': 'package',
+                'Class': 'class',
+                'Feature': 'feature',
+                'DataType': 'datatype',
+                'Structure': 'structure',
+                'Association': 'association',
+                'OwningMembership': 'membership',
+                'FeatureMembership': 'membership',
+                'Membership': 'membership',
+                'Subclassification': 'default',
+                'FeatureTyping': 'default',
+                'Subsetting': 'default',
+                'Redefinition': 'default'
+            };
+            return typeMap[type] || 'default';
+        }
+
+        // Initialize with a simple example
+        editor.value = examples.simple;
+
+        // Library status elements
+        const libraryIndicator = document.getElementById('libraryIndicator');
+        const libraryStatusText = document.getElementById('libraryStatusText');
+
+        // Fetch library status on page load
+        async function checkLibraryStatus() {
+            try {
+                const response = await fetch('/library-status');
+                const data = await response.json();
+
+                if (data.mounted) {
+                    libraryIndicator.classList.remove('disabled');
+                    libraryIndicator.classList.add('enabled');
+                    const namespaces = data.rootNamespaces?.length || 0;
+                    libraryStatusText.textContent = `Library: ${data.libraryName || 'Enabled'} (${data.elementCount || 0} elements, ${namespaces} namespaces)`;
+                } else if (data.enabled) {
+                    libraryIndicator.classList.remove('disabled');
+                    libraryIndicator.classList.add('enabled');
+                    libraryStatusText.textContent = 'Library: Enabled (not mounted)';
+                } else {
+                    libraryIndicator.classList.remove('enabled');
+                    libraryIndicator.classList.add('disabled');
+                    libraryStatusText.textContent = 'Library: Not enabled (start with --with-library)';
+                }
+            } catch (err) {
+                libraryIndicator.classList.remove('enabled');
+                libraryIndicator.classList.add('disabled');
+                libraryStatusText.textContent = 'Library: Status unavailable';
+            }
+        }
+
+        // Check library status on page load
+        checkLibraryStatus();
+    </script>
+</body>
+</html>

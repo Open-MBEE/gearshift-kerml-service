@@ -1,0 +1,56 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.openmbee.gearshift.kerml.metamodel.classes.kernel
+
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
+import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
+
+/**
+ * KerML Class metaclass.
+ * Specializes: Classifier
+ * A classifier that represents a class.
+ */
+fun createClassMetaClass() = MetaClass(
+    name = "Class",
+    isAbstract = false,
+    superclasses = listOf("Classifier"),
+    attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateClassSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                ownedSpecialization.general->forAll(not oclIsKindOf(DataType)) and
+                not oclIsKindOf(Association) implies
+                    ownedSpecialization.general->forAll(not oclIsKindOf(Association))
+            """.trimIndent(),
+            description = "A Class must not specialize a DataType and it can only specialize an Association if it is also itself a kind of Association (such as an AssociationStructure or Interaction)."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "classOccurrenceBinding",
+            baseConcept = "Occurrences::Occurrence",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
+        )
+    ),
+    description = "A classifier that represents a class"
+)

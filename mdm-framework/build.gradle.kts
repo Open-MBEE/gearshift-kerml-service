@@ -65,15 +65,12 @@ kotlin {
     jvmToolchain(21)
 }
 
-// Configure ANTLR to generate OCL parser
+// Configure ANTLR to generate parsers (OCL and GQL)
+// Package is specified via @header in each grammar file
 tasks.named<AntlrTask>("generateGrammarSource") {
     maxHeapSize = "64m"
-    arguments = arguments + listOf(
-        "-visitor",
-        "-package", "org.openmbee.mdm.framework.constraints.ocl.antlr"
-    )
-    outputDirectory =
-        file("${project.buildDir}/generated-src/antlr/main/org/openmbee/mdm/framework/constraints/ocl/antlr")
+    arguments = arguments + listOf("-visitor")
+    outputDirectory = file("${project.buildDir}/generated-src/antlr/main")
 }
 
 // Ensure ANTLR generates before Kotlin compilation
