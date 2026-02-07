@@ -17,6 +17,7 @@ package org.openmbee.gearshift.api
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
 import io.ktor.server.application.*
@@ -32,6 +33,7 @@ import org.openmbee.mdm.framework.runtime.MountRegistry
 import org.openmbee.mdm.framework.query.gql.query
 import org.openmbee.mdm.framework.query.gql.parser.GqlParseException
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.generator.KerMLWriter
 
 /**
  * Response for the library status endpoint.
@@ -100,6 +102,23 @@ data class QueryResponse(
 )
 
 /**
+ * Request body for generating KerML text from a parsed model.
+ */
+data class GenerateRequest(
+    val kerml: String
+)
+
+/**
+ * Response for the generate endpoint.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class GenerateResponse(
+    val success: Boolean,
+    val kerml: String? = null,
+    val errors: List<String> = emptyList()
+)
+
+/**
  * Demo API server for the Gearshift KerML Service.
  * Uses the visitor-based parsing architecture via KerMLModel.
  *
@@ -111,6 +130,7 @@ class DemoApi(
     private val enableMounts: Boolean = false
 ) {
     private val model: KerMLModel
+    private val projectStore: ProjectStore
 
     init {
         model = if (enableMounts) {
@@ -122,6 +142,7 @@ class DemoApi(
             // Simple model without library support
             KerMLModel()
         }
+        projectStore = ProjectStore(enableMounts)
     }
 
     private val engine get() = model.engine
@@ -379,12 +400,17 @@ class DemoApi(
         embeddedServer(Netty, port = port) {
             install(ContentNegotiation) {
                 jackson {
+                    registerModule(JavaTimeModule())
                     enable(SerializationFeature.INDENT_OUTPUT)
+                    disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                     setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
                 }
             }
 
             routing {
+                // SysML v2 API routes
+                sysmlApiRoutes(projectStore)
+
                 get("/") {
                     // Serve the static HTML demo page
                     val indexHtml = this::class.java.classLoader.getResource("static/index.html")?.readText()
@@ -522,6 +548,60 @@ class DemoApi(
                         call.respond(
                             HttpStatusCode.InternalServerError,
                             ParseResponse(
+                                success = false,
+                                errors = listOf(e.message ?: "Unknown error")
+                            )
+                        )
+                    }
+                }
+
+                post("/generate") {
+                    try {
+                        val request = call.receive<GenerateRequest>()
+
+                        // Parse the KerML input first
+                        model.reset()
+                        val pkg = model.parseString(request.kerml)
+                        val result = model.getLastParseResult()
+
+                        if (result == null || !result.success) {
+                            val errors = result?.errors?.map { it.message } ?: listOf("Unknown parse error")
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                GenerateResponse(
+                                    success = false,
+                                    errors = errors
+                                )
+                            )
+                            return@post
+                        }
+
+                        // Generate KerML text from parsed model
+                        val rootElement = model.getRootElement()
+                        if (rootElement == null || rootElement !is org.openmbee.gearshift.generated.interfaces.Namespace) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                GenerateResponse(
+                                    success = false,
+                                    errors = listOf("No root namespace found after parsing")
+                                )
+                            )
+                            return@post
+                        }
+
+                        val writer = KerMLWriter()
+                        val generated = writer.write(rootElement as org.openmbee.gearshift.generated.interfaces.Namespace)
+
+                        call.respond(
+                            GenerateResponse(
+                                success = true,
+                                kerml = generated
+                            )
+                        )
+                    } catch (e: Exception) {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            GenerateResponse(
                                 success = false,
                                 errors = listOf(e.message ?: "Unknown error")
                             )

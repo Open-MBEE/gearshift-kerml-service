@@ -15,9 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.generator.base
 
-import org.openmbee.gearshift.generated.interfaces.Feature
-import org.openmbee.gearshift.generated.interfaces.Redefinition
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.generator.GenerationContext
+import org.openmbee.gearshift.kerml.generator.InlineExpressionHelper
 
 /**
  * Abstract base generator for Feature elements and their subclasses.
@@ -110,7 +110,7 @@ abstract class BaseFeatureGenerator<T : Feature> : BaseTypeGenerator<T>() {
         append(generateIdentification(feature))
 
         // Multiplicity: [n..m] ordered nonunique
-        append(generateMultiplicity(feature))
+        append(generateMultiplicity(feature, context))
 
         // Typings: : Type1, Type2
         val typings = generateTypings(feature, context)
@@ -142,15 +142,30 @@ abstract class BaseFeatureGenerator<T : Feature> : BaseTypeGenerator<T>() {
      * Grammar: `'[' lowerBound '..' upperBound ']' ( 'ordered' )? ( 'nonunique' )?`
      *
      * @param feature The feature to generate multiplicity for
+     * @param context The generation context
      * @return The multiplicity string (may be empty if no explicit multiplicity)
      */
-    protected open fun generateMultiplicity(feature: Feature): String {
+    protected open fun generateMultiplicity(feature: Feature, context: GenerationContext): String {
         val multiplicity = feature.multiplicity ?: return ""
 
         return buildString {
-            // Get bounds from the multiplicity
-            // TODO: Access actual bound values when available
-            // For now, we'll leave this as a placeholder that can be enhanced
+            if (multiplicity is MultiplicityRange) {
+                val lower = multiplicity.lowerBound
+                val upper = multiplicity.upperBound
+                if (lower != null || true) {
+                    val upperStr = InlineExpressionHelper.generateInline(upper, context)
+                    if (lower != null) {
+                        val lowerStr = InlineExpressionHelper.generateInline(lower, context)
+                        if (lowerStr == upperStr) {
+                            append(" [$upperStr]")
+                        } else {
+                            append(" [$lowerStr..$upperStr]")
+                        }
+                    } else {
+                        append(" [$upperStr]")
+                    }
+                }
+            }
 
             // Ordered/Nonunique flags
             if (feature.isOrdered) append(" ordered")
@@ -259,8 +274,17 @@ abstract class BaseFeatureGenerator<T : Feature> : BaseTypeGenerator<T>() {
      * ```
      */
     protected open fun generateValuePart(feature: Feature, context: GenerationContext): String {
-        // TODO: Implement when FeatureValue is accessible
-        // This requires accessing the feature's value expression and generating it
-        return ""
+        val featureValue = feature.ownedMembership
+            .filterIsInstance<FeatureValue>()
+            .firstOrNull() ?: return ""
+
+        val valueExpr = InlineExpressionHelper.generateInline(featureValue.value, context)
+
+        return when {
+            featureValue.isDefault && featureValue.isInitial -> " default := $valueExpr"
+            featureValue.isDefault -> " default = $valueExpr"
+            featureValue.isInitial -> " := $valueExpr"
+            else -> " = $valueExpr"
+        }
     }
 }

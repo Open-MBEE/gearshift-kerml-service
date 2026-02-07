@@ -1,0 +1,137 @@
+/*
+ * Copyright 2026 Charles Galey
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.openmbee.mdm.framework.runtime
+
+import io.github.oshai.kotlinlogging.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
+
+/**
+ * Serializes MDMObject instances to the @id/@type JSON-LD format
+ * defined by the SysML v2 API (ptc-25-04-21).
+ *
+ * Output format:
+ * ```json
+ * {
+ *   "@id": "uuid",
+ *   "@type": "Class",
+ *   "declaredName": "Vehicle",
+ *   "ownedMembership": [{"@id": "uuid"}, ...]
+ * }
+ * ```
+ *
+ * Association ends are serialized as `{"@id": "uuid"}` references (Identified pattern).
+ */
+class ElementSerializer(
+    private val engine: MDMEngine
+) {
+    private val registry = engine.schema
+
+    /**
+     * Serialize an MDMObject to a JSON-LD compatible map.
+     */
+    fun serialize(element: MDMObject): Map<String, Any?> {
+        val result = linkedMapOf<String, Any?>()
+        val elementId = element.id ?: return result
+
+        result["@id"] = elementId
+        result["@type"] = element.className
+
+        val metaClass = element.metaClass
+        val allClassNames = registry.getAllSuperclasses(metaClass.name) + metaClass.name
+
+        // Serialize primitive attributes
+        for (className in allClassNames) {
+            val cls = registry.getClass(className) ?: continue
+            for (prop in cls.attributes) {
+                if (result.containsKey(prop.name)) continue
+                try {
+                    val value = engine.getProperty(element, prop.name)
+                    if (value != null) {
+                        result[prop.name] = serializePrimitive(value)
+                    }
+                } catch (e: Exception) {
+                    logger.debug { "Skipping property ${prop.name} on ${element.className}: ${e.message}" }
+                }
+            }
+        }
+
+        // Serialize association ends as @id references
+        for (association in registry.getAllAssociations()) {
+            // Target end: source type matches our class hierarchy
+            if (allClassNames.contains(association.sourceEnd.type)) {
+                val endName = association.targetEnd.name
+                if (!result.containsKey(endName)) {
+                    try {
+                        val value = engine.getProperty(element, endName)
+                        if (value != null) {
+                            result[endName] = serializeReference(value)
+                        }
+                    } catch (e: Exception) {
+                        logger.debug { "Skipping association end $endName: ${e.message}" }
+                    }
+                }
+            }
+            // Source end: navigable and target type matches our class hierarchy
+            if (association.sourceEnd.isNavigable && allClassNames.contains(association.targetEnd.type)) {
+                val endName = association.sourceEnd.name
+                if (!result.containsKey(endName)) {
+                    try {
+                        val value = engine.getProperty(element, endName)
+                        if (value != null) {
+                            result[endName] = serializeReference(value)
+                        }
+                    } catch (e: Exception) {
+                        logger.debug { "Skipping association end $endName: ${e.message}" }
+                    }
+                }
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * Serialize multiple elements.
+     */
+    fun serializeAll(elements: List<MDMObject>): List<Map<String, Any?>> {
+        return elements.map { serialize(it) }
+    }
+
+    private fun serializePrimitive(value: Any?): Any? {
+        return when (value) {
+            null -> null
+            is String, is Boolean, is Number -> value
+            is MDMObject -> mapOf("@id" to value.id)
+            is List<*> -> value.map { serializePrimitive(it) }
+            else -> value.toString()
+        }
+    }
+
+    private fun serializeReference(value: Any?): Any? {
+        return when (value) {
+            null -> null
+            is MDMObject -> mapOf("@id" to value.id)
+            is List<*> -> value.mapNotNull { item ->
+                when (item) {
+                    is MDMObject -> mapOf("@id" to item.id)
+                    else -> null
+                }
+            }
+            else -> null
+        }
+    }
+}

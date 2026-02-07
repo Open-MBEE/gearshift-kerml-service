@@ -32,24 +32,59 @@ object GeneratorFactory {
      */
     private val generators: Map<KClass<*>, KerMLGenerator<*>> = mapOf(
         // Classifiers
+        Association::class to AssociationGenerator(),
+        AssociationStructure::class to AssociationStructureGenerator(),
         Class::class to ClassGenerator(),
         DataType::class to DataTypeGenerator(),
         Structure::class to StructureGenerator(),
-        Association::class to AssociationGenerator(),
+
+        // Classifiers - Behavioral
+        Behavior::class to BehaviorGenerator(),
+        Function::class to FunctionGenerator(),
+        Interaction::class to InteractionGenerator(),
+        Predicate::class to PredicateGenerator(),
 
         // Features
         Feature::class to FeatureGenerator(),
+        Step::class to StepGenerator(),
+
+        // Connectors
+        BindingConnector::class to BindingConnectorGenerator(),
+        Connector::class to ConnectorGenerator(),
+        Flow::class to FlowGenerator(),
+        Succession::class to SuccessionGenerator(),
+        SuccessionFlow::class to SuccessionFlowGenerator(),
+
+        // Expressions
+        BooleanExpression::class to BooleanExpressionGenerator(),
+        Expression::class to ExpressionContainerGenerator(),
+        FeatureReferenceExpression::class to FeatureReferenceExpressionGenerator(),
+        InvocationExpression::class to InvocationExpressionGenerator(),
+        Invariant::class to InvariantGenerator(),
+        NullExpression::class to NullExpressionGenerator(),
+        OperatorExpression::class to OperatorExpressionGenerator(),
+
+        // Literals
+        LiteralBoolean::class to LiteralBooleanGenerator(),
+        LiteralInfinity::class to LiteralInfinityGenerator(),
+        LiteralInteger::class to LiteralIntegerGenerator(),
+        LiteralRational::class to LiteralRationalGenerator(),
+        LiteralString::class to LiteralStringGenerator(),
 
         // Namespaces
+        LibraryPackage::class to LibraryPackageGenerator(),
         Package::class to PackageGenerator(),
 
         // Imports
         Import::class to ImportGenerator(),
-        NamespaceImport::class to ImportGenerator(),
         MembershipImport::class to ImportGenerator(),
+        NamespaceImport::class to ImportGenerator(),
 
         // Annotations
         Comment::class to CommentGenerator(),
+        Documentation::class to DocumentationGenerator(),
+        MetadataFeature::class to MetadataFeatureGenerator(),
+        TextualRepresentation::class to TextualRepresentationGenerator(),
     )
 
     /**
