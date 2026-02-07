@@ -32,6 +32,12 @@ fun createCrossSubsettingMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveCrossSubsettingCrossingFeature",
+            type = ConstraintType.DERIVATION,
+            expression = "if subsettingFeature = owningRelatedElement then subsettingFeature else null endif",
+            description = "The endFeature that owns this CrossSubsetting relationship and is also its subsettingFeature."
+        ),
+        MetaConstraint(
             name = "validateCrossSubsettingCrossedFeature",
             type = ConstraintType.VERIFICATION,
             expression = """

@@ -34,6 +34,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isNavigable = false,
             isDerived = true,
+            derivationConstraint = "computeExpressionInstantiation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "argument",
@@ -56,6 +57,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
+            derivationConstraint = "computeTypeInstantiationExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "instantiatedType",
@@ -79,6 +81,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("namespace"),
+            derivationConstraint = "computeFeatureReferenceExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "referent",
@@ -102,6 +105,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("namespace"),
+            derivationConstraint = "computeFeatureChainExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "targetFeature",
@@ -125,6 +129,7 @@ fun createExpressionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("namespace"),
+            derivationConstraint = "computeElementAccessExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "referencedElement",

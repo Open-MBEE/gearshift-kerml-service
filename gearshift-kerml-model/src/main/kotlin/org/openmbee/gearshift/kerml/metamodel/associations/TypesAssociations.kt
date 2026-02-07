@@ -36,6 +36,7 @@ fun createTypeAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("membershipNamespace"),
+            derivationConstraint = "computeMembershipInheritingType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "inheritedMembership",
@@ -60,6 +61,7 @@ fun createTypeAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             isUnion = true,
+            derivationConstraint = "computeFeatureMembershipType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "featureMembership",
@@ -118,6 +120,7 @@ fun createTypeAssociations(): List<MetaAssociation> {
             aggregation = AggregationKind.COMPOSITE,
             isDerived = true,
             redefines = listOf("ownedMemberElement"),
+            derivationConstraint = "deriveFeatureMembershipOwnedMemberFeature"
         )
     )
 
@@ -131,7 +134,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("namespace")
+            subsets = listOf("namespace"),
+            derivationConstraint = "computeFeatureTypeWithFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "feature",
@@ -179,7 +183,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("typeWithFeature")
+            subsets = listOf("typeWithFeature"),
+            derivationConstraint = "computeFeatureTypeWithDirectedFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "directedFeature",
@@ -203,7 +208,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("typeWithFeature")
+            subsets = listOf("typeWithFeature"),
+            derivationConstraint = "computeFeatureTypeWithInput"
         ),
         targetEnd = MetaAssociationEnd(
             name = "input",
@@ -227,7 +233,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("typeWithFeature")
+            subsets = listOf("typeWithFeature"),
+            derivationConstraint = "computeFeatureTypeWithOutput"
         ),
         targetEnd = MetaAssociationEnd(
             name = "output",
@@ -251,7 +258,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("typeWithFeature")
+            subsets = listOf("typeWithFeature"),
+            derivationConstraint = "computeFeatureTypeWithEndFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "endFeature",
@@ -274,7 +282,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("typeWithEndFeature", "owningType")
+            subsets = listOf("typeWithEndFeature", "owningType"),
+            derivationConstraint = "computeFeatureEndOwningType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedEndFeature",
@@ -298,7 +307,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
-            subsets = listOf("typeWithFeature")
+            subsets = listOf("typeWithFeature"),
+            derivationConstraint = "computeFeatureInheritingType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "inheritedFeature",
@@ -321,7 +331,8 @@ fun createTypeAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeMultiplicityTypeWithMultiplicity"
         ),
         targetEnd = MetaAssociationEnd(
             name = "multiplicity",

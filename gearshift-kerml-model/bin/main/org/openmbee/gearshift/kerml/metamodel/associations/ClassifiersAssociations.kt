@@ -74,7 +74,8 @@ fun createClassifierAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            redefines = listOf("owningType")
+            redefines = listOf("owningType"),
+            derivationConstraint = "deriveSubclassificationOwningClassifier"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedSubclassification",

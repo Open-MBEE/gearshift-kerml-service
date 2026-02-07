@@ -49,6 +49,27 @@ fun createTypeMetaClass() = MetaClass(
     ),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveTypeAssociation",
+            type = ConstraintType.DERIVATION,
+            expression = "relationship->selectByKind(Association)",
+            isNormative = false,
+            description = "The Associations that relate this Type."
+        ),
+        MetaConstraint(
+            name = "deriveTypeFeaturedConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "feature->selectByKind(Connector)->select(c | c.defaultFeaturingType = self)",
+            isNormative = false,
+            description = "The Connectors whose default featuring type is this Type."
+        ),
+        MetaConstraint(
+            name = "deriveTypeDifferencedType",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedDifferencing.typeDifferenced",
+            isNormative = false,
+            description = "Types that are differenced by this Type's differencingTypes."
+        ),
+        MetaConstraint(
             name = "deriveTypeDifferencingType",
             type = ConstraintType.DERIVATION,
             expression = "ownedDifferencing.differencingType",
@@ -191,6 +212,20 @@ fun createTypeMetaClass() = MetaClass(
             description = "The ownedUnionings of a Type are the ownedRelationships that are Unionings"
         ),
         MetaConstraint(
+            name = "deriveTypeSourceAssociation",
+            type = ConstraintType.DERIVATION,
+            expression = "sourceRelationship->selectByKind(Association)",
+            isNormative = false,
+            description = "The Associations where this Type is the source."
+        ),
+        MetaConstraint(
+            name = "deriveTypeTargetAssociation",
+            type = ConstraintType.DERIVATION,
+            expression = "targetRelationship->selectByKind(Association)",
+            isNormative = false,
+            description = "The Associations where this Type is the target."
+        ),
+        MetaConstraint(
             name = "deriveTypeUnioningType",
             type = ConstraintType.DERIVATION,
             expression = "ownedUnioning.unioningType",
@@ -243,6 +278,13 @@ fun createTypeMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "unioningType->excludes(self)",
             description = "A Type cannot be one of its own unioningTypes"
+        ),
+        MetaConstraint(
+            name = "computeMultiplicityTypeWithMultiplicity",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.multiplicity = self)->any(true)",
+            isNormative = false,
+            description = "The Type that has this Multiplicity as its multiplicity."
         )
     ),
     operations = listOf(

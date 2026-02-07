@@ -73,7 +73,8 @@ fun createFeatureInvertingAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("featureInverted", "owningRelatedElement")
+            subsets = listOf("featureInverted", "owningRelatedElement"),
+            derivationConstraint = "deriveFeatureInvertingOwningFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedFeatureInverting",

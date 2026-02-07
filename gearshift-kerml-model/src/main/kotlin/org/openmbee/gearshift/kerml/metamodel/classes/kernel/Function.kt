@@ -70,6 +70,33 @@ fun createFunctionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "featureMembership->selectByKind(ReturnParameterMembership)->size() = 1",
             description = "A Function must have exactly one featureMembership (owned or inherited) that is a ResultParameterMembership."
+        ),
+        MetaConstraint(
+            name = "deriveFunctionExpression",
+            type = ConstraintType.DERIVATION,
+            expression = "step->selectByKind(Expression)",
+            description = "The Expressions that are steps in the calculation of the result of this Function."
+        ),
+        MetaConstraint(
+            name = "computeFeatureComputingExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Expression.allInstances()->select(e | e.result = self)",
+            isNormative = false,
+            description = "The Expressions that have this Feature as their result."
+        ),
+        MetaConstraint(
+            name = "computeFeatureComputingFunction",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Function.allInstances()->select(f | f.result = self)",
+            isNormative = false,
+            description = "The Functions that have this Feature as their result."
+        ),
+        MetaConstraint(
+            name = "computeFunctionTypedExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Expression.allInstances()->select(e | e.function->includes(self))",
+            isNormative = false,
+            description = "The Expressions that have this Function as a type."
         )
     ),
     semanticBindings = listOf(

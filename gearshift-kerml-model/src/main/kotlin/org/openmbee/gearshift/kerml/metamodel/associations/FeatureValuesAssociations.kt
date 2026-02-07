@@ -36,6 +36,7 @@ fun createFeatureValueAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningMembership"),
+            derivationConstraint = "computeExpressionExpressedValuation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "value",
@@ -60,6 +61,7 @@ fun createFeatureValueAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("ownedMembership"),
+            derivationConstraint = "computeFeatureValuation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "featureWithValue",

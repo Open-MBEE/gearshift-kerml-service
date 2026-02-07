@@ -17,7 +17,9 @@ package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.mdm.framework.meta.BindingCondition
 import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
@@ -30,7 +32,15 @@ fun createMetaclassMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Structure"),
     attributes = emptyList(),
-    constraints = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "computeMetaclassTypedMetadata",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "MetadataFeature.allInstances()->select(mf | mf.metaclass = self)",
+            isNormative = false,
+            description = "The MetadataFeatures that have this Metaclass as their metaclass."
+        )
+    ),
     semanticBindings = listOf(
         SemanticBinding(
             name = "metaclassMetaobjectBinding",

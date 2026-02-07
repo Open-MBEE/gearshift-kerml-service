@@ -35,6 +35,7 @@ fun createPredicateAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedExpression"),
+            derivationConstraint = "computePredicateTypedBooleanExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "predicate",
@@ -43,6 +44,7 @@ fun createPredicateAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             redefines = listOf("function"),
+            derivationConstraint = "deriveBooleanExpressionPredicate"
         )
     )
 
@@ -57,6 +59,7 @@ fun createPredicateAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedStep"),
+            derivationConstraint = "computeFunctionTypedExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "function",
@@ -65,6 +68,7 @@ fun createPredicateAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             redefines = listOf("behavior"),
+            derivationConstraint = "deriveExpressionFunction"
         )
     )
 

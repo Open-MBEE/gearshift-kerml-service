@@ -105,6 +105,48 @@ fun createExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "featureMembership->selectByKind(ReturnParameterMembership)->size() = 1",
             description = "An Expression must have exactly one featureMembership (owned or inherited) that is a ResultParameterMembership."
+        ),
+        MetaConstraint(
+            name = "computeExpressionConditionedPackage",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Package.allInstances()->select(pkg | pkg.filterCondition->includes(self))->any(true)",
+            isNormative = false,
+            description = "The Package that has this Expression as a filter condition."
+        ),
+        MetaConstraint(
+            name = "computeExpressionInstantiation",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "InstantiationExpression.allInstances()->select(ie | ie.argument->includes(self))->any(true)",
+            isNormative = false,
+            description = "The InstantiationExpression that has this Expression as an argument."
+        ),
+        MetaConstraint(
+            name = "computeExpressionMultiplicityBound",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "MultiplicityRange.allInstances()->select(mr | mr.bound->includes(self))->any(true)",
+            isNormative = false,
+            description = "The MultiplicityRange that has this Expression as a bound."
+        ),
+        MetaConstraint(
+            name = "computeExpressionMultiplicityLowerBound",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "MultiplicityRange.allInstances()->select(mr | mr.lowerBound = self)->any(true)",
+            isNormative = false,
+            description = "The MultiplicityRange that has this Expression as its lower bound."
+        ),
+        MetaConstraint(
+            name = "computeExpressionMultiplicityUpperBound",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "MultiplicityRange.allInstances()->select(mr | mr.upperBound = self)->any(true)",
+            isNormative = false,
+            description = "The MultiplicityRange that has this Expression as its upper bound."
+        ),
+        MetaConstraint(
+            name = "computeExpressionOwningFilter",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningMembership.oclIsKindOf(ElementFilterMembership) then owningMembership.oclAsType(ElementFilterMembership) else null endif",
+            isNormative = false,
+            description = "The ElementFilterMembership that owns this Expression as its condition."
         )
     ),
     semanticBindings = listOf(

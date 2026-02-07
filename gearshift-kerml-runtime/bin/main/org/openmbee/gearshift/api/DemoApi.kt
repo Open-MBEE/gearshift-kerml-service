@@ -333,27 +333,38 @@ class DemoApi(
     }
 
     /**
+     * Represents an association end reference for the UI.
+     */
+    data class AssocEndRef(
+        val id: String,
+        val type: String,
+        val display: String
+    )
+
+    /**
      * Format association end values for display.
-     * Converts MDMObject references to readable strings.
+     * Returns AssocEndRef objects with id, type, and display text for navigation.
      */
     private fun formatAssociationValue(value: Any?): Any? {
         return when (value) {
             null -> null
             is MDMObject -> {
+                val id = value.id ?: return null
                 val name = value.getProperty("declaredName") as? String
                     ?: value.getProperty("name") as? String
-                if (name != null) {
+                val display = if (name != null) {
                     "${value.className}[$name]"
                 } else {
-                    "${value.className}[${value.id?.take(8)}...]"
+                    "${value.className}[${id.take(8)}...]"
                 }
+                AssocEndRef(id = id, type = value.className, display = display)
             }
 
             is List<*> -> {
                 if (value.isEmpty()) {
-                    emptyList<String>()
+                    emptyList<AssocEndRef>()
                 } else {
-                    value.map { formatAssociationValue(it) }
+                    value.mapNotNull { formatAssociationValue(it) as? AssocEndRef }
                 }
             }
 

@@ -74,7 +74,8 @@ fun createFeaturesAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("featureOfType", "owningRelatedElement")
+            subsets = listOf("featureOfType", "owningRelatedElement"),
+            derivationConstraint = "deriveTypeFeaturingOwningFeatureOfType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedTypeFeaturing",
@@ -138,7 +139,8 @@ fun createFeaturesAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("typedFeature"),
-            redefines = listOf("owningType")
+            redefines = listOf("owningType"),
+            derivationConstraint = "deriveFeatureTypingOwningFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedTyping",
@@ -162,7 +164,8 @@ fun createFeaturesAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeFeatureFeatureOfType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "featuringType",
@@ -184,7 +187,8 @@ fun createFeaturesAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeFeatureTypedFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "type",

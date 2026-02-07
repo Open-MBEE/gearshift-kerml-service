@@ -31,6 +31,13 @@ fun createRedefinitionMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "deriveRedefinitionOwningFeature",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "if redefiningFeature = owningRelatedElement then redefiningFeature else null endif",
+            isNormative = false,
+            description = "The Feature that owns this Redefinition relationship, which is also its redefiningFeature."
+        ),
+        MetaConstraint(
             name = "validateRedefinitionDirectionConformance",
             type = ConstraintType.VERIFICATION,
             expression = """

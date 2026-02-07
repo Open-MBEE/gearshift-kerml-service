@@ -160,6 +160,27 @@ fun createElementMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "ownedElement->selectByKind(TextualRepresentation)",
             description = "Derivation for Element::textualRepresentation association end"
+        ),
+        MetaConstraint(
+            name = "computeElementMembershipImport",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Import.allInstances()->select(i | i.importedElement = self)",
+            isNormative = false,
+            description = "The Imports that import this Element."
+        ),
+        MetaConstraint(
+            name = "computeElementNamespace",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Namespace.allInstances()->select(ns | ns.member->includes(self))",
+            isNormative = false,
+            description = "The Namespaces that have this Element as a member."
+        ),
+        MetaConstraint(
+            name = "computeElementRelationship",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "sourceRelationship->union(targetRelationship)",
+            isNormative = false,
+            description = "All Relationships that have this Element as a relatedElement."
         )
     ),
     operations = listOf(

@@ -16,12 +16,29 @@
 
 package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaOperation
 
 fun createParameterMembershipMetaClass() = MetaClass(
     name = "ParameterMembership",
     superclasses = listOf("FeatureMembership"),
+    constraints = listOf(
+        MetaConstraint(
+            name = "computeFeatureOwningParameterMembership",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningFeatureMembership.oclIsKindOf(ParameterMembership) then owningFeatureMembership.oclAsType(ParameterMembership) else null endif",
+            isNormative = false,
+            description = "The ParameterMembership that owns this Feature, if owningFeatureMembership is a ParameterMembership."
+        ),
+        MetaConstraint(
+            name = "deriveParameterMembershipOwnedMemberParameter",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "ownedMemberFeature",
+            description = "The Feature that is identified as a parameter by this ParameterMembership."
+        )
+    ),
     operations = listOf(
         MetaOperation(
             name = "parameterDirection",

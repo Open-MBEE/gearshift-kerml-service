@@ -35,6 +35,7 @@ fun createAssociationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("relationship"),
+            derivationConstraint = "deriveTypeAssociation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "relatedType",
@@ -60,6 +61,7 @@ fun createAssociationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("association", "sourceRelationship"),
+            derivationConstraint = "deriveTypeSourceAssociation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "sourceType",
@@ -84,6 +86,7 @@ fun createAssociationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("relationship"),
+            derivationConstraint = "deriveTypeTargetAssociation"
         ),
         targetEnd = MetaAssociationEnd(
             name = "targetType",
@@ -108,6 +111,7 @@ fun createAssociationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typeWithEndFeature"),
+            derivationConstraint = "deriveFeatureAssociationWithEnd"
         ),
         targetEnd = MetaAssociationEnd(
             name = "associationEnd",

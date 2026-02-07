@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Annotation metaclass.
@@ -27,5 +29,25 @@ fun createAnnotationMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveAnnotationAnnotatingElement",
+            type = ConstraintType.DERIVATION,
+            expression = "source.oclAsType(AnnotatingElement)",
+            description = "The AnnotatingElement that annotates the annotatedElement of this Annotation. This is always either the ownedAnnotatingElement or the owningAnnotatingElement."
+        ),
+        MetaConstraint(
+            name = "deriveAnnotationOwningAnnotatedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "if annotatedElement = owningRelatedElement then annotatedElement else null endif",
+            description = "The annotatedElement of this Annotation, when it is also the owningRelatedElement."
+        ),
+        MetaConstraint(
+            name = "deriveAnnotationOwningAnnotatingElement",
+            type = ConstraintType.DERIVATION,
+            expression = "if annotatingElement = owningRelatedElement then annotatingElement else null endif",
+            description = "The annotatingElement of this Annotation, when it is the owningRelatedElement."
+        )
+    ),
     description = "A relationship between an annotating element and the element being annotated"
 )

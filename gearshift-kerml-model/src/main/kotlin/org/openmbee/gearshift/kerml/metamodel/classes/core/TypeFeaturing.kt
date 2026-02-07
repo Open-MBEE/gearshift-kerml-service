@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML TypeFeaturing metaclass.
@@ -27,5 +29,20 @@ fun createTypeFeaturingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Featuring"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveTypeFeaturingOwningFeatureOfType",
+            type = ConstraintType.DERIVATION,
+            expression = "if featureOfType = owningRelatedElement then featureOfType else null endif",
+            description = "A featureOfType that is also the owningRelatedElement of this TypeFeaturing."
+        ),
+        MetaConstraint(
+            name = "computeFeatureFeatureOfType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "TypeFeaturing.allInstances()->select(tf | tf.featureOfType = self)",
+            isNormative = false,
+            description = "The TypeFeaturings that have this Feature as their featureOfType."
+        )
+    ),
     description = "A featuring relationship involving a type"
 )

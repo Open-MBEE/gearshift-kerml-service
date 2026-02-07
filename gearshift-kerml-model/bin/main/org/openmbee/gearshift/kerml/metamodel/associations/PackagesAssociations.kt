@@ -36,6 +36,7 @@ fun createPackageAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningNamespace"),
+            derivationConstraint = "computeExpressionConditionedPackage"
         ),
         targetEnd = MetaAssociationEnd(
             name = "filterCondition",
@@ -60,6 +61,7 @@ fun createPackageAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningMembership"),
+            derivationConstraint = "computeExpressionOwningFilter"
         ),
         targetEnd = MetaAssociationEnd(
             name = "condition",

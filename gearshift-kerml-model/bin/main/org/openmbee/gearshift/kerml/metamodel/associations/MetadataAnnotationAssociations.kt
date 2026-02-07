@@ -33,6 +33,7 @@ fun createMetadataAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedFeature"),
+            derivationConstraint = "computeMetaclassTypedMetadata"
         ),
         targetEnd = MetaAssociationEnd(
             name = "metaclass",

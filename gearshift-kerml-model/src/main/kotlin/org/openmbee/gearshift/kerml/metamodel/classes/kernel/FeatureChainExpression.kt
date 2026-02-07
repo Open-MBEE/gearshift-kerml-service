@@ -103,6 +103,13 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "operator = '.'",
             description = "The operator of a FeatureChainExpression must be '.'."
+        ),
+        MetaConstraint(
+            name = "computeFeatureChainExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureChainExpression.allInstances()->select(fce | fce.targetFeature = self)",
+            isNormative = false,
+            description = "The FeatureChainExpressions that have this Feature as their targetFeature."
         )
     ),
     operations = listOf(

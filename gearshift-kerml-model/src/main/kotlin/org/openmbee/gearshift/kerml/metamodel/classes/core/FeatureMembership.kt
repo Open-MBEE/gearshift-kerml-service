@@ -36,6 +36,19 @@ fun createFeatureMembershipMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "computeFeatureMembershipType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.featureMembership->includes(self))",
+            isNormative = false,
+            description = "The Types that have this FeatureMembership as a feature membership."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureMembershipOwnedMemberFeature",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "if ownedMemberElement.oclIsKindOf(Feature) then ownedMemberElement.oclAsType(Feature) else null endif",
+            description = "The Feature that this FeatureMembership relates to its owningType, making it an ownedFeature of the owningType."
+        ),
+        MetaConstraint(
             name = "deriveFeatureMembershipOwningType",
             type = ConstraintType.DERIVATION,
             expression = "if membershipOwningNamespace.oclIsKindOf(Type) then membershipOwningNamespace.oclAsType(Type) else null endif",

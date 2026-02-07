@@ -16,7 +16,19 @@
 
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
-fun createReferenceSubsettingMetaClass() =
-    MetaClass(name = "ReferenceSubsetting", superclasses = listOf("Subsetting"))
+fun createReferenceSubsettingMetaClass() = MetaClass(
+    name = "ReferenceSubsetting",
+    superclasses = listOf("Subsetting"),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveReferenceSubsettingReferencingFeature",
+            type = ConstraintType.REDEFINES_DERIVATION,
+            expression = "if subsettingFeature = owningRelatedElement then subsettingFeature else null endif",
+            description = "The Feature that owns this ReferenceSubsetting relationship, which is also its subsettingFeature."
+        )
+    )
+)

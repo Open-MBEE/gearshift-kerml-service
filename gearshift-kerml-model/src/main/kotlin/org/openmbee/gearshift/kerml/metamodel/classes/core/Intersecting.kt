@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Intersecting metaclass.
@@ -27,5 +29,20 @@ fun createIntersectingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "computeTypeIntersectedType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "ownedIntersecting.typeIntersected",
+            isNormative = false,
+            description = "Types that are intersected by this Type's intersectingTypes."
+        ),
+        MetaConstraint(
+            name = "deriveIntersectingTypeIntersected",
+            type = ConstraintType.DERIVATION,
+            expression = "if source = owningRelatedElement then source else null endif",
+            description = "Type with interpretations partly determined by intersectingType, as described in Type::intersectingType."
+        )
+    ),
     description = "A relationship that specifies the intersecting type for a type"
 )

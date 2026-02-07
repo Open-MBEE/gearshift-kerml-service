@@ -55,7 +55,8 @@ fun createIntersectingAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("owningRelatedElement"),
-            redefines = listOf("source")
+            redefines = listOf("source"),
+            derivationConstraint = "deriveIntersectingTypeIntersected"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedIntersecting",
@@ -77,7 +78,8 @@ fun createIntersectingAssociations(): List<MetaAssociation> {
             type = "Type",
             lowerBound = 0,
             upperBound = -1,
-            isDerived = true
+            isDerived = true,
+            derivationConstraint = "computeTypeIntersectedType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "intersectingType",

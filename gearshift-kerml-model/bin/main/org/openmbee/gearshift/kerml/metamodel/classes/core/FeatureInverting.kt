@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML FeatureInverting metaclass.
@@ -27,5 +29,13 @@ fun createFeatureInvertingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveFeatureInvertingOwningFeature",
+            type = ConstraintType.DERIVATION,
+            expression = "if featureInverted = owningRelatedElement then featureInverted else null endif",
+            description = "A featureInverted that is also the owningRelatedElement of this FeatureInverting."
+        )
+    ),
     description = "A relationship that specifies a feature as the inverse of another"
 )

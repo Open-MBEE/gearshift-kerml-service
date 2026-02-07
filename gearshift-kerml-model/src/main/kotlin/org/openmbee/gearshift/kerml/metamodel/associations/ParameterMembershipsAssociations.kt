@@ -36,6 +36,7 @@ fun createParameterMembershipAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningFeatureMembership"),
+            derivationConstraint = "computeFeatureOwningParameterMembership"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedMemberParameter",
@@ -45,6 +46,7 @@ fun createParameterMembershipAssociations(): List<MetaAssociation> {
             isDerived = true,
             aggregation = AggregationKind.COMPOSITE,
             redefines = listOf("ownedMemberFeature"),
+            derivationConstraint = "deriveParameterMembershipOwnedMemberParameter"
         )
     )
     return listOf(owningParameterMembershipOwnedMemberParameterAssociation)

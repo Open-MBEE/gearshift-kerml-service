@@ -17,7 +17,9 @@ package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.mdm.framework.meta.BindingCondition
 import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
@@ -30,7 +32,15 @@ fun createPredicateMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Function"),
     attributes = emptyList(),
-    constraints = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "computePredicateTypedBooleanExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "BooleanExpression.allInstances()->select(be | be.predicate->includes(self))",
+            isNormative = false,
+            description = "The BooleanExpressions that have this Predicate as a type."
+        )
+    ),
     semanticBindings = listOf(
         SemanticBinding(
             name = "predicateBooleanEvaluationBinding",

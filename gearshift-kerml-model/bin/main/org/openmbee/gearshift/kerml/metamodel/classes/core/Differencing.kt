@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Differencing metaclass.
@@ -27,5 +29,13 @@ fun createDifferencingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveDifferencingTypeDifferenced",
+            type = ConstraintType.DERIVATION,
+            expression = "if source = owningRelatedElement then source else null endif",
+            description = "Type with interpretations partly determined by differencingType, as described in Type::differencingType."
+        )
+    ),
     description = "A relationship that specifies the differencing type for a type"
 )

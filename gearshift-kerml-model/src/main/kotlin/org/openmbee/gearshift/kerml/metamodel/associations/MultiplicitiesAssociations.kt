@@ -35,6 +35,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningType"),
+            derivationConstraint = "computeExpressionMultiplicityBound"
         ),
         targetEnd = MetaAssociationEnd(
             name = "bound",
@@ -59,6 +60,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("multiplicity"),
+            derivationConstraint = "computeExpressionMultiplicityLowerBound"
         ),
         targetEnd = MetaAssociationEnd(
             name = "lowerBound",
@@ -82,6 +84,7 @@ fun createMultiplicityAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("multiplicity"),
+            derivationConstraint = "computeExpressionMultiplicityUpperBound"
         ),
         targetEnd = MetaAssociationEnd(
             name = "upperBound",

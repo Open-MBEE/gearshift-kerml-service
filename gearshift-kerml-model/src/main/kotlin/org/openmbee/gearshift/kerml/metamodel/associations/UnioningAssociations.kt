@@ -55,7 +55,8 @@ fun createUnioningAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("owningRelatedElement"),
-            redefines = listOf("source")
+            redefines = listOf("source"),
+            derivationConstraint = "deriveUnioningTypeUnioned"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedUnioning",
@@ -78,7 +79,8 @@ fun createUnioningAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isNavigable = false,
-            isDerived = true
+            isDerived = true,
+            derivationConstraint = "computeTypeUnionedType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "unioningType",

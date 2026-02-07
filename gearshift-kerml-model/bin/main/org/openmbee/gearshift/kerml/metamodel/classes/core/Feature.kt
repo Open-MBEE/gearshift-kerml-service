@@ -516,6 +516,62 @@ fun createFeatureMetaClass() = MetaClass(
             description = "If a Feature has a FeatureValue, no ownedSpecializations that are not implied, and is not directed, then it must specialize the result of the valueExpression of the FeatureValue."
         ),
         MetaConstraint(
+            name = "deriveFeatureAssociationWithEnd",
+            type = ConstraintType.DERIVATION,
+            expression = "typeWithEndFeature->selectByKind(Association)",
+            isNormative = false,
+            description = "The Associations where this Feature is an end feature."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureParameteredBehavior",
+            type = ConstraintType.DERIVATION,
+            expression = "typeWithFeature->selectByKind(Behavior)",
+            isNormative = false,
+            description = "The Behaviors that have this Feature as a parameter."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureParameteredStep",
+            type = ConstraintType.DERIVATION,
+            expression = "typeWithFeature->selectByKind(Step)",
+            isNormative = false,
+            description = "The Steps that have this Feature as a parameter."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "relationship->selectByKind(Connector)",
+            isNormative = false,
+            description = "The Connectors that relate this Feature."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureFeaturingConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "typeWithEndFeature->selectByKind(Connector)",
+            isNormative = false,
+            description = "The Connectors that feature this Feature as an end."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureSourceConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "sourceRelationship->selectByKind(Connector)",
+            isNormative = false,
+            description = "The Connectors where this Feature is the source."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureTargetConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "targetRelationship->selectByKind(Connector)",
+            isNormative = false,
+            description = "The Connectors where this Feature is a target."
+        ),
+        MetaConstraint(
+            name = "deriveFeatureFeatureCrossing",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedCrossSubsetting.crossedFeature.chainingFeature->at(2).featuringType",
+            isNormative = false,
+            description = "Features that cross this Feature via CrossSubsetting."
+        ),
+        MetaConstraint(
             name = "deriveFeatureChainingFeature",
             type = ConstraintType.DERIVATION,
             expression = "ownedFeatureChaining.chainingFeature",
@@ -745,6 +801,54 @@ fun createFeatureMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "isPortion implies not isVariable",
             description = "A Feature with isPortion = true must not have isVariable = true."
+        ),
+        MetaConstraint(
+            name = "computeFeatureEndOwningType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "EndFeatureMembership.allInstances()->select(efm | efm.ownedMemberFeature = self).owningType->any(true)",
+            description = "The Type that is related to this Feature by an EndFeatureMembership in which the Feature is an ownedMemberFeature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureInheritingType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.inheritedFeature->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as an inherited feature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypeWithDirectedFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.directedFeature->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as a directed feature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypeWithEndFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.endFeature->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as an end feature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypeWithFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.feature->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as a feature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypeWithInput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.input->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as an input."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypeWithOutput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.output->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Feature as an output."
         )
     ),
     semanticBindings = listOf(

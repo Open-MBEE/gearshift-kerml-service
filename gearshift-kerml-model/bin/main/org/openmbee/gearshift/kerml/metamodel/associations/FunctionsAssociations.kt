@@ -42,6 +42,7 @@ fun createFunctionAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             subsets = listOf("step"),
+            derivationConstraint = "deriveFunctionExpression"
         )
     )
 
@@ -56,6 +57,7 @@ fun createFunctionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("parameteredStep"),
+            derivationConstraint = "computeFeatureComputingExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "result",
@@ -79,6 +81,7 @@ fun createFunctionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("parameteredBehavior"),
+            derivationConstraint = "computeFeatureComputingFunction"
         ),
         targetEnd = MetaAssociationEnd(
             name = "result",
@@ -102,6 +105,7 @@ fun createFunctionAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedStep"),
+            derivationConstraint = "computeFunctionTypedExpression"
         ),
         targetEnd = MetaAssociationEnd(
             name = "function",

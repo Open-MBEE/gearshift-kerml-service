@@ -56,6 +56,13 @@ fun createInstantiationExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "result.owningType = self",
             description = "An InstantiationExpression must own its result parameter."
+        ),
+        MetaConstraint(
+            name = "computeTypeInstantiationExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "InstantiationExpression.allInstances()->select(ie | ie.instantiatedType = self)",
+            isNormative = false,
+            description = "The InstantiationExpressions that have this Type as their instantiatedType."
         )
     ),
     operations = listOf(

@@ -35,6 +35,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typeWithEndFeature"),
+            derivationConstraint = "deriveFeatureFeaturingConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "connectorEnd",
@@ -59,6 +60,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("relationship"),
+            derivationConstraint = "deriveFeatureConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "relatedFeature",
@@ -84,6 +86,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("connector", "sourceRelationship"),
+            derivationConstraint = "deriveFeatureSourceConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "sourceFeature",
@@ -109,6 +112,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("connector"),
+            derivationConstraint = "deriveFeatureTargetConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "targetFeature",
@@ -134,6 +138,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedFeature"),
+            derivationConstraint = "deriveAssociationTypedConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "association",
@@ -157,6 +162,7 @@ fun createConnectorAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
+            derivationConstraint = "deriveTypeFeaturedConnector"
         ),
         targetEnd = MetaAssociationEnd(
             name = "defaultFeaturingType",

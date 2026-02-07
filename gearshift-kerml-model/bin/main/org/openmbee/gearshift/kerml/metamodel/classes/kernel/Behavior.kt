@@ -46,6 +46,13 @@ fun createBehaviorMetaClass() = MetaClass(
             description = "The steps of a Behavior are its features that are Steps."
         ),
         MetaConstraint(
+            name = "deriveBehaviorTypedStep",
+            type = ConstraintType.DERIVATION,
+            expression = "typedFeature->selectByKind(Step)",
+            isNormative = false,
+            description = "The Steps that are typed by this Behavior."
+        ),
+        MetaConstraint(
             name = "validateBehaviorSpecialization",
             type = ConstraintType.VERIFICATION,
             expression = "ownedSpecialization.general->forAll(not oclIsKindOf(Structure))",

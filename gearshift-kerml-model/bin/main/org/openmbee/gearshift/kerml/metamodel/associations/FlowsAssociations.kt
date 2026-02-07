@@ -35,6 +35,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("featuringConnector"),
+            derivationConstraint = "computeFlowEndFeaturingFlow"
         ),
         targetEnd = MetaAssociationEnd(
             name = "flowEnd",
@@ -58,6 +59,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
+            derivationConstraint = "computeFeatureFlowFromOutput"
         ),
         targetEnd = MetaAssociationEnd(
             name = "sourceOutputFeature",
@@ -81,6 +83,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
+            derivationConstraint = "computeClassifierFlowForPayloadType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "payloadType",
@@ -104,6 +107,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isNavigable = false,
+            derivationConstraint = "computeFeatureFlowToInput"
         ),
         targetEnd = MetaAssociationEnd(
             name = "targetInputFeature",
@@ -128,6 +132,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("owningType"),
+            derivationConstraint = "computePayloadFeatureFlowWithPayloadFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "payloadFeature",
@@ -151,6 +156,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedConnector", "typedStep"),
+            derivationConstraint = "computeFlowTypedFlow"
         ),
         targetEnd = MetaAssociationEnd(
             name = "interaction",
@@ -160,6 +166,7 @@ fun createFlowAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             redefines = listOf("association", "behavior"),
+            derivationConstraint = "deriveFlowInteraction"
         )
     )
 

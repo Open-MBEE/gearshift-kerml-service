@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML FeatureTyping metaclass.
@@ -27,5 +29,20 @@ fun createFeatureTypingMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Specialization"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveFeatureTypingOwningFeature",
+            type = ConstraintType.DERIVATION,
+            expression = "if typedFeature = owningRelatedElement then typedFeature else null endif",
+            description = "A typedFeature that is also the owningRelatedElement of this FeatureTyping."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypedFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureTyping.allInstances()->select(ft | ft.typedFeature = self)",
+            isNormative = false,
+            description = "The FeatureTypings that have this Feature as their typedFeature."
+        )
+    ),
     description = "A specialization that types a feature with a type"
 )

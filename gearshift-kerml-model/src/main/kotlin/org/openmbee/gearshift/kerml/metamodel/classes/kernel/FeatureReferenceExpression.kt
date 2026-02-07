@@ -81,6 +81,13 @@ fun createFeatureReferenceExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "result.owningType = self",
             description = "A FeatureReferenceExpression must own its result parameter."
+        ),
+        MetaConstraint(
+            name = "computeFeatureReferenceExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureReferenceExpression.allInstances()->select(fre | fre.referent = self)",
+            isNormative = false,
+            description = "The FeatureReferenceExpressions that have this Feature as their referent."
         )
     ),
     operations = listOf(

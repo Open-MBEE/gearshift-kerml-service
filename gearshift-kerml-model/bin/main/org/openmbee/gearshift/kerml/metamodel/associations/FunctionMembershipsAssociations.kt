@@ -36,6 +36,7 @@ fun createFunctionMembershipAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("owningFeatureMembership"),
+            derivationConstraint = "computeExpressionOwningResultExpressionMembership"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedResultExpression",

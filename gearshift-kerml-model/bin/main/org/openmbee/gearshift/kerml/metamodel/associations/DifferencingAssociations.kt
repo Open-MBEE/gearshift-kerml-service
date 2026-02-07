@@ -55,7 +55,8 @@ fun createDifferencingAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("owningRelatedElement"),
-            redefines = listOf("source")
+            redefines = listOf("source"),
+            derivationConstraint = "deriveDifferencingTypeDifferenced"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedDifferencing",
@@ -78,7 +79,8 @@ fun createDifferencingAssociations(): List<MetaAssociation> {
             type = "Type",
             lowerBound = 0,
             upperBound = -1,
-            isDerived = true
+            isDerived = true,
+            derivationConstraint = "deriveTypeDifferencedType"
         ),
         targetEnd = MetaAssociationEnd(
             name = "differencingType",

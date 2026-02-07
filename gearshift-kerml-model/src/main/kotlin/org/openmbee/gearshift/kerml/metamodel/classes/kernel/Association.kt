@@ -64,6 +64,13 @@ fun createAssociationMetaClass() = MetaClass(
             description = "The targetType of an Association is all relatedTypes after the first."
         ),
         MetaConstraint(
+            name = "deriveAssociationTypedConnector",
+            type = ConstraintType.DERIVATION,
+            expression = "typedFeature->selectByKind(Connector)",
+            isNormative = false,
+            description = "The Connectors typed by this Association."
+        ),
+        MetaConstraint(
             name = "validateAssociationBinarySpecialization",
             type = ConstraintType.VERIFICATION,
             expression = "associationEnd->size() > 2 implies not specializesFromLibrary('Links::BinaryLink')",

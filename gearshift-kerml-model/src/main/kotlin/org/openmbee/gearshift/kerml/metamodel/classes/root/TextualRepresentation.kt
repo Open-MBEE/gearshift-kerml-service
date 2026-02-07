@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
@@ -37,6 +39,14 @@ fun createTextualRepresentationMetaClass() = MetaClass(
             name = "body",
             type = "String",
             description = "The text of the representation"
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveTextualRepresentationRepresentedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "annotatedElement",
+            description = "The Element that is represented by this TextualRepresentation."
         )
     ),
     description = "A textual representation of an element in a specific language"

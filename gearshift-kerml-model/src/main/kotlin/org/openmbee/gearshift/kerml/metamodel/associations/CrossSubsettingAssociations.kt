@@ -54,7 +54,8 @@ fun createCrossSubsettingAssociations(): List<MetaAssociation> {
             lowerBound = 1,
             upperBound = 1,
             isDerived = true,
-            redefines = listOf("owningFeature", "subsettingFeature")
+            redefines = listOf("owningFeature", "subsettingFeature"),
+            derivationConstraint = "deriveCrossSubsettingCrossingFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedCrossSubsetting",
@@ -77,7 +78,8 @@ fun createCrossSubsettingAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "deriveFeatureFeatureCrossing"
         ),
         targetEnd = MetaAssociationEnd(
             name = "crossFeature",

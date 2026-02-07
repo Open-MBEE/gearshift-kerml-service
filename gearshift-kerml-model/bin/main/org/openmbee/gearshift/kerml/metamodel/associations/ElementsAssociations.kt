@@ -58,7 +58,8 @@ fun createElementAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isUnion = true,
             isUnique = false,
-            isDerived = true
+            isDerived = true,
+            derivationConstraint = "computeElementRelationship"
         ),
         targetEnd = MetaAssociationEnd(
             name = "relatedElement",

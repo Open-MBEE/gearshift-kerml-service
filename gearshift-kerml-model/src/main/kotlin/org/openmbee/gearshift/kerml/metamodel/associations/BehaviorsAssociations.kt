@@ -35,6 +35,7 @@ fun createBehaviorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typeWithFeature"),
+            derivationConstraint = "deriveStepFeaturingBehavior"
         ),
         targetEnd = MetaAssociationEnd(
             name = "step",
@@ -58,6 +59,7 @@ fun createBehaviorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typeWithFeature"),
+            derivationConstraint = "deriveFeatureParameteredBehavior"
         ),
         targetEnd = MetaAssociationEnd(
             name = "parameter",
@@ -82,6 +84,7 @@ fun createBehaviorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typeWithFeature"),
+            derivationConstraint = "deriveFeatureParameteredStep"
         ),
         targetEnd = MetaAssociationEnd(
             name = "parameter",
@@ -106,6 +109,7 @@ fun createBehaviorAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("typedFeature"),
+            derivationConstraint = "deriveBehaviorTypedStep"
         ),
         targetEnd = MetaAssociationEnd(
             name = "behavior",

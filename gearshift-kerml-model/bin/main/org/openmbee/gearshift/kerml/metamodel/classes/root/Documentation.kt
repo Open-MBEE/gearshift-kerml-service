@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Documentation metaclass.
@@ -27,5 +29,13 @@ fun createDocumentationMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Comment"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveDocumentationDocumentedElement",
+            type = ConstraintType.DERIVATION,
+            expression = "annotatedElement",
+            description = "The Element that is documented by this Documentation."
+        )
+    ),
     description = "Formal documentation for an element"
 )

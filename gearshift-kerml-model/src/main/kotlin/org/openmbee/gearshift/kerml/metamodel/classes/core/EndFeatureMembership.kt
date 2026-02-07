@@ -42,6 +42,13 @@ fun createEndFeatureMembershipMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "ownedMemberFeature.isEnd",
             description = "The ownedMemberFeature of an EndFeatureMembership must be an endFeature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureOwningEndFeatureMembership",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningFeatureMembership.oclIsKindOf(EndFeatureMembership) then owningFeatureMembership.oclAsType(EndFeatureMembership) else null endif",
+            isNormative = false,
+            description = "The EndFeatureMembership that owns this Feature, if owningFeatureMembership is an EndFeatureMembership."
         )
     ),
     description = "A FeatureMembership that identifies a Feature as an endFeature of a Type"

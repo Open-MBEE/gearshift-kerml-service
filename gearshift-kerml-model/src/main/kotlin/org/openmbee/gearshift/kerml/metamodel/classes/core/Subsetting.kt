@@ -47,6 +47,12 @@ fun createSubsettingMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "subsettedFeature.isUnique implies subsettingFeature.isUnique",
             description = "If the subsettedFeature of a Subsetting has isUnique = true, then the subsettingFeature must have isUnique = true."
+        ),
+        MetaConstraint(
+            name = "deriveSubsettingOwningFeature",
+            type = ConstraintType.DERIVATION,
+            expression = "if subsettingFeature = owningRelatedElement then subsettingFeature else null endif",
+            description = "A subsettingFeature that is also the owningRelatedElement of this Subsetting."
         )
     ),
     description = "A specialization where one feature subsets another"

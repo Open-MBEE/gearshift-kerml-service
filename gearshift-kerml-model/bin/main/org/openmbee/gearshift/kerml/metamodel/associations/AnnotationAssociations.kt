@@ -36,6 +36,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             subsets = listOf("owner"),
             redefines = listOf("annotatedElement"),
+            derivationConstraint = "deriveTextualRepresentationRepresentedElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "textualRepresentation",
@@ -59,6 +60,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             isDerived = true,
             subsets = listOf("annotatedElement", "owningRelatedElement"),
+            derivationConstraint = "deriveAnnotationOwningAnnotatedElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedAnnotation",
@@ -103,6 +105,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             redefines = listOf("source"),
+            derivationConstraint = "deriveAnnotationAnnotatingElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "annotation",
@@ -146,6 +149,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("annotatingElement", "owningRelatedElement"),
+            derivationConstraint = "deriveAnnotationOwningAnnotatingElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedAnnotatingRelationship",
@@ -170,7 +174,8 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("owner"),
-            redefines = listOf("annotatedElement")
+            redefines = listOf("annotatedElement"),
+            derivationConstraint = "deriveDocumentationDocumentedElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "documentation",
@@ -195,6 +200,7 @@ fun createAnnotationAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             isNavigable = false,
+            derivationConstraint = "computeElementAnnotatingElement"
         ),
         targetEnd = MetaAssociationEnd(
             name = "annotatedElement",

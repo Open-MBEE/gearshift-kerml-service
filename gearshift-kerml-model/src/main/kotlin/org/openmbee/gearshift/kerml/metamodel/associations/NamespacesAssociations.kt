@@ -98,7 +98,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeElementNamespace"
         ),
         targetEnd = MetaAssociationEnd(
             name = "member",
@@ -121,6 +122,7 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isDerived = true,
             isUnion = true,
+            derivationConstraint = "computeMembershipMembershipNamespace"
         ),
         targetEnd = MetaAssociationEnd(
             name = "membership",
@@ -130,7 +132,8 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             isDerived = true,
             isOrdered = true,
             isUnion = true,
-            subsets = listOf("sourceRelationship")
+            subsets = listOf("sourceRelationship"),
+            derivationConstraint = "deriveNamespaceMembership"
         )
     )
 
@@ -167,6 +170,7 @@ fun createNamespaceAssociations(): List<MetaAssociation> {
             isDerived = true,
             isNavigable = false,
             subsets = listOf("membershipNamespace"),
+            derivationConstraint = "computeMembershipImportingNamespace"
         ),
         targetEnd = MetaAssociationEnd(
             name = "importedMembership",

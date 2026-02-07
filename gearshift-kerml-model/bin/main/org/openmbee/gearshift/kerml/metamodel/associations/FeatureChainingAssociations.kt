@@ -35,6 +35,7 @@ fun createFeatureChainingAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isNavigable = false,
             isDerived = true,
+            derivationConstraint = "computeFeatureBaseFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "featureTarget",
@@ -55,7 +56,8 @@ fun createFeatureChainingAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeFeatureChainedFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "chainingFeature",
@@ -79,7 +81,8 @@ fun createFeatureChainingAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             redefines = listOf("source"),
-            subsets = listOf("owningRelatedElement")
+            subsets = listOf("owningRelatedElement"),
+            derivationConstraint = "deriveFeatureChainingFeatureChained"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedFeatureChaining",

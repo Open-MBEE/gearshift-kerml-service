@@ -824,6 +824,51 @@
             height: 16px;
             cursor: pointer;
         }
+
+        /* Back button */
+        .btn-back {
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid var(--ve-silver-darker-1);
+            border-radius: 4px;
+            background: var(--white);
+            color: var(--ve-slate-base);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-back:hover {
+            background: var(--ve-silver-base);
+            border-color: var(--ve-teal-base);
+        }
+
+        .btn-back:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-back:disabled:hover {
+            background: var(--white);
+            border-color: var(--ve-silver-darker-1);
+        }
+
+        /* Clickable element references */
+        .element-ref {
+            color: var(--ve-teal-darker-1);
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 2px;
+        }
+
+        .element-ref:hover {
+            color: var(--ve-teal-base);
+            text-decoration-style: solid;
+        }
     </style>
 </head>
 <body>
@@ -939,6 +984,9 @@ RETURN c.name"></textarea>
         <div class="panel details-pane">
             <div class="panel-header">
                 <span class="panel-title" id="details-panel-title">Element Details</span>
+                <button class="btn-back" id="backBtn" disabled title="Go back to previous element">
+                    ← Back
+                </button>
             </div>
             <div class="panel-body">
                 <!-- Element Details (shown in KerML mode) -->
@@ -1036,6 +1084,8 @@ RETURN c.name"></textarea>
         let parsedData = null;
         let elementIndex = {};  // Map of id -> element node
         let currentMode = 'kerml';
+        let navigationHistory = [];  // Stack for back button navigation
+        let currentElementId = null;  // Currently displayed element
 
         // DOM Elements
         const editor = document.getElementById('editor');
@@ -1047,6 +1097,16 @@ RETURN c.name"></textarea>
         const parseStatus = document.getElementById('parseStatus');
         const elementDetails = document.getElementById('element-details');
         const detailsPanelTitle = document.getElementById('details-panel-title');
+        const backBtn = document.getElementById('backBtn');
+
+        // Back button handler
+        backBtn.addEventListener('click', () => {
+            if (navigationHistory.length > 0) {
+                const previousId = navigationHistory.pop();
+                updateBackButton();
+                navigateToElement(previousId, false);  // false = don't add to history
+            }
+        });
 
         // GQL Example queries
         const gqlExamples = {
@@ -1194,11 +1254,41 @@ RETURN c.name"></textarea>
             }
         });
 
+        // Update back button state
+        function updateBackButton() {
+            backBtn.disabled = navigationHistory.length === 0;
+        }
+
+        // Navigate to an element (with optional history tracking)
+        function navigateToElement(targetId, addToHistory = true) {
+            // Add current element to history before navigating (if we have one)
+            if (addToHistory && currentElementId && currentElementId !== targetId) {
+                navigationHistory.push(currentElementId);
+                updateBackButton();
+            }
+
+            // Find and select the tree item
+            const treeItem = document.querySelector(`.tree-item[data-id="${targetId}"]`);
+            if (treeItem) {
+                // Expand parents if needed
+                expandToElement(targetId);
+                // Deselect previous
+                document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
+                // Select and scroll to
+                treeItem.classList.add('selected');
+                treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showElementDetails(targetId);
+        }
+
         // Clear button
         clearBtn.addEventListener('click', () => {
             editor.value = '';
             parsedData = null;
             elementIndex = {};
+            navigationHistory = [];
+            currentElementId = null;
+            updateBackButton();
             treeView.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">🌳</div>
@@ -1243,6 +1333,9 @@ RETURN c.name"></textarea>
                 if (data.success) {
                     parsedData = data;
                     elementIndex = {};
+                    navigationHistory = [];
+                    currentElementId = null;
+                    updateBackButton();
                     indexElements(data.tree);
                     renderTree(data);
 
@@ -1328,13 +1421,8 @@ RETURN c.name"></textarea>
             document.querySelectorAll('.tree-item').forEach(item => {
                 item.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    // Deselect previous
-                    document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
-                    // Select current
-                    item.classList.add('selected');
-                    // Show metadata
                     const elementId = item.dataset.id;
-                    showElementDetails(elementId);
+                    navigateToElement(elementId, true);
                 });
             });
         }
@@ -1372,6 +1460,7 @@ RETURN c.name"></textarea>
 
         // Show element details in the right pane
         function showElementDetails(elementId) {
+            currentElementId = elementId;
             const element = elementIndex[elementId];
             if (!element) {
                 elementDetails.innerHTML = `
@@ -1510,18 +1599,17 @@ RETURN c.name"></textarea>
             elementDetails.querySelectorAll('.metadata-link-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const targetId = item.dataset.id;
-                    // Find and select the tree item
-                    const treeItem = document.querySelector(`.tree-item[data-id="${targetId}"]`);
-                    if (treeItem) {
-                        // Expand parents if needed
-                        expandToElement(targetId);
-                        // Deselect previous
-                        document.querySelectorAll('.tree-item.selected').forEach(el => el.classList.remove('selected'));
-                        // Select and scroll to
-                        treeItem.classList.add('selected');
-                        treeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    navigateToElement(targetId, true);
+                });
+            });
+
+            // Add click handlers for association end references
+            elementDetails.querySelectorAll('.element-ref').forEach(ref => {
+                ref.addEventListener('click', () => {
+                    const targetId = ref.dataset.elementId;
+                    if (targetId) {
+                        navigateToElement(targetId, true);
                     }
-                    showElementDetails(targetId);
                 });
             });
         }
@@ -1581,14 +1669,29 @@ RETURN c.name"></textarea>
             return String(value);
         }
 
-        // Format association end value for display
+        // Format association end value for display (with clickable links)
         function formatAssocValue(value) {
             if (value === null || value === undefined) return '<span class="empty">(null)</span>';
             if (Array.isArray(value)) {
                 if (value.length === 0) return '<span class="empty">(empty list)</span>';
+                // Check if array contains AssocEndRef objects
+                if (value.length > 0 && typeof value[0] === 'object' && value[0].id) {
+                    return value.map(ref => formatAssocEndRef(ref)).join(', ');
+                }
                 return value.join(', ');
             }
+            // Check if it's an AssocEndRef object
+            if (typeof value === 'object' && value.id) {
+                return formatAssocEndRef(value);
+            }
             return String(value);
+        }
+
+        // Format a single AssocEndRef as a clickable link
+        function formatAssocEndRef(ref) {
+            if (!ref || !ref.id) return '<span class="empty">(null)</span>';
+            const display = ref.display || `${ref.type || 'Element'}[${ref.id.substring(0, 8)}...]`;
+            return `<span class="element-ref" data-element-id="${ref.id}" title="Click to navigate to ${display}">${display}</span>`;
         }
 
         // Get CSS class for element type

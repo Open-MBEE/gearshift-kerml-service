@@ -35,7 +35,8 @@ fun createEndFeatureMembershipAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             isNavigable = false,
-            redefines = listOf("owningFeatureMembership")
+            redefines = listOf("owningFeatureMembership"),
+            derivationConstraint = "computeFeatureOwningEndFeatureMembership"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedMemberFeature",

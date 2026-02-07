@@ -69,6 +69,55 @@ fun createFlowMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "ownedFeature->selectByKind(PayloadFeature)->size() <= 1",
             description = "A Flow must have at most one ownedFeature that is a PayloadFeature."
+        ),
+        MetaConstraint(
+            name = "computeFlowEndFeaturingFlow",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.flowEnd->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this FlowEnd as an end."
+        ),
+        MetaConstraint(
+            name = "computeFeatureFlowFromOutput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.sourceOutputFeature = self)",
+            isNormative = false,
+            description = "The Flows that have this Feature as their sourceOutputFeature."
+        ),
+        MetaConstraint(
+            name = "computeClassifierFlowForPayloadType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.payloadType->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this Classifier as a payloadType."
+        ),
+        MetaConstraint(
+            name = "computeFeatureFlowToInput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.targetInputFeature = self)",
+            isNormative = false,
+            description = "The Flows that have this Feature as their targetInputFeature."
+        ),
+        MetaConstraint(
+            name = "computePayloadFeatureFlowWithPayloadFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.payloadFeature = self)->any(true)",
+            isNormative = false,
+            description = "The Flow that has this PayloadFeature as its payloadFeature."
+        ),
+        MetaConstraint(
+            name = "computeFlowTypedFlow",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.interaction->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this Interaction as a type."
+        ),
+        MetaConstraint(
+            name = "deriveFlowInteraction",
+            type = ConstraintType.DERIVATION,
+            expression = "type->selectByKind(Interaction)",
+            isNormative = false,
+            description = "The Interactions that type this Flow."
         )
     ),
     semanticBindings = listOf(

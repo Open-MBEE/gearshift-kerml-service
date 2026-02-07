@@ -74,7 +74,8 @@ fun createSubsettingAssociations(): List<MetaAssociation> {
             upperBound = 1,
             isDerived = true,
             subsets = listOf("subsettingFeature"),
-            redefines = listOf("owningType")
+            redefines = listOf("owningType"),
+            derivationConstraint = "deriveSubsettingOwningFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedSubsetting",
@@ -136,7 +137,8 @@ fun createSubsettingAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = 1,
             isDerived = true,
-            subsets = listOf("owningFeature")
+            subsets = listOf("owningFeature"),
+            derivationConstraint = "deriveRedefinitionOwningFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedRedefinition",
@@ -179,7 +181,8 @@ fun createSubsettingAssociations(): List<MetaAssociation> {
             lowerBound = 1,
             upperBound = 1,
             isDerived = true,
-            redefines = listOf("owningFeature", "subsettingFeature")
+            redefines = listOf("owningFeature", "subsettingFeature"),
+            derivationConstraint = "deriveReferenceSubsettingReferencingFeature"
         ),
         targetEnd = MetaAssociationEnd(
             name = "ownedReferenceSubsetting",

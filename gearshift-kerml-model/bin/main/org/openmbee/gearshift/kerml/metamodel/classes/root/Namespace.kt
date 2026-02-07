@@ -68,6 +68,12 @@ fun createNamespaceMetaClass() = MetaClass(
             description = "The ownedMemberships of a Namespace are all its ownedRelationships that are Memberships"
         ),
         MetaConstraint(
+            name = "deriveNamespaceMembership",
+            type = ConstraintType.DERIVATION,
+            expression = "ownedMembership->union(importedMembership)->asOrderedSet()",
+            description = "The membership of a Namespace is the union of its owned and imported memberships."
+        ),
+        MetaConstraint(
             name = "validateNamespaceDistinguishability",
             type = ConstraintType.VERIFICATION,
             expression = "membership->forAll(m1 | membership->forAll(m2 | m1 <> m2 implies m1.isDistinguishableFrom(m2)))",

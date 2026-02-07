@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Subclassification metaclass.
@@ -32,5 +34,13 @@ fun createSubclassificationMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Specialization"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveSubclassificationOwningClassifier",
+            type = ConstraintType.DERIVATION,
+            expression = "if subclassifier = owningRelatedElement then subclassifier else null endif",
+            description = "The Classifier that owns this Subclassification relationship, which must also be its subclassifier."
+        )
+    ),
     description = "A Specialization relationship between Classifiers"
 )

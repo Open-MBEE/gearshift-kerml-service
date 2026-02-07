@@ -96,7 +96,8 @@ fun createImportAssociations(): List<MetaAssociation> {
             lowerBound = 0,
             upperBound = -1,
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            derivationConstraint = "computeElementMembershipImport"
         ),
         targetEnd = MetaAssociationEnd(
             name = "importedElement",

@@ -15,7 +15,9 @@
  */
 package org.openmbee.gearshift.kerml.metamodel.classes.core
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
  * KerML Unioning metaclass.
@@ -27,5 +29,20 @@ fun createUnioningMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Relationship"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "deriveUnioningTypeUnioned",
+            type = ConstraintType.DERIVATION,
+            expression = "if source = owningRelatedElement then source else null endif",
+            description = "Type with interpretations partly determined by unioningType, as described in Type::unioningType."
+        ),
+        MetaConstraint(
+            name = "computeTypeUnionedType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "ownedUnioning.typeUnioned",
+            isNormative = false,
+            description = "Types that are unioned by this Type's unioningTypes."
+        )
+    ),
     description = "A relationship that specifies the unioning type for a type"
 )

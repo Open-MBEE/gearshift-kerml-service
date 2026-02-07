@@ -61,6 +61,27 @@ fun createMembershipMetaClass() = MetaClass(
     ),
     constraints = listOf(
         MetaConstraint(
+            name = "computeMembershipInheritingType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Type.allInstances()->select(t | t.inheritedMembership->includes(self))",
+            isNormative = false,
+            description = "The Types that have this Membership as an inherited membership."
+        ),
+        MetaConstraint(
+            name = "computeMembershipImportingNamespace",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Namespace.allInstances()->select(ns | ns.importedMembership->includes(self))",
+            isNormative = false,
+            description = "The Namespaces that have this Membership as an imported membership."
+        ),
+        MetaConstraint(
+            name = "computeMembershipMembershipNamespace",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Namespace.allInstances()->select(ns | ns.membership->includes(self))",
+            isNormative = false,
+            description = "The Namespaces that have this Membership as a membership."
+        ),
+        MetaConstraint(
             name = "deriveMembershipMemberElementId",
             type = ConstraintType.DERIVATION,
             expression = "memberElement.elementId",
