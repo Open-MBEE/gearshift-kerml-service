@@ -66,6 +66,25 @@ tasks.register<JavaExec>("generateMetamodelCode") {
     dependsOn("compileKotlin")
 }
 
+// TypeScript Type Generation Task
+tasks.register<JavaExec>("generateTypeScriptTypes") {
+    description = "Generate TypeScript interfaces from KerML metamodel definitions"
+    group = "build"
+
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.openmbee.gearshift.kerml.codegen.CodeGeneratorRunner")
+
+    // Use the generateTypeScript entry point
+    jvmArgs = listOf("-Dgearshift.codegen.mode=typescript")
+
+    // Output directory: override with -PtsOutputDir=... or defaults to build/generated-ts
+    val tsOutputDir = providers.gradleProperty("tsOutputDir")
+        .orElse("${rootProject.projectDir}/build/generated-ts")
+    args = listOf(tsOutputDir.get())
+
+    dependsOn("compileKotlin")
+}
+
 // License header configuration
 license {
     header = rootProject.file("LICENSE-HEADER.txt")

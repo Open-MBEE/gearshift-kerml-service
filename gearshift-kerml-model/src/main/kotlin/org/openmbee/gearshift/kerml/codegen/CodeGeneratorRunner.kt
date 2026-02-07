@@ -18,6 +18,8 @@ package org.openmbee.gearshift.kerml.codegen
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import org.openmbee.mdm.framework.codegen.CodeGenConfig
 import org.openmbee.mdm.framework.codegen.MetamodelCodeGenerator
+import org.openmbee.mdm.framework.codegen.TypeScriptCodeGenConfig
+import org.openmbee.mdm.framework.codegen.TypeScriptCodeGenerator
 import org.openmbee.mdm.framework.runtime.DefaultElementFactory
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MetamodelRegistry
@@ -43,7 +45,14 @@ object CodeGeneratorRunner {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        // Output directory should be the base src directory of kerml-generated module
+        val mode = System.getProperty("gearshift.codegen.mode", "kotlin")
+
+        if (mode == "typescript") {
+            generateTypeScript(args)
+            return
+        }
+
+        // Default: Kotlin code generation
         val outputDir = if (args.isNotEmpty()) {
             Paths.get(args[0])
         } else {
@@ -102,5 +111,48 @@ object CodeGeneratorRunner {
         // Write base interface
         Files.createDirectories(config.interfaceOutputDir)
         Files.writeString(config.interfaceOutputDir.resolve("ModelElement.kt"), interfaceCode)
+    }
+
+    /**
+     * Generate TypeScript interfaces from the KerML metamodel.
+     *
+     * Usage:
+     * ```
+     * ./gradlew generateTypeScriptTypes
+     * ```
+     */
+    @JvmStatic
+    fun generateTypeScript(args: Array<String>) {
+        val outputDir = if (args.isNotEmpty()) {
+            Paths.get(args[0])
+        } else {
+            Paths.get("build/generated-ts")
+        }
+
+        println("Generating TypeScript types to: $outputDir")
+
+        val schema = MetamodelRegistry()
+        KerMLMetamodelLoader.initialize(schema)
+
+        val config = TypeScriptCodeGenConfig(
+            outputDir = outputDir,
+            metamodelName = "KerML",
+            generateDocs = true
+        )
+
+        val generator = TypeScriptCodeGenerator(config)
+        generator.generateAll(schema)
+
+        // Print statistics
+        val stats = KerMLMetamodelLoader.getStatistics(schema)
+        val allClasses = schema.getAllClasses().filter { config.shouldGenerate(it.name) }
+        val concreteCount = allClasses.count { !it.isAbstract }
+        val abstractCount = allClasses.count { it.isAbstract }
+
+        println("TypeScript generation complete!")
+        println("  - Total interfaces: ${allClasses.size}")
+        println("  - Abstract: $abstractCount")
+        println("  - Concrete (in union type): $concreteCount")
+        println("  - Output: ${config.modelFileName}, ${config.metaclassTypeFileName}")
     }
 }
