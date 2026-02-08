@@ -17,6 +17,7 @@ package org.openmbee.gearshift.kerml.generator
 
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.Namespace
+import org.openmbee.gearshift.kerml.GearshiftSettings
 
 /**
  * Options controlling KerML text generation.
@@ -48,7 +49,18 @@ data class GenerationOptions(
      * Indentation string (default 4 spaces).
      */
     val indentString: String = "    "
-)
+) {
+    companion object {
+        /**
+         * Create GenerationOptions from application-level [GearshiftSettings].
+         */
+        fun fromSettings(settings: GearshiftSettings) = GenerationOptions(
+            preferSymbolicSyntax = settings.preferSymbolicSyntax,
+            emitImpliedRelationships = settings.emitImpliedRelationships,
+            indentString = settings.writerIndent
+        )
+    }
+}
 
 /**
  * Context passed through the generator hierarchy during KerML text generation.
@@ -118,10 +130,21 @@ data class GenerationContext(
             return declaredName ?: qualifiedName.substringAfterLast("::")
         }
 
-        // If element is in current namespace or a child, use relative name
         currentNamespace?.qualifiedName?.let { currentQN ->
+            // If element is a child of the current namespace, use relative name
             if (qualifiedName.startsWith("$currentQN::")) {
                 return qualifiedName.removePrefix("$currentQN::")
+            }
+
+            // Check enclosing (ancestor) namespaces — elements visible in an
+            // enclosing scope are referenceable by their name relative to that scope.
+            // E.g., from Connectors::System, class Connectors::A is just "A"
+            var prefix = currentQN
+            while (prefix.contains("::")) {
+                prefix = prefix.substringBeforeLast("::")
+                if (qualifiedName.startsWith("$prefix::")) {
+                    return qualifiedName.removePrefix("$prefix::")
+                }
             }
         }
 

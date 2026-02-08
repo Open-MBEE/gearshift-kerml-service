@@ -43,13 +43,13 @@ class SuccessionVisitor : BaseFeatureVisitor<KerMLParser.SuccessionContext, Succ
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), succession)
 
+        // Create child context so connector ends are owned by the succession
+        val childContext = kermlParseContext.withParent(succession, succession.declaredName ?: "")
+
         // Parse succession declaration - succession-specific
         ctx.successionDeclaration()?.let { decl ->
-            parseSuccessionDeclaration(decl, succession, kermlParseContext)
+            parseSuccessionDeclaration(decl, succession, childContext)
         }
-
-        // Create child context for nested elements
-        val childContext = kermlParseContext.withParent(succession, succession.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
         createFeatureMembership(succession, kermlParseContext)
@@ -76,8 +76,8 @@ class SuccessionVisitor : BaseFeatureVisitor<KerMLParser.SuccessionContext, Succ
 
         ctx.isSufficient?.let { succession.isSufficient = true }
 
-        ctx.connectorEndMember()?.forEach { _ ->
-            // TODO: Parse connector end members for succession (first -> then)
+        ctx.connectorEndMember()?.forEach { endMember ->
+            parseConnectorEndMember(endMember, kermlParseContext)
         }
     }
 }

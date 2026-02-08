@@ -181,37 +181,202 @@ class ParametricAnalysisService(
 
     /**
      * Extract a constraint expression from an Invariant or ConstraintUsage element.
+     *
+     * Uses a three-strategy fallthrough:
+     * 1. Walk the expression tree via ResultExpressionMembership (parsed KerML)
+     * 2. Check owned features for Expression elements (alternative tree shapes)
+     * 3. Legacy: string `expression` property (backward compat with hand-built tests)
      */
     internal fun extractConstraintExpression(invariant: MDMObject): String? {
-        // Check for an expression body
-        val ownedConstraints = getOwnedConstraints(invariant)
-        if (ownedConstraints.isNotEmpty()) {
-            // Use the first constraint's expression
-            val constraint = ownedConstraints.first()
-            val expression = engine.getPropertyValue(constraint, "expression") as? String
-            if (expression != null) return expression
+        // Strategy 1: Walk expression tree via ResultExpressionMembership
+        val resultExpr = getResultExpression(invariant)
+        if (resultExpr != null) {
+            val ocl = expressionTreeToOcl(resultExpr)
+            if (ocl != null) return ocl
         }
 
-        // Check for the constraint expression on the element itself
-        val expression = engine.getPropertyValue(invariant, "expression") as? String
+        // Strategy 2: Check owned features for Expression elements
+        val ownedFeatures = getOwnedFeatures(invariant)
+        for (feature in ownedFeatures) {
+            if (engine.isInstanceOf(feature, "Expression")) {
+                val ocl = expressionTreeToOcl(feature)
+                if (ocl != null) return ocl
+            }
+        }
+
+        // Strategy 3: Legacy string property (backward compat with hand-built tests)
+        // Uses MDMObject.getProperty() directly since "expression" is not a metamodel
+        // attribute — it's an ad-hoc property set directly on the object.
+        val expression = invariant.getProperty("expression") as? String
         if (expression != null) return expression
-
-        // Check for owned expressions
-        val ownedExpressions = getOwnedExpressions(invariant)
-        if (ownedExpressions.isNotEmpty()) {
-            // Try to get the text representation of the first expression
-            val expr = ownedExpressions.first()
-            return engine.getPropertyValue(expr, "body") as? String
-        }
 
         return null
     }
 
+    // === Expression Tree → OCL Bridge ===
+
+    /**
+     * Convert a KerML Expression MDMObject tree to an OCL string for the solver.
+     *
+     * Walks the MDMObject expression tree recursively, dispatching on className,
+     * following the same pattern as [KerMLExpressionEvaluator.evaluate].
+     */
+    internal fun expressionTreeToOcl(expression: MDMObject): String? {
+        return when (expression.className) {
+            "LiteralInteger" -> {
+                val value = engine.getPropertyValue(expression, "value")
+                value?.toString()
+            }
+            "LiteralRational" -> {
+                val value = engine.getPropertyValue(expression, "value")
+                value?.toString()
+            }
+            "LiteralBoolean" -> {
+                val value = engine.getPropertyValue(expression, "value")
+                if (value is Boolean) value.toString() else null
+            }
+            "LiteralString" -> {
+                val value = engine.getPropertyValue(expression, "value")
+                if (value is String) "'$value'" else null
+            }
+            "LiteralInfinity" -> "*"
+            "NullExpression" -> "null"
+            "OperatorExpression" -> operatorExpressionToOcl(expression)
+            "FeatureReferenceExpression" -> featureReferenceToOcl(expression)
+            "InvocationExpression" -> invocationExpressionToOcl(expression)
+            else -> {
+                // For generic Expression, try its result expression
+                if (engine.isInstanceOf(expression, "Expression")) {
+                    val resultExpr = getResultExpression(expression)
+                    if (resultExpr != null) expressionTreeToOcl(resultExpr) else null
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
+    private fun operatorExpressionToOcl(expression: MDMObject): String? {
+        val operator = engine.getPropertyValue(expression, "operator") as? String ?: return null
+        val args = getExpressionArguments(expression)
+
+        val oclOp = mapOperatorToOcl(operator)
+
+        return when {
+            // Conditional: if cond then a else b endif
+            oclOp == "if" && args.size == 3 -> {
+                val cond = expressionTreeToOcl(args[0]) ?: return null
+                val thenExpr = expressionTreeToOcl(args[1]) ?: return null
+                val elseExpr = expressionTreeToOcl(args[2]) ?: return null
+                "if $cond then $thenExpr else $elseExpr endif"
+            }
+            // Unary prefix: not x, -x
+            args.size == 1 -> {
+                val operand = expressionTreeToOcl(args[0]) ?: return null
+                "$oclOp $operand"
+            }
+            // Binary infix: (a op b)
+            args.size == 2 -> {
+                val left = expressionTreeToOcl(args[0]) ?: return null
+                val right = expressionTreeToOcl(args[1]) ?: return null
+                "($left $oclOp $right)"
+            }
+            else -> null
+        }
+    }
+
+    private fun featureReferenceToOcl(expression: MDMObject): String? {
+        val referent = engine.getPropertyValue(expression, "referent") as? MDMObject ?: return null
+        return engine.getPropertyValue(referent, "declaredName") as? String
+            ?: engine.getPropertyValue(referent, "name") as? String
+    }
+
+    private fun invocationExpressionToOcl(expression: MDMObject): String? {
+        val function = engine.getPropertyValue(expression, "function") as? MDMObject
+        val funcName = if (function != null) {
+            engine.getPropertyValue(function, "declaredName") as? String
+                ?: engine.getPropertyValue(function, "name") as? String
+                ?: return null
+        } else {
+            return null
+        }
+
+        val args = getExpressionArguments(expression)
+        val argStrings = args.mapNotNull { expressionTreeToOcl(it) }
+        if (argStrings.size != args.size) return null
+
+        return "$funcName(${argStrings.joinToString(", ")})"
+    }
+
+    // === Expression Navigation Helpers ===
+
+    /**
+     * Get expression arguments from an Expression MDMObject.
+     *
+     * First tries the derived `argument` association end. If that returns null
+     * (derivation may not be available), falls back to `ownedFeature` filtering,
+     * matching the pattern in [KerMLExpressionEvaluator.getArguments].
+     */
+    private fun getExpressionArguments(expression: MDMObject): List<MDMObject> {
+        val argument = engine.getPropertyValue(expression, "argument")
+        return when (argument) {
+            is List<*> -> argument.filterIsInstance<MDMObject>()
+            is MDMObject -> listOf(argument)
+            null -> {
+                // Fall back to ownedFeature filtering (excluding result)
+                val ownedFeatures = getOwnedFeatures(expression)
+                val result = engine.getPropertyValue(expression, "result") as? MDMObject
+                ownedFeatures.filter { it.id != result?.id }
+            }
+            else -> emptyList()
+        }
+    }
+
+    /**
+     * Navigate ResultExpressionMembership to get the ownedResultExpression.
+     */
+    private fun getResultExpression(element: MDMObject): MDMObject? {
+        val memberships = engine.getPropertyValue(element, "ownedFeatureMembership")
+        val membershipList = when (memberships) {
+            is List<*> -> memberships.filterIsInstance<MDMObject>()
+            is MDMObject -> listOf(memberships)
+            else -> return null
+        }
+
+        val resultMembership = membershipList.firstOrNull {
+            engine.isInstanceOf(it, "ResultExpressionMembership")
+        } ?: return null
+
+        return engine.getPropertyValue(resultMembership, "ownedResultExpression") as? MDMObject
+    }
+
+    /**
+     * Map KerML operators to OCL equivalents.
+     */
+    private fun mapOperatorToOcl(operator: String): String {
+        return when (operator) {
+            "==" -> "="
+            "!=" -> "<>"
+            else -> operator
+        }
+    }
+
     /**
      * Collect all Features referenced in a constraint/invariant.
+     *
+     * First tries to walk the expression tree to find FeatureReferenceExpressions,
+     * then falls back to collecting owned features from the parent namespace.
      */
     private fun collectReferencedFeatures(invariant: MDMObject): List<MDMObject> {
-        // Get features from the invariant's context (owning namespace)
+        // Try expression tree walking first
+        val resultExpr = getResultExpression(invariant)
+        if (resultExpr != null) {
+            val referenced = mutableListOf<MDMObject>()
+            collectReferencedFeaturesFromExpression(resultExpr, referenced)
+            if (referenced.isNotEmpty()) return referenced
+        }
+
+        // Fall back to collecting features from the owning namespace
         val owner = engine.getPropertyValue(invariant, "owner") as? MDMObject
         if (owner != null) {
             val features = engine.getPropertyValue(owner, "ownedFeature")
@@ -225,10 +390,39 @@ class ParametricAnalysisService(
         return emptyList()
     }
 
+    /**
+     * Walk an expression tree to collect FeatureReferenceExpression referents.
+     */
+    private fun collectReferencedFeaturesFromExpression(expression: MDMObject, result: MutableList<MDMObject>) {
+        when (expression.className) {
+            "FeatureReferenceExpression" -> {
+                val referent = engine.getPropertyValue(expression, "referent") as? MDMObject
+                if (referent != null && engine.isInstanceOf(referent, "Feature")) {
+                    result.add(referent)
+                }
+            }
+            "OperatorExpression", "InvocationExpression" -> {
+                for (arg in getExpressionArguments(expression)) {
+                    collectReferencedFeaturesFromExpression(arg, result)
+                }
+            }
+            else -> {
+                if (engine.isInstanceOf(expression, "Expression")) {
+                    val resultExpr = getResultExpression(expression)
+                    if (resultExpr != null) {
+                        collectReferencedFeaturesFromExpression(resultExpr, result)
+                    }
+                }
+            }
+        }
+    }
+
     // === Navigation Helpers ===
 
     private fun getTypes(feature: MDMObject): List<MDMObject> {
+        // Try engine first (navigates association ends), then fall back to raw property
         val types = engine.getPropertyValue(feature, "type")
+            ?: feature.getProperty("type")
         return when (types) {
             is List<*> -> types.filterIsInstance<MDMObject>()
             is MDMObject -> listOf(types)
@@ -236,20 +430,11 @@ class ParametricAnalysisService(
         }
     }
 
-    private fun getOwnedConstraints(element: MDMObject): List<MDMObject> {
-        val constraints = engine.getPropertyValue(element, "ownedConstraint")
-        return when (constraints) {
-            is List<*> -> constraints.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(constraints)
-            else -> emptyList()
-        }
-    }
-
-    private fun getOwnedExpressions(element: MDMObject): List<MDMObject> {
-        val expressions = engine.getPropertyValue(element, "ownedExpression")
-        return when (expressions) {
-            is List<*> -> expressions.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(expressions)
+    private fun getOwnedFeatures(element: MDMObject): List<MDMObject> {
+        val features = engine.getPropertyValue(element, "ownedFeature")
+        return when (features) {
+            is List<*> -> features.filterIsInstance<MDMObject>()
+            is MDMObject -> listOf(features)
             else -> emptyList()
         }
     }

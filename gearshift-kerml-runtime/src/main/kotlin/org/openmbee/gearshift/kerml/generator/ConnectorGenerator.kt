@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
-import org.openmbee.gearshift.generated.interfaces.Connector
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.generator.base.BaseFeatureGenerator
 
 class ConnectorGenerator : BaseFeatureGenerator<Connector>() {
@@ -26,8 +26,18 @@ class ConnectorGenerator : BaseFeatureGenerator<Connector>() {
         append("connector ")
         append(generateFeatureDeclaration(element, context))
 
-        // Connector ends
-        val ends = element.connectorEnd
+        // Find connector ends from explicit members (end features with isEnd=true)
+        val allMembers = getExplicitMembers(element, context)
+        val endEntries = allMembers.mapNotNull { membership ->
+            val el = when (membership) {
+                is OwningMembership -> membership.ownedMemberElement
+                else -> membership.memberElement
+            }
+            (el as? Feature)?.takeIf { it.isEnd }?.let { membership to it }
+        }
+        val ends = endEntries.map { it.second }
+        val endMemberships = endEntries.map { it.first }.toSet()
+
         if (ends.size == 2) {
             // Binary connector: from end1 to end2
             val end1 = resolveEndName(ends[0], context)
@@ -39,18 +49,90 @@ class ConnectorGenerator : BaseFeatureGenerator<Connector>() {
             append(" (${endNames.joinToString(", ")})")
         }
 
-        append(generateTypeBody(element, context))
+        // Generate body excluding end features that were already emitted inline
+        if (endMemberships.isNotEmpty()) {
+            append(generateTypeBodyExcluding(element, context, endMemberships))
+        } else {
+            append(generateTypeBody(element, context))
+        }
+    }
+
+    /**
+     * Generate the type body excluding specific memberships (e.g., end features
+     * that were already emitted as from/to syntax).
+     */
+    private fun generateTypeBodyExcluding(
+        type: Type,
+        context: GenerationContext,
+        excludedMemberships: Set<Membership>
+    ): String {
+        val members = getExplicitMembers(type, context)
+            .filter { it !in excludedMemberships }
+
+        if (members.isEmpty()) {
+            return ";"
+        }
+
+        return buildString {
+            appendLine(" {")
+            val bodyContext = context.indent().withNamespace(type)
+            val generatedElements = mutableSetOf<Element>()
+
+            members.forEach { membership ->
+                val element = when (membership) {
+                    is OwningMembership -> membership.ownedMemberElement
+                    else -> membership.memberElement
+                }
+                if (element in generatedElements) return@forEach
+                generatedElements.add(element)
+
+                val visibility = generateVisibility(membership)
+                val elementText = GeneratorFactory.generate(element, bodyContext)
+
+                if (elementText.isNotEmpty()) {
+                    if (visibility.isNotEmpty()) {
+                        append(bodyContext.currentIndent())
+                        append(visibility)
+                        appendLine(elementText.trimStart())
+                    } else {
+                        appendLine(elementText)
+                    }
+                    if (context.options.blankLinesBetweenMembers) {
+                        appendLine()
+                    }
+                }
+            }
+            append(context.currentIndent())
+            append("}")
+        }
     }
 
     companion object {
-        fun resolveEndName(end: org.openmbee.gearshift.generated.interfaces.Feature, context: GenerationContext): String {
-            // Try to find the subsetted feature reference
-            val subsettedFeature = end.ownedSubsetting.firstOrNull()?.subsettedFeature
-            return if (subsettedFeature != null) {
-                context.resolveDisplayName(subsettedFeature)
-            } else {
-                context.resolveDisplayName(end)
-            }
+        fun resolveEndName(end: Feature, context: GenerationContext): String {
+            // Try feature chains (dot paths like a1.p)
+            try {
+                val chainings = end.ownedFeatureChaining
+                if (chainings.isNotEmpty()) {
+                    return chainings.joinToString(".") { chaining ->
+                        try {
+                            context.resolveDisplayName(chaining.chainingFeature)
+                        } catch (_: NullPointerException) { "?" }
+                    }
+                }
+            } catch (_: Exception) { /* derived property evaluation may fail */ }
+
+            // Try subsetted feature reference
+            try {
+                val subsettedFeature = end.ownedSubsetting.firstOrNull()?.subsettedFeature
+                if (subsettedFeature != null) {
+                    return context.resolveDisplayName(subsettedFeature)
+                }
+            } catch (_: Exception) { /* unresolved */ }
+
+            // Fall back to end feature's declaredName directly (the parser stores
+            // the reference name here for anonymous end features; we avoid
+            // resolveDisplayName which would namespace-qualify it)
+            return end.declaredName ?: ""
         }
     }
 }

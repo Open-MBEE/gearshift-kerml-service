@@ -101,7 +101,7 @@ class ConnectorGeneratorTest {
     }
 
     @Test
-    fun `round-trip connectors`() {
+    fun `round-trip connectors with dot paths`() {
         val kerml = """
             package Connectors {
                 class A {
@@ -124,6 +124,10 @@ class ConnectorGeneratorTest {
 
         println("Generated KerML:")
         println(generated)
+
+        assertContains(generated, "connector c")
+        assertContains(generated, "from")
+        assertContains(generated, "to")
 
         val model2 = KerMLModel().parseString(generated)
         assertNotNull(model2, "Generated KerML should be parseable")

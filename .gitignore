@@ -10,6 +10,7 @@
 .antlr
 # Ignore Gradle build output directory
 build
+**/bin/*
 
 # Generated metamodel code (run ./gradlew generateMetamodelCode to generate)
 src/main/kotlin/org/openmbee/gearshift/generated

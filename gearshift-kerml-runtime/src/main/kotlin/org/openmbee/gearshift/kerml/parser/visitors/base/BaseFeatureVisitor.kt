@@ -417,4 +417,86 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
             // ownedExpression parsing requires full expression visitor infrastructure
         }
     }
+
+    /**
+     * Parse a connector end member (shared by Connector, BindingConnector, Succession).
+     *
+     * Creates an EndFeatureMembership and end Feature owned by the connector,
+     * handling both simple name references and dot-path feature chains.
+     *
+     * @param ctx The ConnectorEndMemberContext to parse
+     * @param connectorContext Parse context with the connector as parent
+     */
+    protected fun parseConnectorEndMember(
+        ctx: KerMLParser.ConnectorEndMemberContext,
+        connectorContext: KermlParseContext
+    ) {
+        val endMembership = connectorContext.create<EndFeatureMembership>()
+        val endFeature = connectorContext.create<Feature>()
+        endFeature.isEnd = true
+        endMembership.memberElement = endFeature
+
+        ctx.connectorEnd()?.let { connEnd ->
+            connEnd.declaredName?.let { endFeature.declaredName = it.text }
+            connEnd.ownedReferenceSubsetting()?.let { refSubsetting ->
+                val generalType = refSubsetting.generalType()
+
+                if (generalType?.ownedFeatureChain() != null) {
+                    // Dot path (e.g., a1.p): build path string and store as declaredName
+                    // for generator access (ownedFeatureChaining derived property is unreliable
+                    // due to OwnershipResolver creating intermediate memberships)
+                    val dotPath = generalType.ownedFeatureChain().featureChain()
+                        ?.ownedFeatureChaining()?.joinToString(".") { ownedChaining ->
+                            ownedChaining.chainingFeature?.let { extractQualifiedName(it) } ?: "?"
+                        } ?: ""
+                    if (endFeature.declaredName == null && dotPath.isNotEmpty()) {
+                        endFeature.declaredName = dotPath
+                    }
+
+                    // Also create FeatureChaining objects for semantic correctness
+                    val endFeatureContext = connectorContext.withParent(endFeature, "")
+                    generalType.ownedFeatureChain().featureChain()
+                        ?.ownedFeatureChaining()?.forEach { ownedChaining ->
+                        val chaining = endFeatureContext.create<FeatureChaining>()
+                        ownedChaining.chainingFeature?.let { qn ->
+                            val name = extractQualifiedName(qn)
+                            endFeatureContext.registerReference(chaining, "chainingFeature", name)
+                        }
+                    }
+                } else if (generalType?.qualifiedName() != null) {
+                    val name = extractQualifiedName(generalType.qualifiedName())
+
+                    // Store simple name as declaredName for generator access
+                    // (ownedSubsetting derived property is unreliable due to
+                    // OwnershipResolver creating intermediate memberships)
+                    if (endFeature.declaredName == null && name.isNotEmpty()) {
+                        endFeature.declaredName = name
+                    }
+
+                    // Also create Subsetting for semantic correctness
+                    val subsetting = connectorContext.create<Subsetting>()
+                    subsetting.subsettingFeature = endFeature
+
+                    // Establish ownership links from end feature to subsetting
+                    connectorContext.engine.link(
+                        sourceId = endFeature.id!!,
+                        targetId = subsetting.id!!,
+                        associationName = "owningFeatureOwnedSubsettingAssociation"
+                    )
+                    connectorContext.engine.link(
+                        sourceId = endFeature.id!!,
+                        targetId = subsetting.id!!,
+                        associationName = "owningTypeOwnedSpecializationAssociation"
+                    )
+                    connectorContext.engine.link(
+                        sourceId = endFeature.id!!,
+                        targetId = subsetting.id!!,
+                        associationName = "owningRelatedElementOwnedRelationshipAssociation"
+                    )
+
+                    connectorContext.registerReference(subsetting, "subsettedFeature", name)
+                }
+            }
+        }
+    }
 }

@@ -219,9 +219,11 @@ abstract class BaseFeatureGenerator<T : Feature> : BaseTypeGenerator<T>() {
         val symbol = context.subsetsSymbol()
         val featureNames = explicitSubsettings
             .mapNotNull { subsetting ->
-                subsetting.subsettedFeature?.let { f ->
-                    context.resolveDisplayName(f)
-                }
+                try {
+                    subsetting.subsettedFeature?.let { f ->
+                        context.resolveDisplayName(f)
+                    }
+                } catch (_: NullPointerException) { null }
             }
             .filter { it.isNotEmpty() }
 
@@ -248,9 +250,11 @@ abstract class BaseFeatureGenerator<T : Feature> : BaseTypeGenerator<T>() {
         val symbol = context.redefinesSymbol()
         val featureNames = explicitRedefinitions
             .mapNotNull { redefinition ->
-                redefinition.redefinedFeature?.let { f ->
-                    context.resolveDisplayName(f)
-                }
+                try {
+                    redefinition.redefinedFeature?.let { f ->
+                        context.resolveDisplayName(f)
+                    }
+                } catch (_: NullPointerException) { null }
             }
             .filter { it.isNotEmpty() }
 

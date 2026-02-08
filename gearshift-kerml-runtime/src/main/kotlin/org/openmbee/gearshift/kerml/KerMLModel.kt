@@ -20,6 +20,7 @@ import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.openmbee.gearshift.generated.KerMLElementFactory
 import org.openmbee.gearshift.generated.interfaces.Element
+import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.kerml.antlr.KerMLLexer
@@ -90,7 +91,12 @@ class KerMLModel(
     engine: MDMEngine = createKerMLEngine(),
     projectId: String? = null,
     projectName: String = "Untitled KerML Project",
-    projectDescription: String? = null
+    projectDescription: String? = null,
+    /**
+     * Application settings controlling auto-naming and other behaviors.
+     * Use [GearshiftSettings.EDITOR] for editor-friendly defaults.
+     */
+    val settings: GearshiftSettings = GearshiftSettings.DEFAULT
 ) : MDMModel(engine, "Namespace", projectId, projectName, projectDescription) {
 
     private var lastParseResult: KerMLParseResult? = null
@@ -112,10 +118,15 @@ class KerMLModel(
         modelRoot.setProperty("declaredName", "model")
 
         // Register the KerML semantic handler for lifecycle events
-        engine.registerLifecycleHandler(semanticHandler)
+        // (only if implied relationships are enabled)
+        if (settings.processImpliedRelationships) {
+            engine.registerLifecycleHandler(semanticHandler)
+        }
 
         // Auto-mount implicit libraries if using MountableEngine
-        (engine as? MountableEngine)?.mountImplicit()
+        if (settings.autoMountLibraries) {
+            (engine as? MountableEngine)?.mountImplicit()
+        }
     }
 
     companion object {
@@ -298,13 +309,15 @@ class KerMLModel(
         fun createWithMounts(
             projectId: String? = null,
             projectName: String = "Untitled KerML Project",
-            projectDescription: String? = null
+            projectDescription: String? = null,
+            settings: GearshiftSettings = GearshiftSettings.DEFAULT
         ): KerMLModel {
             return KerMLModel(
                 engine = createKerMLEngineWithMounts(),
                 projectId = projectId,
                 projectName = projectName,
-                projectDescription = projectDescription
+                projectDescription = projectDescription,
+                settings = settings
             )
         }
     }
@@ -343,6 +356,27 @@ class KerMLModel(
         }
     }
 
+    // ===== Default Naming =====
+
+    /**
+     * Apply default names to all unnamed features in the model.
+     *
+     * Walks all Feature elements, and for any that lack a `declaredName`,
+     * generates one from the feature's type using [DefaultNameGenerator].
+     * Also generates short names (e.g., `p1`) if [GearshiftSettings.autoShortNames] is enabled.
+     *
+     * This is called automatically after parsing when [GearshiftSettings.autoNameFeatures]
+     * is true. Can also be called explicitly after programmatic element creation (e.g., via API).
+     */
+    fun applyDefaultNames() {
+        allOfType<Feature>()
+            .filter { it.declaredName == null }
+            .forEach { feature ->
+                val owner = feature.owningNamespace ?: return@forEach
+                DefaultNameGenerator.applyDefaults(feature, owner, settings)
+            }
+    }
+
     // ===== Parsing Methods =====
 
     /**
@@ -363,7 +397,14 @@ class KerMLModel(
         }
 
         // Process any pending implied relationships after parsing
-        semanticHandler.processAllPending()
+        if (settings.processImpliedRelationships) {
+            semanticHandler.processAllPending()
+        }
+
+        // Apply default names to unnamed features if enabled
+        if (settings.autoNameFeatures) {
+            applyDefaultNames()
+        }
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
@@ -387,7 +428,14 @@ class KerMLModel(
         }
 
         // Process any pending implied relationships after parsing
-        semanticHandler.processAllPending()
+        if (settings.processImpliedRelationships) {
+            semanticHandler.processAllPending()
+        }
+
+        // Apply default names to unnamed features if enabled
+        if (settings.autoNameFeatures) {
+            applyDefaultNames()
+        }
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
@@ -425,7 +473,8 @@ class KerMLModel(
         val parseContext = KermlParseContext(
             engine = engine,
             factory = engine.factory as KerMLElementFactory,
-            referenceCollector = referenceCollector
+            referenceCollector = referenceCollector,
+            deterministicElementIds = settings.deterministicElementIds
         )
 
         // Use the typed visitor to parse the tree

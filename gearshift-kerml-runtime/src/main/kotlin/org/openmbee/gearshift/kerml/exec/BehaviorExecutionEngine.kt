@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.exec
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.eval.KerMLExpressionEvaluator
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
@@ -495,5 +496,20 @@ class BehaviorExecutionEngine(
     private fun getDirection(param: MDMObject): String {
         // Check the direction via the directionOf operation or stored property
         return engine.getPropertyValue(param, "direction") as? String ?: "in"
+    }
+
+    companion object {
+        /**
+         * Create a BehaviorExecutionEngine configured from [GearshiftSettings].
+         */
+        fun fromSettings(
+            engine: MDMEngine,
+            expressionEvaluator: KerMLExpressionEvaluator,
+            settings: GearshiftSettings
+        ): BehaviorExecutionEngine = BehaviorExecutionEngine(
+            engine = engine,
+            expressionEvaluator = expressionEvaluator,
+            maxSteps = settings.maxExecutionSteps
+        )
     }
 }

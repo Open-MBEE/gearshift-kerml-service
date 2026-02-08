@@ -210,6 +210,10 @@ object KerMLSemanticLibraryLoader {
             val elementFactory = factory.engine.factory as KerMLElementFactory
             val kermlParseContext = KermlParseContext(factory.engine, elementFactory).asLibraryContext()
             val rootNamespace = RootNamespaceVisitor().visit(tree, kermlParseContext)
+
+            // Assign spec-compliant UUID v5 IDs to all library elements
+            LibraryElementIdAssigner.assignIds(rootNamespace)
+
             println("DEBUG: Root namespace created with id: ${rootNamespace.id}")
 
             // Check what memberships we have
@@ -270,6 +274,9 @@ object KerMLSemanticLibraryLoader {
             val elementFactory = factory.engine.factory as KerMLElementFactory
             val kermlParseContext = KermlParseContext(factory.engine, elementFactory).asLibraryContext()
             val rootNamespace = RootNamespaceVisitor().visit(tree, kermlParseContext)
+
+            // Assign spec-compliant UUID v5 IDs to all library elements
+            LibraryElementIdAssigner.assignIds(rootNamespace)
 
             val parseResult = KerMLParseResult(
                 success = true,

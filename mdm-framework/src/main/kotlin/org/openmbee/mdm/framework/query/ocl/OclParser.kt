@@ -298,14 +298,23 @@ object OclParser {
         }
 
         private fun applySelect(source: OclExpression, ctx: OCLParser.SelectSuffixContext): OclExpression {
-            val iterVar = ctx.iteratorVar.text
-            val body = visit(ctx.body)
+            val isShorthand = ctx.iteratorVar == null
+            val iterVar = ctx.iteratorVar?.text ?: "_it"
+            var body = visit(ctx.body)
+            // In shorthand form, a bare property name becomes a property call on the iterator variable
+            if (isShorthand && body is VariableExp) {
+                body = PropertyCallExp(VariableExp(iterVar), body.name)
+            }
             return IteratorExp(source, "select", iterVar, body)
         }
 
         private fun applyReject(source: OclExpression, ctx: OCLParser.RejectSuffixContext): OclExpression {
-            val iterVar = ctx.iteratorVar.text
-            val body = visit(ctx.body)
+            val isShorthand = ctx.iteratorVar == null
+            val iterVar = ctx.iteratorVar?.text ?: "_it"
+            var body = visit(ctx.body)
+            if (isShorthand && body is VariableExp) {
+                body = PropertyCallExp(VariableExp(iterVar), body.name)
+            }
             return IteratorExp(source, "reject", iterVar, body)
         }
 
@@ -317,8 +326,12 @@ object OclParser {
 
         private fun applyExists(source: OclExpression, ctx: OCLParser.ExistsSuffixContext): OclExpression {
             // Support both full form (x | body) and shorthand form (body)
+            val isShorthand = ctx.iteratorVar == null
             val iterVar = ctx.iteratorVar?.text ?: "_it"
-            val body = visit(ctx.body)
+            var body = visit(ctx.body)
+            if (isShorthand && body is VariableExp) {
+                body = PropertyCallExp(VariableExp(iterVar), body.name)
+            }
             return IteratorExp(source, "exists", iterVar, body)
         }
 
@@ -342,8 +355,12 @@ object OclParser {
 
         private fun applyClosure(source: OclExpression, ctx: OCLParser.ClosureSuffixContext): OclExpression {
             // Support both full form (x | body) and shorthand form (body)
+            val isShorthand = ctx.iteratorVar == null
             val iterVar = ctx.iteratorVar?.text ?: "_it"
-            val body = visit(ctx.body)
+            var body = visit(ctx.body)
+            if (isShorthand && body is VariableExp) {
+                body = PropertyCallExp(VariableExp(iterVar), body.name)
+            }
             return IteratorExp(source, "closure", iterVar, body)
         }
 

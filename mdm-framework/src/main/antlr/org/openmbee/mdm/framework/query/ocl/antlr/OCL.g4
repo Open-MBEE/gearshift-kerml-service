@@ -310,10 +310,12 @@ collectSuffix
 
 selectSuffix
     : ARROW_SELECT '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'
+    | ARROW_SELECT '(' body=expression ')'
     ;
 
 rejectSuffix
     : ARROW_REJECT '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'
+    | ARROW_REJECT '(' body=expression ')'
     ;
 
 forAllSuffix

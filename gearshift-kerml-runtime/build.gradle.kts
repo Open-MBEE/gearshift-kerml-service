@@ -70,8 +70,50 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.9")
 }
 
+// ── GearshiftSettings defaults ────────────────────────────────────────
+// Override via Gradle project properties (-P) or system properties (-D).
+// Example: ./gradlew runDemoApi -Pgearshift.autoNameFeatures=true
+//
+// Property                              Default
+// ──────────────────────────────────────────────
+// gearshift.autoNameFeatures            false
+// gearshift.nameStrategy                CAMEL_CASE   (CAMEL_CASE | SNAKE_CASE)
+// gearshift.autoShortNames              true
+// gearshift.processImpliedRelationships true
+// gearshift.autoMountLibraries          true
+// gearshift.maxExecutionSteps           1000
+// gearshift.preferSymbolicSyntax        true
+// gearshift.emitImpliedRelationships    false
+// gearshift.writerIndent                "    " (4 spaces)
+// gearshift.deterministicElementIds     false
+// ──────────────────────────────────────────────────────────────────────
+
+val gearshiftProperties = listOf(
+    "gearshift.autoNameFeatures",
+    "gearshift.nameStrategy",
+    "gearshift.autoShortNames",
+    "gearshift.processImpliedRelationships",
+    "gearshift.autoMountLibraries",
+    "gearshift.maxExecutionSteps",
+    "gearshift.preferSymbolicSyntax",
+    "gearshift.emitImpliedRelationships",
+    "gearshift.writerIndent",
+    "gearshift.deterministicElementIds"
+)
+
+fun JavaForkOptions.forwardGearshiftProperties() {
+    for (prop in gearshiftProperties) {
+        val value = project.findProperty(prop)?.toString()
+            ?: System.getProperty(prop)
+        if (value != null) {
+            systemProperty(prop, value)
+        }
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
+    forwardGearshiftProperties()
 }
 
 kotlin {
@@ -89,7 +131,13 @@ tasks.register<JavaExec>("runDemoApi") {
 
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("org.openmbee.gearshift.api.DemoApiKt")
+    forwardGearshiftProperties()
 }
+
+tasks.named<JavaExec>("run") {
+    forwardGearshiftProperties()
+}
+
 
 // Configure ANTLR to generate Kotlin code
 tasks.named<AntlrTask>("generateGrammarSource") {

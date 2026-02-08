@@ -19,14 +19,42 @@ The system combines:
 - **KerML Expression Evaluation**: Native evaluation of KerML expression trees
 - **Behavior Execution**: Token-passing execution engine for KerML Behaviors
 - **Z3/SMT Constraint Solving**: Parametric analysis, optimization, and conflict detection
-- **KerML Compliance**: Implements KerML specification with 85+ metaclasses
+- **Dual Code Generation**: Kotlin typed interfaces and TypeScript interfaces from metamodel
+- **Mount System**: Read-only library sharing across sessions without copying
+- **KerML Compliance**: Implements KerML specification with 85+ metaclasses and 127+ associations
+
+## Module Structure
+
+The project is a multi-module Gradle build with four modules:
+
+```
+gearshift-kerml-service/
+├── mdm-framework/           # Core metamodel framework (MetaClass, MDMEngine, OCL, Z3)
+├── gearshift-kerml-model/   # KerML metamodel definitions (85+ metaclasses, 127+ associations)
+├── kerml-generated/         # Generated Kotlin code output (interfaces + implementations)
+├── gearshift-kerml-runtime/ # KerML parser, writer, expression evaluator, behavior engine
+└── docs/                    # Architecture and specification documentation
+```
+
+**Module dependency graph:**
+
+```
+mdm-framework
+      ↑
+gearshift-kerml-model
+      ↑
+kerml-generated
+      ↑
+gearshift-kerml-runtime
+```
 
 ## Architecture Layers
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Application Layer                            │
-│  (REST API, Code Generation, Examples)                          │
+│                     Application Layer                           │
+│  REST API (Ktor), Code Generation, KerML Parser & Writer       │
+│                   [gearshift-kerml-runtime]                     │
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
@@ -34,105 +62,147 @@ The system combines:
 │  Layer 3: Z3/SMT Solver (Constraint Solving, Trade Studies)    │
 │  Layer 2: Behavior Execution Engine (Token-passing)            │
 │  Layer 1: KerML Expression Evaluator (Native tree walk)        │
+│       [gearshift-kerml-runtime + mdm-framework]                │
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
-│                KerML Metamodel Layer (85+ classes)              │
+│           KerML Metamodel Layer (85+ metaclasses)               │
 │  Root: Element, Namespace, Membership, Relationship             │
 │  Core: Type, Classifier, Feature, Specialization                │
 │  Kernel: DataType, Class, Expression, Connector, Flow           │
+│               [gearshift-kerml-model]                           │
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
-│                  Mdm Framework                             │
-│                    GearshiftEngine                               │
-│            (Unified API / Single Entry Point)                    │
+│     Generated Typed API (Interfaces + Implementations)          │
+│                   [kerml-generated]                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                     Mdm Framework                               │
+│                      MDMEngine                                  │
+│            (Unified Runtime / Single Entry Point)               │
 └─────────────────────────────────────────────────────────────────┘
         │           │           │           │           │
    ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-   │Metamodel│ │  Engine  │ │Constraint│ │Repository│ │  Query   │
-   │Registry │ │  (MOF)   │ │  Engine  │ │  Layer   │ │  Engine  │
+   │Metamodel│ │ Runtime  │ │Constraint│ │  Query   │ │  Code    │
+   │Registry │ │ (Mount)  │ │  Engine  │ │  Engine  │ │Generation│
    └────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
-        │           │           │           │           │
-        │     ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-        │     │   Name   │ │   OCL    │ │  Z3/SMT  │   │
-        │     │ Resolver │ │ Executor │ │  Solver  │   │
-        │     └──────────┘ └──────────┘ └──────────┘   │
-        └───────────────────────────────────────────────┘
+        │           │           │           │
+        │     ┌──────────┐ ┌──────────┐ ┌──────────┐
+        │     │   Name   │ │   OCL    │ │  Z3/SMT  │
+        │     │ Resolver │ │ Executor │ │  Solver  │
+        │     └──────────┘ └──────────┘ └──────────┘
+        └───────────────────────────────────────────┘
                               │
                     ┌──────────────────┐
                     │  Graph Storage   │
-                    │ (see STORAGE_ARCHITECTURE.md)
+                    │ (InMemory / DB)  │
                     └──────────────────┘
 ```
 
 ## Core Components
 
-### 1. GearshiftEngine (`GearshiftEngine.kt`)
+### MDMEngine (`mdm-framework/.../runtime/MDMEngine.kt`)
 
-The unified API providing access to all framework capabilities:
+The core runtime container and single source of truth:
 
 ```kotlin
-val engine = GearshiftEngine()
-
-// Metamodel management
-engine.registerMetaClass(metaClass)
-engine.registerAssociation(association)
-engine.validateMetamodel()
+val registry = MetamodelRegistry()
+KerMLMetamodelLoader.initialize(registry)
+val engine = MDMEngine(registry)
 
 // Instance (node) management
-val (id, instance) = engine.createInstance("Feature")
-engine.setProperty(id, "declaredName", "MyFeature")
-val obj = engine.getInstance(id)
+val element = engine.createElement("Feature")
+engine.setProperty(element.id!!, "declaredName", "MyFeature")
 
 // Link (edge) management
-val link = engine.createLink("FeatureMembership_OwnedMemberFeature", sourceId, targetId)
-val outgoing = engine.getOutgoingLinks(sourceId, "FeatureMembership_OwnedMemberFeature")
+engine.createLink("FeatureMembership_OwnedMemberFeature", sourceId, targetId)
+val targets = engine.getLinkedTargets("FeatureMembership_OwnedMemberFeature", sourceId)
 
-// Constraint evaluation
-val result = engine.evaluateOcl(instance, "self.ownedMembership->size()")
+// Constraint evaluation (derived properties computed automatically)
+val name = engine.getProperty(element.id!!, "name") // Evaluates derivation constraint
 
-// Name resolution (KerML 8.2.3.5)
-val resolved = engine.resolveName("A::B::C", namespaceId)
+// Operation invocation
+val result = engine.invokeOperation(element.id!!, "effectiveName", emptyMap())
 
-// Queries
-val features = engine.getInstancesByType("Feature")
+// OCL expression evaluation
+engine.registerEvaluator(ExpressionLanguage.OCL, OclExpressionEvaluator())
 ```
 
-### 2. MDMEngine (`engine/MDMEngine.kt`)
+Key responsibilities:
+- Element storage and access (by ID, by class)
+- Association graph (MDMLink edges)
+- Property access (stored, derived via constraints, association-based)
+- Operation invocation with language dispatch
+- Lifecycle events via registered `LifecycleHandler`s
+- Expression evaluator registration (OCL, GQL, etc.)
 
-Lower-level engine providing detailed control:
-
-- Object and link creation/deletion with lifecycle notifications
-- Property management with automatic indexing
-- Constraint and operation invocation
-- OCL expression evaluation via `OclExecutor`
-- Name resolution via `NameResolver`
-- Access to `ConstraintEngine` for derived properties
-
-### 3. MDMObject (`engine/MDMObject.kt`)
+### MDMObject (`mdm-framework/.../runtime/MDMObject.kt`)
 
 Runtime instance representing a node in the model graph:
 
 - Typed by a `MetaClass`
 - Stores properties in a mutable map
-- Has a unique ID assigned by repository
+- Has a unique ID assigned by the engine
 - Immutable reference to metaclass definition
 
-### 4. MDMLink (`engine/MDMLink.kt`)
+### MDMLink (`mdm-framework/.../runtime/MDMLink.kt`)
 
 Runtime instance representing an edge connecting two MDMObjects:
 
 - Typed by a `MetaAssociation`
-- Directional (source → target)
+- Directional (source -> target)
 - Provides navigability checks and aggregation inspection
 - Bidirectional traversal support
 
+### MDMModel / KerMLModel
+
+High-level model APIs built on MDMEngine:
+
+- `MDMModel` - Base class with project metadata (SysML v2 API aligned)
+- `KerMLModel` - KerML-specific: `parseString()`, `parseFile()`, library initialization, typed accessors
+
+```kotlin
+val model = KerMLModel()
+val result = model.parseString("""
+    package Vehicles {
+        class Vehicle {
+            feature mass : Real;
+        }
+    }
+""")
+```
+
+### MountableEngine (`mdm-framework/.../runtime/MountableEngine.kt`)
+
+Extends MDMEngine with mount support for sharing library content across sessions:
+
+- **Mounts**: Read-only engines (libraries) attached to sessions without copying
+- **Resolution order**: Local -> Explicit Mounts -> Implicit Mounts
+- **Immutability enforcement**: Mounted elements cannot be modified, deleted, or be sources of new links
+- **Use case**: KerML Kernel Semantic Library loaded once, mounted into multiple sessions
+
+```kotlin
+val engine = MountableEngine(schema, factory)
+engine.mountImplicit()  // Auto-mount standard libraries
+
+// Resolve library types through mount
+val anything = engine.getElement("base-anything-id")
+
+// Local operations work normally
+val myClass = engine.createElement("Class")
+
+// Modifying mounted content throws MountedElementReadOnlyException
+```
+
+Priority ranges: 0-99 reserved, 100-499 explicit mounts, 500-999 reserved, 1000+ implicit libraries.
+
 ## Metamodel System
 
-### MetaClass (`metamodel/MetaClass.kt`)
+### MetaClass (`mdm-framework/.../meta/MetaClass.kt`)
 
-Defines a class type:
+Defines a class type in the metamodel:
 
 ```kotlin
 val element = MetaClass(
@@ -143,20 +213,37 @@ val element = MetaClass(
         MetaProperty(
             name = "declaredName",
             type = "String",
-            multiplicity = "0..1"
+            description = "The declared name of this Element"
+        ),
+        MetaProperty(
+            name = "isLibraryElement",
+            type = "Boolean",
+            isDerived = true,
+            derivationConstraint = "deriveElementIsLibraryElement"
         )
     ),
     constraints = listOf(
         MetaConstraint(
             name = "deriveElementName",
             type = ConstraintType.DERIVATION,
-            expression = "self.effectiveName()"
+            expression = "self.effectiveName()",
+            description = "Derivation for Element::name"
         )
     ),
     operations = listOf(
         MetaOperation(
             name = "effectiveName",
-            returnType = "String"
+            returnType = "String",
+            body = MetaOperation.ocl("declaredName"),
+            isQuery = true
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "elementAnythingBinding",
+            baseConcept = "Base::Anything",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.Default
         )
     )
 )
@@ -165,24 +252,24 @@ val element = MetaClass(
 **Key principle**: All non-primitive-typed properties are association ends defined separately. Only primitives (String,
 Boolean, Integer) go in `attributes`.
 
-### MetaAssociation (`metamodel/MetaAssociation.kt`)
+### MetaAssociation (`mdm-framework/.../meta/MetaAssociation.kt`)
 
 Defines relationships between types:
 
 ```kotlin
-val ownershipAssociation = MetaAssociation(
+val association = MetaAssociation(
     name = "MembershipOwningNamespace_OwnedMembership",
     sourceEnd = MetaAssociationEnd(
         name = "membershipOwningNamespace",
         type = "Namespace",
-        multiplicity = "0..1",
+        lowerBound = 0, upperBound = 1,
         isNavigable = true,
         aggregation = AggregationKind.NONE
     ),
     targetEnd = MetaAssociationEnd(
         name = "ownedMembership",
         type = "Membership",
-        multiplicity = "0..*",
+        lowerBound = 0, upperBound = -1,
         isNavigable = true,
         aggregation = AggregationKind.COMPOSITE,
         isOrdered = true
@@ -190,19 +277,104 @@ val ownershipAssociation = MetaAssociation(
 )
 ```
 
-### MetamodelRegistry (`engine/MetamodelRegistry.kt`)
+### MetaConstraint (`mdm-framework/.../meta/MetaConstraint.kt`)
+
+Constraints with typed semantics:
+
+| Type                         | Prefix           | Purpose                                    |
+|------------------------------|------------------|--------------------------------------------|
+| `DERIVATION`                 | `derive`         | Compute derived property values             |
+| `VERIFICATION`               | `check`/`verify` | Validate invariants                         |
+| `NON_NAVIGABLE_END`          | `compute`        | Calculate reverse association ends          |
+| `REDEFINES_DERIVATION`       | `derive`         | Inferred from metamodel redefinition        |
+| `SUBSETS_DERIVATION`         | `derive`         | Inferred from metamodel subsetting          |
+| `IMPLICIT_REDEFINITION`      | -                | Create inferred Redefinition relationships  |
+| `IMPLICIT_TYPE_FEATURING`    | -                | Create inferred TypeFeaturing               |
+| `IMPLICIT_BINDING_CONNECTOR` | -                | Create BindingConnector between features    |
+
+Constraint bodies can be OCL expressions or native Kotlin lambdas:
+
+```kotlin
+// Expression-based (serializable)
+ConstraintBody.Expression(code = "self.effectiveName()", language = "OCL")
+
+// Native (type-safe Kotlin lambda)
+ConstraintBody.Native(impl = { context -> context.element.getProperty("declaredName") })
+```
+
+### MetaOperation (`mdm-framework/.../meta/MetaOperation.kt`)
+
+Callable operations on metaclasses, with bodies as OCL, GQL, property references, or native Kotlin:
+
+```kotlin
+MetaOperation(
+    name = "allRedefinedFeatures",
+    returnType = "Feature",
+    returnLowerBound = 0, returnUpperBound = -1,
+    parameters = listOf(MetaParameter(name = "feature", type = "Feature")),
+    body = MetaOperation.ocl("ownedRedefinition.redefinedFeature->closure(...)"),
+    isQuery = true
+)
+```
+
+### Semantic Bindings
+
+Declare implied relationships to base library types with conditional application:
+
+```kotlin
+semanticBindings = listOf(
+    // Unconditional: all Features subset Base::things
+    SemanticBinding(
+        name = "featureThingsBinding",
+        baseConcept = "Base::things",
+        bindingKind = BindingKind.SUBSETS,
+        condition = BindingCondition.Default
+    ),
+    // Conditional: Feature typed by DataType subsets Base::dataValues
+    SemanticBinding(
+        name = "featureDataValueBinding",
+        baseConcept = "Base::dataValues",
+        bindingKind = BindingKind.SUBSETS,
+        condition = BindingCondition.TypedBy("DataType")
+    )
+)
+```
+
+**BindingKind**: `SPECIALIZES`, `SUBSETS`, `REDEFINES`, `TYPE_FEATURES`
+
+**BindingCondition** (sealed class): `Default`, `TypedBy`, `OwningTypeIs`, `PropertyEquals`, `And`, `Or`, `Not`,
+`CollectionNotEmpty`, `CollectionEmpty`, `SizeEquals`, `HasElementOfType`, `IsEnd`, `IsPortion`, `IsComposite`,
+`HasOwningFeatureMembership`, `IsEndWithOwningType`
+
+### Ownership Bindings
+
+Declare that a metaclass acts as an ownership intermediate (e.g., Membership, FeatureMembership):
+
+```kotlin
+MetaClass(
+    name = "FeatureMembership",
+    ownershipBinding = OwnershipBinding(
+        ownedElementEnd = "ownedMemberFeature",
+        ownerEnd = "owningType"
+    )
+)
+```
+
+The `OwnershipResolver` finds the most-specific intermediate for parent/child type pairs by inspecting the inheritance
+hierarchy and deriving type constraints from association end declarations.
+
+### MetamodelRegistry (`mdm-framework/.../runtime/MetamodelRegistry.kt`)
 
 Central registry providing:
 
 - Class and association lookup by name
-- Inheritance hierarchy queries (superclasses, subclasses, isSubclassOf)
+- Inheritance hierarchy queries (`getAllSuperclasses`, `isSubclassOf`)
 - Navigable association ends for a class
 - Validation (circular inheritance, missing references)
-- Thread-safe via ConcurrentHashMaps
 
 ## Constraint System
 
-### ConstraintEngine (`constraints/ConstraintEngine.kt`)
+### ConstraintEngine (`mdm-framework/.../constraints/ConstraintEngine.kt`)
 
 Evaluates constraints on instances:
 
@@ -211,18 +383,7 @@ Evaluates constraints on instances:
 - **Non-navigable ends**: Computes reverse association traversal
 - **Implicit relationships**: Creates implied relationships (redefinition, specialization)
 
-### Constraint Types (`constraints/ConstraintTypes.kt`)
-
-| Type                         | Prefix           | Purpose                                    |
-|------------------------------|------------------|--------------------------------------------|
-| `DERIVATION`                 | `derive`         | Compute derived property values            |
-| `VERIFICATION`               | `check`/`verify` | Validate invariants                        |
-| `NON_NAVIGABLE_END`          | `compute`        | Calculate reverse association ends         |
-| `IMPLICIT_REDEFINITION`      | -                | Create inferred Redefinition relationships |
-| `IMPLICIT_TYPE_FEATURING`    | -                | Create inferred TypeFeaturing              |
-| `IMPLICIT_BINDING_CONNECTOR` | -                | Create BindingConnector between features   |
-
-### ConstraintRegistry (`constraints/ConstraintRegistry.kt`)
+### ConstraintRegistry (`mdm-framework/.../constraints/ConstraintRegistry.kt`)
 
 Registry for constraint evaluators:
 
@@ -235,35 +396,35 @@ Registry for constraint evaluators:
 ### Architecture
 
 ```
-OCL text → OclParser → OclExpression AST → OclExecutor → result
-           (ANTLR)     (OclAst.kt)        (OclVisitor)
+OCL text -> OclParser -> OclExpression AST -> OclExecutor -> result
+            (ANTLR)      (OclAst.kt)         (OclVisitor)
 ```
 
-### OclParser (`constraints/parsers/ocl/OclParser.kt`)
+### OclParser (`mdm-framework/.../query/ocl/OclParser.kt`)
 
-Parses OCL text to AST using ANTLR:
+Parses OCL text to AST using ANTLR 4.13.1:
 
-- Uses `OCLLexer` and `OCLParser` generated from grammar
+- Uses `OCLLexer` and `OCLParser` generated from `OCL.g4` grammar
 - Visitor pattern builds custom AST nodes
 - Full error handling via `OclErrorListener`
 
-### OclAst (`constraints/parsers/ocl/OclAst.kt`)
+### OclAst (`mdm-framework/.../query/ocl/OclAst.kt`)
 
 Complete AST node hierarchy:
 
 - **Literals**: Null, Boolean, Integer, Real, String, UnlimitedNatural, Collection
 - **Navigation**: Variable, PropertyCall, NavigationCall, ArrowCall
 - **Operations**: OperationCall, InfixExp, PrefixExp
-- **Iterators**: select, reject, collect, forAll, exists, any, one, closure, iterate
+- **Iterators**: select, reject, collect, forAll, exists, any, one, closure, isUnique, sortedBy, iterate
 - **Control**: IfExp, LetExp
 - **Types**: oclIsKindOf, oclIsTypeOf, oclAsType
 
-### OclExecutor (`constraints/parsers/ocl/OclExecutor.kt`)
+### OclExecutor (`mdm-framework/.../query/ocl/OclExecutor.kt`)
 
-Evaluates AST against MDM objects:
+Evaluates AST against MDM objects via the `EngineAccessor` interface:
 
 ```kotlin
-val executor = OclExecutor(context)
+val executor = OclExecutor(accessor, contextObject, contextId)
 val result = executor.evaluate(ast)
 
 // Example expressions:
@@ -273,8 +434,10 @@ val result = executor.evaluate(ast)
 // "self.ownedMembership->closure(m | m.memberElement.ownedMembership)"
 ```
 
-**Recursion safety**: Uses LinkedHashSet for visited tracking and ArrayDeque for work queue in operations like
+**Recursion safety**: Uses `LinkedHashSet` for visited tracking and `ArrayDeque` for work queue in operations like
 `closure`.
+
+**Type casting**: `OclAsTypeView` wrapper for `oclAsType()` - operations dispatch on the cast type.
 
 ## Execution & Analysis
 
@@ -303,13 +466,13 @@ class KerMLExpressionEvaluator(engine: MDMEngine, functionLibrary: KernelFunctio
 ```
 
 Dispatches on `MDMObject.className`:
-- **LiteralExpression** → returns `Sequence{self}`
-- **OperatorExpression** → evaluate arguments, apply operator via KernelFunctionLibrary
-- **InvocationExpression** → evaluate arguments, bind to parameters, apply function body
-- **FeatureReferenceExpression** → resolve referent Feature, return its value
-- **FeatureChainExpression** → evaluate source, navigate target feature on result
-- **SelectExpression / CollectExpression / IndexExpression** → collection operations
-- **NullExpression** → returns empty sequence
+- **LiteralExpression** -> returns `Sequence{self}`
+- **OperatorExpression** -> evaluate arguments, apply operator via KernelFunctionLibrary
+- **InvocationExpression** -> evaluate arguments, bind to parameters, apply function body
+- **FeatureReferenceExpression** -> resolve referent Feature, return its value
+- **FeatureChainExpression** -> evaluate source, navigate target feature on result
+- **SelectExpression / CollectExpression / IndexExpression** -> collection operations
+- **NullExpression** -> returns empty sequence
 
 **KerMLExpressionOperationHandler** (`KerMLExpressionOperationHandler.kt`)
 - Wires the evaluator into MDMEngine by replacing OCL-based operation bodies with `MetaOperation.native{}` handlers
@@ -323,7 +486,7 @@ Flows. Inspired by fUML but dramatically simplified.
 
 **Execution Model** (`ExecutionModel.kt`)
 - `Token` (sealed): `ControlToken` (execution flow) and `ObjectToken` (carries data)
-- `StepState`: WAITING → READY → EXECUTING → COMPLETED
+- `StepState`: WAITING -> READY -> EXECUTING -> COMPLETED
 - `StepExecution`: runtime state per Step node
 - `ExecutionGraph`: Steps + SuccessionEdges + FlowEdges with topology queries
 
@@ -345,7 +508,7 @@ Execution loop:
 1. Build execution graph from Behavior's Steps and Successions
 2. Place initial control tokens on Steps with no predecessors
 3. Find READY steps (all input tokens available)
-4. Execute step: Expression → Layer 1 evaluator; Behavior → recurse
+4. Execute step: Expression -> Layer 1 evaluator; Behavior -> recurse with child context
 5. Evaluate guard conditions on outgoing Successions
 6. Propagate tokens along satisfied Successions, transfer data via Flows
 7. Repeat until no READY steps or `maxSteps` exceeded
@@ -355,7 +518,7 @@ Execution loop:
 Constraint solving for parametric analysis, requirement conflict detection, and trade studies.
 
 **OclToZ3Translator** (`mdm-framework/.../query/ocl/OclToZ3Translator.kt`)
-- Implements `OclVisitor<Expr<*>>` — translates OCL AST to Z3 expressions
+- Implements `OclVisitor<Expr<*>>` - translates OCL AST to Z3 expressions
 - Supports: arithmetic, comparison, equality, boolean operators, if-then-else, let expressions, variables, literals
 - Unsupported (throws `UnsupportedOperationException`): iterators, navigation, strings, type operations
 
@@ -377,7 +540,7 @@ class ConstraintSolverService {
 
 **ParametricAnalysisService** (`gearshift-kerml-runtime/.../analysis/ParametricAnalysisService.kt`)
 - KerML-specific layer that extracts constraints from Invariant model elements
-- Infers Z3Sort from Feature types (Integer→INT, Real→REAL, Boolean→BOOL)
+- Infers Z3Sort from Feature types (Integer->INT, Real->REAL, Boolean->BOOL)
 - `solveConstraints()`: find satisfying assignments over KerML Features
 - `checkRequirementConsistency()`: detect conflicting requirements
 - `tradeStudy()`: optimize an objective subject to constraints
@@ -395,41 +558,48 @@ class ConstraintSolverService {
 - `Namespace` - Container with membership
 - `Membership`, `OwningMembership` - Member ownership
 - `Import`, `MembershipImport`, `NamespaceImport`
-- `Annotation`, `Comment`, `Documentation`
+- `Annotation`, `Comment`, `Documentation`, `TextualRepresentation`
 - `AnnotatingElement`, `Dependency`
 
 **Core Package (23 classes)** - Types and features:
 
-- `Type`, `Classifier`, `Feature`
-- `Structure`, `Class`
-- `Specialization`, `Subsetting`, `Redefinition`
-- `FeatureMembership`, `FeatureTyping`, `Featuring`
-- `Conjugation`, `Disjoining`, `Intersecting`, `Unioning`, `Differencing`
+- `Type`, `Classifier`, `Feature`, `Structure`
+- `Specialization`, `Subclassification`, `Conjugation`, `Disjoining`, `Differencing`, `Intersecting`, `Unioning`
+- `FeatureMembership`, `FeatureTyping`, `Featuring`, `TypeFeaturing`
+- `Subsetting`, `Redefinition`, `ReferenceSubsetting`, `CrossSubsetting`
+- `FeatureChaining`, `FeatureInverting`, `EndFeatureMembership`
+- `Multiplicity`, `MultiplicityRange`
 
 **Kernel Package (48+ classes)** - Concrete concepts:
 
-- Classifiers: `DataType`, `Association`, `Behavior`, `Function`
-- Expressions: `Expression`, `LiteralExpression`, `OperatorExpression`, `InvocationExpression`
-- Specialized: `CollectExpression`, `SelectExpression`, `FeatureChainExpression`
-- Flows: `Flow`, `FlowEnd`, `SuccessionFlow`, `Connector`
-- Metadata: `MetadataFeature`, `MetadataAccessExpression`
+- **Classifiers**: `DataType`, `Class`, `Association`, `AssociationStructure`, `Behavior`, `Function`, `Predicate`,
+  `Metaclass`, `Interaction`
+- **Features**: `Step`, `Connector`, `BindingConnector`, `Succession`, `ConnectorAsUsage`, `FeatureValue`,
+  `MetadataFeature`
+- **Expressions**: `Expression`, `BooleanExpression`, `Invariant`, `LiteralExpression`, `LiteralBoolean`,
+  `LiteralInteger`, `LiteralRational`, `LiteralString`, `LiteralInfinity`, `NullExpression`,
+  `OperatorExpression`, `InvocationExpression`, `FeatureChainExpression`, `FeatureReferenceExpression`,
+  `CollectExpression`, `SelectExpression`, `IndexExpression`, `ConstructorExpression`,
+  `InstantiationExpression`, `MetadataAccessExpression`
+- **Flows**: `Flow`, `FlowEnd`, `PayloadFeature`, `SuccessionFlow`
+- **Memberships**: `ParameterMembership`, `ResultExpressionMembership`, `ReturnParameterMembership`,
+  `ElementFilterMembership`
+- **Containers**: `Package`, `LibraryPackage`
 
 ### Association Definitions (37+ files)
 
-Organized by domain:
+Organized by domain across root, core, and kernel packages:
 
-- `ElementsAssociations.kt` - Core element relationships
-- `TypesAssociations.kt` - Type hierarchy
-- `FeaturesAssociations.kt` - Feature relationships
-- `ClassifiersAssociations.kt` - Classifier relationships
-- `ExpressionsAssociations.kt` - Expression relationships
+- **Root**: Elements, Dependencies, Annotations, Namespaces, Imports
+- **Core**: Types, Specializations, Conjugations, Features, Subsetting, Multiplicities, etc.
+- **Kernel**: Associations, Connectors, Behaviors, Functions, Expressions, Flows, Packages, etc.
 
-### KerMLMetamodelLoader (`kerml/KerMLMetamodelLoader.kt`)
+### KerMLMetamodelLoader
 
-Initializes the complete metamodel:
+Initializes the complete metamodel in dependency order:
 
 ```kotlin
-fun loadKerMLMetamodel(registry: MetamodelRegistry) {
+fun initialize(registry: MetamodelRegistry) {
     // 1. Register Root package classes
     registerRootClasses(registry)
 
@@ -441,238 +611,266 @@ fun loadKerMLMetamodel(registry: MetamodelRegistry) {
 
     // 4. Register all associations
     registerAssociations(registry)
-
-    // 5. Validate
-    registry.validate()
 }
+```
+
+### Inheritance Hierarchy (key chains)
+
+```
+Element (abstract)
+├── Relationship (abstract)
+│   ├── Specialization -> Subclassification, Conjugation, Disjoining, ...
+│   ├── Featuring -> TypeFeaturing
+│   └── ... (Membership, Import, etc.)
+└── Namespace
+    └── Type
+        ├── Classifier
+        │   ├── DataType
+        │   ├── Class -> Behavior
+        │   ├── Structure -> Association, AssociationStructure
+        │   └── Function -> Predicate
+        └── Feature
+            ├── Step -> Expression -> BooleanExpression, LiteralExpression, ...
+            ├── Connector -> BindingConnector, Succession
+            └── Multiplicity -> MultiplicityRange
 ```
 
 ## Parser System
 
-### KerML Parsing (`kerml/parser/`)
+### KerML Parsing (`gearshift-kerml-runtime/.../parser/`)
 
-**Main components:**
+ANTLR-based parser with visitor pattern:
 
-- `KerMLParseCoordinator.kt` - Main parsing orchestration
-- `KerMLVisitorFactory.kt` - Factory for creating visitors
-- **45+ visitor files** organized by domain
+- **KerMLModel** - High-level API: `parseString()`, `parseFile()`
+- **KermlParseContext** - Runtime context with MDMEngine, namespace stack, reference collector
+- **KerMLErrorListener** - Custom error listener collecting parse errors with location info
+- **ReferenceCollector / ReferenceResolver** - Deferred resolution of forward references
+- **80+ visitor files** organized by metaclass domain (base visitors + specialized visitors)
+- **Deterministic UUIDs** for library elements via v5 namespace UUIDs from qualified names
 
-**Visitor architecture:**
+### KerML Writer (`gearshift-kerml-runtime/.../generator/`)
 
-- Visitor pattern for ANTLR-generated parse trees
-- Each visitor handles specific metaclasses
-- Coordination via `KerMLParseCoordinator`
+Generates KerML textual notation from MDM model objects:
 
-## Repository & Query
+- **KerMLWriter** - Top-level API: `write(namespace)`, `writeToFile(namespace, file)`
+- **GeneratorFactory** - Routes MDMObject to type-specific generator
+- **50+ generator files** organized by metaclass domain
+- Base generators: `KerMLGenerator`, `BaseElementGenerator`, `BaseFeatureGenerator`, `BaseClassifierGenerator`,
+  `BaseTypeGenerator`
 
-### ModelRepository (`repository/ModelRepository.kt`)
+### Implied Relationships
 
-In-memory storage for MDMObjects:
+**KerMLSemanticHandler** processes semantic bindings to create implied relationships:
 
-- Three indices: by ID, by type, by property value
-- O(1) lookups for common operations
-- Thread-safe via ConcurrentHashMaps
-- Automatic index maintenance on changes
-
-### LinkRepository (`repository/LinkRepository.kt`)
-
-Stores MDMLink instances:
-
-- Indexed by source ID, target ID, association name
-- Bidirectional traversal support
-- Cascade deletion support
-
-### QueryEngine (`query/QueryEngine.kt`)
-
-Fluent query API:
-
-```kotlin
-val results = queryEngine
-    .from("Feature")
-    .where("isAbstract", true)
-    .filter { it.getProperty("declaredName")?.toString()?.startsWith("Base") == true }
-    .execute()
-```
+- Registered as a `LifecycleHandler` on MDMEngine
+- After parsing, `processAllPending()` creates implied specializations, subsettings, etc.
+- Uses `SemanticBinding` definitions from metaclasses to determine which library types to bind
+- `BindingCondition` system evaluates whether each binding applies to a given element
 
 ## Code Generation
 
-### MetamodelCodeGenerator (`codegen/MetamodelCodeGenerator.kt`)
+### Kotlin Code Generation (`MetamodelCodeGenerator`)
 
-Generates typed interfaces from metamodel:
+Generates typed Kotlin interfaces and implementations from MetaClass definitions:
 
 ```kotlin
 // Generated interface
-interface IFeature : IType {
-    val declaredName: String?
-    val isAbstract: Boolean
-    val ownedFeature: List<IFeature>
-
+interface Element : ModelElement {
+    var aliasIds: List<String>
+    var declaredName: String?
+    val isLibraryElement: Boolean       // derived (readonly)
+    val name: String?                   // derived (readonly)
     fun effectiveName(): String?
 }
 
 // Generated implementation
-class FeatureImpl(wrapped: MDMObject) : TypeImpl(wrapped), IFeature {
-    override val declaredName: String?
+class ElementImpl(wrapped: MDMObject, engine: MDMEngine) : Element {
+    override var declaredName: String?
         get() = wrapped.getProperty("declaredName") as? String
-    // ...
+        set(value) { engine.setProperty(wrapped.id!!, "declaredName", value) }
+
+    override val name: String?
+        get() = engine.getProperty(wrapped.id!!, "name") as? String  // triggers derivation
 }
 ```
 
-Output locations:
+Output: `kerml-generated/src/main/kotlin/org/openmbee/gearshift/generated/`
+- `interfaces/` - Type-safe interfaces (86 files)
+- `impl/` - MDMObject-wrapping implementations (85 files)
+- `KerMLElementFactory.kt` - Factory for creating typed instances
 
-- `org.openmbee.gearshift.generated.interfaces` - Type-safe interfaces
-- `org.openmbee.gearshift.generated.impl` - Base implementations
-- `org.openmbee.gearshift.generated.Wrappers` - Factory utilities
+### TypeScript Code Generation (`TypeScriptCodeGenerator`)
 
-## Factory Pattern
+Generates TypeScript interfaces for SysML v2 API compatibility:
 
-### MDMModelFactory (`MDMModelFactory.kt`)
-
-Abstract base factory for models:
-
-```kotlin
-abstract class MDMModelFactory(
-    val engine: GearshiftEngine,
-    projectId: String? = null,
-    projectName: String = "Untitled Project"
-) {
-    val project: ProjectMetadata  // SysML v2 API aligned
-    val projectId: String
-
-    fun <T> createElement(typeName: String): T
-    fun resolveQualifiedName(qualifiedName: String): MDMObject?
-    fun <T : IElement> getWrapper(obj: MDMObject): T
+```typescript
+export interface Element {
+    '@id': string;
+    '@type': KerMLMetaclass;
+    aliasIds: string[];
+    declaredName?: string;
+    readonly isLibraryElement: boolean;
+    readonly name?: string;
+    clientDependency: ElementRef[];
+    readonly documentation: ElementRef[];
 }
+
+export type KerMLMetaclass =
+    | 'AnnotatingElement'
+    | 'Annotation'
+    | 'Association'
+    // ... (60+ concrete classes)
 ```
 
-### KerMLModelFactory (`kerml/KerMLModelFactory.kt`)
+Output: `build/generated-ts/`
+- `kerml.model.ts` - TypeScript interface declarations
+- `kerml-metaclass.type.ts` - Discriminated union type of concrete metaclass names
 
-KerML-specific factory with full metamodel initialization.
+Features:
+- Association ends -> `ElementRef` (ID-based references)
+- Optional properties use `?` on property name (not `| undefined`)
+- Only concrete classes appear in `KerMLMetaclass` union type
+- Topological sort ensures `extends` references are valid
 
-## Lifecycle & Events
+### Code Generation Runner
 
-### LifecycleHandler (`engine/Lifecycle.kt`)
+Both generators are invoked via `CodeGeneratorRunner` with mode dispatch:
 
-Interface for model change events:
+```bash
+# Generate Kotlin code (default)
+./gradlew generateMetamodelCode --no-configuration-cache
 
-```kotlin
-interface LifecycleHandler {
-    fun onObjectCreated(obj: MDMObject)
-    fun onObjectDeleted(obj: MDMObject)
-    fun onPropertyChanged(obj: MDMObject, property: String, oldValue: Any?, newValue: Any?)
-    fun onLinkCreated(link: MDMLink)
-    fun onLinkDeleted(link: MDMLink)
+# Generate TypeScript types
+./gradlew generateTypeScriptTypes --no-configuration-cache
 
-    val priority: Int  // Lower values called first
-}
+# Generate TypeScript to custom directory
+./gradlew generateTypeScriptTypes -PtsOutputDir=/custom/path
 ```
+
+## Storage
+
+### GraphStorage (`mdm-framework/.../storage/GraphStorage.kt`)
+
+Interface abstracting graph-native storage:
+
+- **Node operations**: `getNode()`, `setNode()`, `deleteNode()`, `deleteNodeCascade()`
+- **Edge operations**: `getEdge()`, `setEdge()`, `deleteEdge()`, `getOutgoingEdges()`, `getIncomingEdges()`
+- **Batch operations**: `getAllNodes()`, `getAllEdges()`, `clear()`
+
+**InMemoryGraphStorage** - Development/testing implementation using internal maps.
 
 ## Data Flow
 
 ### Instance Creation
 
 ```
-1. Request createInstance("Feature")
-   ↓
+1. Request createElement("Feature")
+   |
 2. Validate metaclass exists in registry
-   ↓
+   |
 3. Create MDMObject linked to MetaClass
-   ↓
-4. Store in ModelRepository (indexed by ID, type)
-   ↓
+   |
+4. Store in element map (indexed by ID)
+   |
 5. Trigger lifecycle handlers (onObjectCreated)
-   ↓
-6. Return (id, instance)
+   |
+6. Return MDMObject
 ```
 
 ### Property Access with Derivation
 
 ```
-1. Request getProperty("name")
-   ↓
-2. Check if property is derived
-   ↓
+1. Request getProperty(id, "name")
+   |
+2. Check if property is derived (via MetaProperty.isDerived)
+   |
 3a. If not derived: return stored value
 3b. If derived: look up derivationConstraint
-   ↓
-4. Parse OCL expression
-   ↓
-5. Execute via OclExecutor
-   ↓
-6. Return computed value
+   |
+4. Determine expression language, find evaluator
+   |
+5. Parse expression (e.g., OCL via OclParser)
+   |
+6. Execute via evaluator (e.g., OclExecutor)
+   |
+7. Return computed value
 ```
 
 ### Name Resolution (KerML 8.2.3.5)
 
 ```
 1. Parse qualified name (A::B::C)
-   ↓
+   |
 2. Check for cycles (resolution stack)
-   ↓
+   |
 3. Execute resolution algorithm:
    - Single segment: full resolution in namespace
    - Multi-segment: resolve qualification, then last segment
    - Global scope ($::): resolve from model root
-   ↓
+   |
 4. Return Membership containing memberElement
 ```
 
 ## Technology Stack
 
-- **Kotlin** 1.9+ - Language
-- **Gradle** 8.5+ - Build tool
-- **Jackson** 2.16+ - JSON serialization
-- **ANTLR** 4.13+ - Grammar parsing (OCL, KerML)
-- **Z3** 4.13+ (via z3-turnkey) - SMT solver for constraint solving and parametric analysis
-- **SLF4J + kotlin-logging** - Logging
-- **ConcurrentHashMap** - Thread-safe collections
+| Dependency          | Version | Purpose                                        |
+|---------------------|---------|------------------------------------------------|
+| Kotlin              | 2.1.10  | Language                                        |
+| JDK                 | 21      | Runtime                                         |
+| Gradle              | 9.2.1   | Build tool                                      |
+| Jackson             | 2.16.1  | JSON serialization                              |
+| ANTLR               | 4.13.1  | Grammar parsing (OCL, GQL, KerML)              |
+| Z3 (z3-turnkey)     | 4.13.0  | SMT solver for constraint solving               |
+| Ktor                | 2.3.7   | Web server (runtime REST API)                   |
+| kotlin-logging      | 6.0.3   | Logging facade                                  |
+| Logback             | 1.4.14  | Logging implementation                          |
+| Kotest              | 5.8.0   | Testing framework                               |
+| JUnit Jupiter       | 5.10.1  | Test runner                                     |
+| MockK               | 1.13.9  | Mocking library                                 |
 
 ## Build Commands
 
 ```bash
-# Compile
+# Compile all modules
 ./gradlew compileKotlin --no-configuration-cache
 
-# Run tests
+# Run all tests
 ./gradlew test --no-configuration-cache
 
-# Generate ANTLR grammar
+# Generate ANTLR grammar sources
 ./gradlew generateGrammarSource --no-configuration-cache
 
-# Generate code from metamodel
-./gradlew generateCode --no-configuration-cache
+# Generate Kotlin code from metamodel
+./gradlew generateMetamodelCode --no-configuration-cache
+
+# Generate TypeScript types
+./gradlew generateTypeScriptTypes --no-configuration-cache
 ```
 
 ## Related Documentation
 
-- **STORAGE_ARCHITECTURE.md** - Hot/cold storage pattern, Git-like versioning with KerML as commit payload
-- **CLAUDE.md** - Development guidelines and conventions
+- **[STORAGE_ARCHITECTURE.md](STORAGE_ARCHITECTURE.md)** - Graph storage design
+- **[KERML_GENERATOR_ARCHITECTURE.md](KERML_GENERATOR_ARCHITECTURE.md)** - KerML code generation architecture
+- **[NAME_RESOLUTION.md](NAME_RESOLUTION.md)** - KerML 8.2.3.5 name resolution
+- **[OPERATION_INVOCATION.md](OPERATION_INVOCATION.md)** - Operation handling
+- **[OPERATOR_EXPRESSION_SPEC.md](OPERATOR_EXPRESSION_SPEC.md)** - Operator semantics
+- **[SEMANTICS_VALIDATION_PLAN.md](SEMANTICS_VALIDATION_PLAN.md)** - Validation strategy
+- **[API_IMPLEMENTATION_PLAN.md](API_IMPLEMENTATION_PLAN.md)** - REST API roadmap
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Tutorial guide
+- **[TESTING.md](TESTING.md)** - Test strategy
+- **[../CLAUDE.md](../CLAUDE.md)** - Development guidelines and conventions
 
 ## KerML Compliance
 
 Implements KerML v1.0 specification:
 
-- ✅ 8.2.3.5 Name Resolution (full implementation)
-- ✅ 8.2.3.4 Membership and Visibility
-- ✅ Metamodel (85+ classes, 37+ associations)
-- ✅ OCL Expression Evaluation
-- ⏳ 8.4.2 Implied Relationships (partial - framework in place)
-- ⏳ Complete constraint derivations
-
-## Summary
-
-The Gearshift KerML Service provides a production-ready, metadata-driven foundation for KerML implementation. Key
-achievements:
-
-1. **Complete Metamodel**: 85+ KerML metaclasses with full inheritance hierarchy
-2. **OCL Support**: Full parser and executor for Object Constraint Language
-3. **Expression Evaluation**: Native KerML expression tree evaluation with KernelFunctionLibrary
-4. **Behavior Execution**: Token-passing engine for Steps, Successions, and Flows
-5. **Parametric Analysis**: Z3/SMT solver integration for constraint solving, optimization, and conflict detection
-6. **Constraint System**: Derivation, validation, and implicit relationship support
-7. **Graph Storage**: MDMObjects and MDMLinks as property graph with efficient indexing
-8. **Code Generation**: Auto-generated type-safe interfaces
-9. **Versioning Ready**: Architecture supports Git-like version control with KerML as commit payload
-
-The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor of formal
-metamodeling approaches.
+- 85+ metaclasses across Root, Core, and Kernel packages
+- 127+ associations with full subsetting/redefinition semantics
+- OCL constraint evaluation for derivations, validations, and non-navigable ends
+- Semantic bindings for implied relationships to library types
+- KerML textual notation parsing and generation
+- Name resolution (KerML 8.2.3.5)
+- Membership and visibility (KerML 8.2.3.4)
+- Expression evaluation (native tree walk + kernel function library)
+- Behavior execution (token-passing with guard conditions)
+- Parametric analysis (Z3/SMT constraint solving)

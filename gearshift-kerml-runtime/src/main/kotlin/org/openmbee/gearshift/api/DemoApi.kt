@@ -411,6 +411,9 @@ class DemoApi(
                 // SysML v2 API routes
                 sysmlApiRoutes(projectStore)
 
+                // Parametric analysis routes
+                parametricAnalysisRoutes(projectStore)
+
                 get("/") {
                     // Serve the static HTML demo page
                     val indexHtml = this::class.java.classLoader.getResource("static/index.html")?.readText()

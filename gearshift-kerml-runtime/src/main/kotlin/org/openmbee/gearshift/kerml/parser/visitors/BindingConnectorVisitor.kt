@@ -46,13 +46,13 @@ class BindingConnectorVisitor : BaseFeatureVisitor<KerMLParser.BindingConnectorC
         // Parse feature prefix (inherited from BaseFeatureVisitor)
         parseFeaturePrefixContext(ctx.featurePrefix(), binding)
 
+        // Create child context so connector ends are owned by the binding connector
+        val childContext = kermlParseContext.withParent(binding, binding.declaredName ?: "")
+
         // Parse binding connector declaration - binding-specific
         ctx.bindingConnectorDeclaration()?.let { decl ->
-            parseBindingConnectorDeclaration(decl, binding, kermlParseContext)
+            parseBindingConnectorDeclaration(decl, binding, childContext)
         }
-
-        // Create child context for nested elements
-        val childContext = kermlParseContext.withParent(binding, binding.declaredName ?: "")
 
         // Create membership with parent type (inherited from BaseTypeVisitor)
         createFeatureMembership(binding, kermlParseContext)
@@ -79,8 +79,8 @@ class BindingConnectorVisitor : BaseFeatureVisitor<KerMLParser.BindingConnectorC
 
         ctx.isSufficient?.let { binding.isSufficient = true }
 
-        ctx.connectorEndMember()?.forEach { _ ->
-            // TODO: Parse connector end members
+        ctx.connectorEndMember()?.forEach { endMember ->
+            parseConnectorEndMember(endMember, kermlParseContext)
         }
     }
 }

@@ -27,7 +27,6 @@ import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Function
 import org.openmbee.gearshift.generated.interfaces.Namespace
-import org.openmbee.gearshift.kerml.parser.KermlParseContext
 
 /**
  * Tests that verify all KerML standard library files load correctly.
@@ -214,32 +213,68 @@ class KerMLLibraryLoadingTest : KerMLTestSpec({
             }
         }
 
-        context("deterministic element IDs") {
+        context("spec-compliant UUID v5 element IDs") {
 
-            it("should generate same ID for same qualified name") {
-                val qn = "Base::Anything"
-                val id1 = KermlParseContext.generateDeterministicId(qn)
-                val id2 = KermlParseContext.generateDeterministicId(qn)
+            it("should generate same UUID v5 for same inputs") {
+                val ns = LibraryElementIdAssigner.NAMESPACE_URL_UUID
+                val id1 = LibraryElementIdAssigner.generateUuidV5(ns, "https://www.omg.org/spec/KerML/Base")
+                val id2 = LibraryElementIdAssigner.generateUuidV5(ns, "https://www.omg.org/spec/KerML/Base")
 
                 id1 shouldBe id2
             }
 
-            it("should generate different IDs for different qualified names") {
-                val id1 = KermlParseContext.generateDeterministicId("Base::Anything")
-                val id2 = KermlParseContext.generateDeterministicId("Base::things")
+            it("should generate different UUIDs for different inputs") {
+                val ns = LibraryElementIdAssigner.NAMESPACE_URL_UUID
+                val id1 = LibraryElementIdAssigner.generateUuidV5(ns, "https://www.omg.org/spec/KerML/Base")
+                val id2 = LibraryElementIdAssigner.generateUuidV5(ns, "https://www.omg.org/spec/KerML/Links")
 
                 id1 shouldNotBe id2
             }
 
-            it("should generate valid UUID format") {
-                val id = KermlParseContext.generateDeterministicId("Base::Anything")
+            it("should generate valid UUID v5 format") {
+                val ns = LibraryElementIdAssigner.NAMESPACE_URL_UUID
+                val id = LibraryElementIdAssigner.generateUuidV5(ns, "https://www.omg.org/spec/KerML/Base")
 
-                // Validate UUID format (8-4-4-4-12)
+                // UUID v5 has version nibble = 5 and variant bits = 10xx
+                val uuidStr = id.toString()
                 val uuidRegex = Regex("[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}")
-                id.matches(uuidRegex) shouldBe true
+                uuidStr.matches(uuidRegex) shouldBe true
             }
 
-            it("should give library elements deterministic IDs") {
+            it("should assign top-level package UUID matching spec formula") {
+                val model = KerMLModel(projectName = "SpecUUIDTest")
+                val results = KerMLSemanticLibraryLoader.loadLibrary(model)
+                results.filter { !it.success } shouldHaveSize 0
+
+                val base = model.resolveGlobal("Base") as? Namespace
+                base.shouldNotBeNull()
+
+                // Top-level package: UUIDv5(URL_NAMESPACE_UUID, "https://www.omg.org/spec/KerML/Base")
+                val expectedUuid = LibraryElementIdAssigner.generateUuidV5(
+                    LibraryElementIdAssigner.NAMESPACE_URL_UUID,
+                    "${LibraryElementIdAssigner.KERML_URL_PREFIX}Base"
+                )
+                base.elementId shouldBe expectedUuid.toString()
+            }
+
+            it("should assign inner element UUID using package UUID as namespace") {
+                val model = KerMLModel(projectName = "InnerUUIDTest")
+                val results = KerMLSemanticLibraryLoader.loadLibrary(model)
+                results.filter { !it.success } shouldHaveSize 0
+
+                val anything = model.resolveGlobal("Base::Anything") as? Classifier
+                anything.shouldNotBeNull()
+
+                // Inner element: UUIDv5(basePackageUUID, "Base::Anything")
+                val basePackageUuid = LibraryElementIdAssigner.generateUuidV5(
+                    LibraryElementIdAssigner.NAMESPACE_URL_UUID,
+                    "${LibraryElementIdAssigner.KERML_URL_PREFIX}Base"
+                )
+                val expectedUuid = LibraryElementIdAssigner.generateUuidV5(basePackageUuid, "Base::Anything")
+                anything.elementId shouldBe expectedUuid.toString()
+            }
+
+            it("should give library elements deterministic IDs across sessions") {
                 // Load library twice and verify Base::Anything has same ID
                 val model1 = KerMLModel(projectName = "LibraryTest1")
                 val results1 = KerMLSemanticLibraryLoader.loadLibrary(model1)
@@ -256,6 +291,31 @@ class KerMLLibraryLoadingTest : KerMLTestSpec({
                 anything2.shouldNotBeNull()
 
                 anything1.elementId shouldBe anything2.elementId
+            }
+
+            it("should give unnamed elements (OwningMemberships) deterministic IDs across sessions") {
+                val model1 = KerMLModel(projectName = "UnnamedTest1")
+                val results1 = KerMLSemanticLibraryLoader.loadLibrary(model1)
+                results1.filter { !it.success } shouldHaveSize 0
+
+                val model2 = KerMLModel(projectName = "UnnamedTest2")
+                val results2 = KerMLSemanticLibraryLoader.loadLibrary(model2)
+                results2.filter { !it.success } shouldHaveSize 0
+
+                // Get Base::Anything's owning membership - it should have a deterministic ID
+                val anything1 = model1.resolveGlobal("Base::Anything")
+                val anything2 = model2.resolveGlobal("Base::Anything")
+
+                anything1.shouldNotBeNull()
+                anything2.shouldNotBeNull()
+
+                val om1 = anything1.owningMembership
+                val om2 = anything2.owningMembership
+
+                om1.shouldNotBeNull()
+                om2.shouldNotBeNull()
+
+                om1.elementId shouldBe om2.elementId
             }
         }
     }

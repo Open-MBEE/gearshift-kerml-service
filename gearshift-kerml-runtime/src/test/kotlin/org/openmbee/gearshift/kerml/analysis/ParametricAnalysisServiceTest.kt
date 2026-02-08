@@ -15,32 +15,39 @@
  */
 package org.openmbee.gearshift.kerml.analysis
 
-import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.longs.shouldBeGreaterThanOrEqual
+import io.kotest.matchers.longs.shouldBeLessThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
+import org.openmbee.gearshift.kerml.KerMLTestSpec
 import org.openmbee.mdm.framework.constraints.ConstraintSolverService
 import org.openmbee.mdm.framework.constraints.Z3Sort
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 
-class ParametricAnalysisServiceTest : DescribeSpec({
+class ParametricAnalysisServiceTest : KerMLTestSpec({
 
-    lateinit var engine: MDMEngine
-    lateinit var service: ParametricAnalysisService
-
-    beforeEach {
+    // Helper to create a fresh engine/service pair for legacy hand-built tests
+    fun legacySetup(): Pair<MDMEngine, ParametricAnalysisService> {
         val registry = MetamodelRegistry()
         registry.ensureBaseClassRegistered()
         KerMLMetamodelLoader.initialize(registry)
-        engine = MDMEngine(registry)
-        service = ParametricAnalysisService(engine, ConstraintSolverService())
+        val engine = MDMEngine(registry)
+        val service = ParametricAnalysisService(engine, ConstraintSolverService())
+        return engine to service
     }
+
+    // === Legacy hand-built tests ===
+    // These tests validate low-level featureToVariable/extractConstraintExpression behavior
+    // using hand-constructed MDMObjects (no parser involved).
 
     describe("featureToVariable") {
 
         it("should extract variable from Feature with declaredName") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "velocity")
 
@@ -52,6 +59,7 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should return null for Feature without name") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
 
             val variable = service.featureToVariable(feature)
@@ -60,13 +68,14 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should infer INT sort from Integer-typed Feature") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "count")
 
-            // Create a type element named "Integer"
+            // Set type directly on the MDMObject to bypass association validation
             val intType = engine.createElement("DataType")
             engine.setPropertyValue(intType, "declaredName", "Integer")
-            engine.setPropertyValue(feature, "type", listOf(intType))
+            feature.setProperty("type", listOf(intType))
 
             val variable = service.featureToVariable(feature)
 
@@ -75,12 +84,13 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should infer BOOL sort from Boolean-typed Feature") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "isActive")
 
             val boolType = engine.createElement("DataType")
             engine.setPropertyValue(boolType, "declaredName", "Boolean")
-            engine.setPropertyValue(feature, "type", listOf(boolType))
+            feature.setProperty("type", listOf(boolType))
 
             val variable = service.featureToVariable(feature)
 
@@ -89,12 +99,13 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should infer REAL sort from Real-typed Feature") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "temperature")
 
             val realType = engine.createElement("DataType")
             engine.setPropertyValue(realType, "declaredName", "Real")
-            engine.setPropertyValue(feature, "type", listOf(realType))
+            feature.setProperty("type", listOf(realType))
 
             val variable = service.featureToVariable(feature)
 
@@ -103,11 +114,13 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
     }
 
-    describe("extractConstraintExpression") {
+    describe("extractConstraintExpression - legacy") {
 
         it("should extract expression from element with expression property") {
+            val (engine, service) = legacySetup()
             val invariant = engine.createElement("Invariant")
-            engine.setPropertyValue(invariant, "expression", "x > 0")
+            // Use MDMObject.setProperty() directly — "expression" is not a metamodel attribute
+            invariant.setProperty("expression", "x > 0")
 
             val expr = service.extractConstraintExpression(invariant)
 
@@ -115,6 +128,7 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should return null for element without expression") {
+            val (engine, service) = legacySetup()
             val invariant = engine.createElement("Invariant")
 
             val expr = service.extractConstraintExpression(invariant)
@@ -123,9 +137,10 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
     }
 
-    describe("solveConstraints") {
+    describe("solveConstraints - legacy hand-built") {
 
         it("should return satisfiable with empty features") {
+            val (_, service) = legacySetup()
             val result = service.solveConstraints(emptyList(), emptyList())
 
             result.satisfiable shouldBe true
@@ -133,6 +148,7 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should return satisfiable with features but no constraints") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "x")
 
@@ -143,15 +159,17 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should solve constraints with named features and invariants") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "x")
 
             val intType = engine.createElement("DataType")
             engine.setPropertyValue(intType, "declaredName", "Integer")
-            engine.setPropertyValue(feature, "type", listOf(intType))
+            feature.setProperty("type", listOf(intType))
 
             val invariant = engine.createElement("Invariant")
-            engine.setPropertyValue(invariant, "expression", "x = 42")
+            // Use MDMObject.setProperty() for non-metamodel "expression" property
+            invariant.setProperty("expression", "x = 42")
 
             val result = service.solveConstraints(listOf(feature), listOf(invariant))
 
@@ -160,9 +178,10 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
     }
 
-    describe("tradeStudy") {
+    describe("tradeStudy - legacy hand-built") {
 
         it("should return error when no design variables") {
+            val (_, service) = legacySetup()
             val result = service.tradeStudy(emptyList(), emptyList(), "x")
 
             result.satisfiable shouldBe false
@@ -170,18 +189,19 @@ class ParametricAnalysisServiceTest : DescribeSpec({
         }
 
         it("should optimize with bounded design variables") {
+            val (engine, service) = legacySetup()
             val feature = engine.createElement("Feature")
             engine.setPropertyValue(feature, "declaredName", "x")
 
             val intType = engine.createElement("DataType")
             engine.setPropertyValue(intType, "declaredName", "Integer")
-            engine.setPropertyValue(feature, "type", listOf(intType))
+            feature.setProperty("type", listOf(intType))
 
             val constraint = engine.createElement("Invariant")
-            engine.setPropertyValue(constraint, "expression", "x >= 1")
+            constraint.setProperty("expression", "x >= 1")
 
             val constraint2 = engine.createElement("Invariant")
-            engine.setPropertyValue(constraint2, "expression", "x <= 100")
+            constraint2.setProperty("expression", "x <= 100")
 
             val result = service.tradeStudy(
                 listOf(feature),
@@ -192,6 +212,236 @@ class ParametricAnalysisServiceTest : DescribeSpec({
 
             result.satisfiable shouldBe true
             result.objectiveValue shouldBe 1L
+        }
+    }
+
+    // === Parsed KerML integration tests ===
+
+    describe("expressionTreeToOcl") {
+
+        it("should convert LiteralInteger from parsed feature value") {
+            val model = freshModel()
+            model.parseString("package T { feature x : ScalarValues::Integer = 42; }")
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            // Find the LiteralInteger with value 42 (not multiplicity bounds)
+            val literal = model.engine.getAllElements()
+                .filter { it.className == "LiteralInteger" }
+                .firstOrNull { model.engine.getPropertyValue(it, "value") == 42L }
+
+            literal.shouldNotBeNull()
+            val ocl = service.expressionTreeToOcl(literal)
+            ocl shouldBe "42"
+        }
+
+        it("should convert OperatorExpression from parsed invariant") {
+            val model = freshModel()
+            model.parseString("package T { feature x : ScalarValues::Integer; inv { x > 0 } }")
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            // Find the invariant and extract its expression
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+            invariants.shouldNotBeNull()
+
+            val expr = service.extractConstraintExpression(invariants.first())
+            expr.shouldNotBeNull()
+            expr shouldContain ">"
+        }
+    }
+
+    describe("solveConstraints with parsed KerML") {
+
+        it("should solve simple equality constraint") {
+            val model = freshModel()
+            model.parseString("package T { feature x : ScalarValues::Integer; inv { x == 42 } }")
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.solveConstraints(features, invariants)
+
+            result.satisfiable shouldBe true
+            result.assignments["x"] shouldBe 42L
+        }
+
+        it("should solve bounded constraints") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x >= 10 }
+                    inv { x <= 20 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.solveConstraints(features, invariants)
+
+            result.satisfiable shouldBe true
+            val xVal = result.assignments["x"] as Long
+            xVal.shouldBeGreaterThanOrEqual(10L)
+            xVal.shouldBeLessThanOrEqual(20L)
+        }
+
+        it("should solve multi-variable constraints") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    feature y : ScalarValues::Integer;
+                    inv { x + y == 10 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter {
+                    val name = model.engine.getPropertyValue(it, "declaredName") as? String
+                    name == "x" || name == "y"
+                }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.solveConstraints(features, invariants)
+
+            result.satisfiable shouldBe true
+            val xVal = result.assignments["x"] as Long
+            val yVal = result.assignments["y"] as Long
+            (xVal + yVal) shouldBe 10L
+        }
+
+        it("should detect unsatisfiable constraints") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x > 10 }
+                    inv { x < 5 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.solveConstraints(features, invariants)
+
+            result.satisfiable shouldBe false
+        }
+    }
+
+    describe("tradeStudy with parsed KerML") {
+
+        it("should minimize objective") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x >= 1 }
+                    inv { x <= 100 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.tradeStudy(features, invariants, "x", minimize = true)
+
+            result.satisfiable shouldBe true
+            result.objectiveValue shouldBe 1L
+        }
+
+        it("should maximize objective") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x >= 1 }
+                    inv { x <= 100 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val features = model.engine.getAllElements()
+                .filter { it.className == "Feature" }
+                .filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.tradeStudy(features, invariants, "x", minimize = false)
+
+            result.satisfiable shouldBe true
+            result.objectiveValue shouldBe 100L
+        }
+    }
+
+    describe("checkRequirementConsistency with parsed KerML") {
+
+        it("should detect consistent requirements") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x > 0 }
+                    inv { x < 100 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.checkRequirementConsistency(invariants)
+
+            result.consistent shouldBe true
+        }
+
+        it("should detect conflicting requirements") {
+            val model = freshModel()
+            model.parseString("""
+                package T {
+                    feature x : ScalarValues::Integer;
+                    inv { x > 10 }
+                    inv { x < 5 }
+                }
+            """.trimIndent())
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+
+            val invariants = model.engine.getAllElements()
+                .filter { model.engine.isInstanceOf(it, "Invariant") }
+
+            val result = service.checkRequirementConsistency(invariants)
+
+            result.consistent shouldBe false
         }
     }
 })

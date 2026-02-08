@@ -19,6 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.NamespaceImport
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.generated.interfaces.Package
+import org.openmbee.gearshift.kerml.GearshiftSettings
 import java.io.File
 
 /**
@@ -136,6 +137,12 @@ class KerMLWriter(
          * Create a writer with default options.
          */
         fun default(): KerMLWriter = KerMLWriter()
+
+        /**
+         * Create a writer configured from [GearshiftSettings].
+         */
+        fun fromSettings(settings: GearshiftSettings): KerMLWriter =
+            KerMLWriter(GenerationOptions.fromSettings(settings))
 
         /**
          * Create a writer that uses keyword syntax instead of symbols.
