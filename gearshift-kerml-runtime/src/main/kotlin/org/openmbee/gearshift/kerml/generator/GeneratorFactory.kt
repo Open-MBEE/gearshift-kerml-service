@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.generator
 
 import org.openmbee.gearshift.generated.interfaces.*
+import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
 import org.openmbee.gearshift.kerml.generator.base.KerMLGenerator
 import kotlin.reflect.KClass
 
@@ -40,7 +41,7 @@ object GeneratorFactory {
 
         // Classifiers - Behavioral
         Behavior::class to BehaviorGenerator(),
-        Function::class to FunctionGenerator(),
+        KerMLFunction::class to FunctionGenerator(),
         Interaction::class to InteractionGenerator(),
         Predicate::class to PredicateGenerator(),
 
@@ -105,15 +106,37 @@ object GeneratorFactory {
 
     /**
      * Find the most specific generator for the given element class.
+     *
+     * Uses BFS to ensure the most specific registered type is matched
+     * before more general supertypes (e.g., Behavior before Class).
      */
     private fun findGenerator(klass: KClass<*>): KerMLGenerator<*>? {
         // Check exact match first
         generators[klass]?.let { return it }
 
-        // Walk up the type hierarchy
+        // BFS walk up the type hierarchy
+        val queue = ArrayDeque<KClass<*>>()
+        val visited = mutableSetOf<KClass<*>>()
+        visited.add(klass)
+
+        // Seed with direct supertypes
         klass.supertypes.forEach { supertype ->
             val superKlass = supertype.classifier as? KClass<*> ?: return@forEach
-            findGenerator(superKlass)?.let { return it }
+            if (visited.add(superKlass)) {
+                queue.addLast(superKlass)
+            }
+        }
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            generators[current]?.let { return it }
+
+            current.supertypes.forEach { supertype ->
+                val superKlass = supertype.classifier as? KClass<*> ?: return@forEach
+                if (visited.add(superKlass)) {
+                    queue.addLast(superKlass)
+                }
+            }
         }
 
         return null

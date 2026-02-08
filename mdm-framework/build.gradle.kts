@@ -49,6 +49,9 @@ dependencies {
     antlr("org.antlr:antlr4:4.13.1")
     implementation("org.antlr:antlr4-runtime:4.13.1")
 
+    // Z3 SMT solver for constraint solving and parametric analysis
+    implementation("tools.aqua:z3-turnkey:4.13.0")
+
     // Testing
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")

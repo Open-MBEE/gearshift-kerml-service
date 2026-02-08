@@ -16,6 +16,9 @@ The system combines:
 - **MOF Power**: Full metamodel-driven architecture with validation and constraints
 - **Graph-Native Storage**: MDMObjects as nodes, MDMLinks as edges in a property graph
 - **OCL Evaluation**: Full Object Constraint Language parser and executor
+- **KerML Expression Evaluation**: Native evaluation of KerML expression trees
+- **Behavior Execution**: Token-passing execution engine for KerML Behaviors
+- **Z3/SMT Constraint Solving**: Parametric analysis, optimization, and conflict detection
 - **KerML Compliance**: Implements KerML specification with 85+ metaclasses
 
 ## Architecture Layers
@@ -24,6 +27,13 @@ The system combines:
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Application Layer                            │
 │  (REST API, Code Generation, Examples)                          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│              Execution & Analysis Layer                         │
+│  Layer 3: Z3/SMT Solver (Constraint Solving, Trade Studies)    │
+│  Layer 2: Behavior Execution Engine (Token-passing)            │
+│  Layer 1: KerML Expression Evaluator (Native tree walk)        │
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
@@ -44,11 +54,11 @@ The system combines:
    │Registry │ │  (MOF)   │ │  Engine  │ │  Layer   │ │  Engine  │
    └────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
         │           │           │           │           │
-        │     ┌──────────┐ ┌──────────┐     │           │
-        │     │   Name   │ │   OCL    │     │           │
-        │     │ Resolver │ │ Executor │     │           │
-        │     └──────────┘ └──────────┘     │           │
-        └───────────────────────────────────┴───────────┘
+        │     ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+        │     │   Name   │ │   OCL    │ │  Z3/SMT  │   │
+        │     │ Resolver │ │ Executor │ │  Solver  │   │
+        │     └──────────┘ └──────────┘ └──────────┘   │
+        └───────────────────────────────────────────────┘
                               │
                     ┌──────────────────┐
                     │  Graph Storage   │
@@ -265,6 +275,114 @@ val result = executor.evaluate(ast)
 
 **Recursion safety**: Uses LinkedHashSet for visited tracking and ArrayDeque for work queue in operations like
 `closure`.
+
+## Execution & Analysis
+
+Three execution layers build on the OCL engine and KerML metamodel to provide expression evaluation, behavior
+execution, and constraint solving.
+
+### Layer 1: KerML Expression Evaluator (`gearshift-kerml-runtime/.../eval/`)
+
+Evaluates KerML Expression model elements by walking MDMObject expression trees. This is distinct from OCL evaluation,
+which processes text-based constraint expressions.
+
+**KernelFunctionLibrary** (`KernelFunctionLibrary.kt`)
+- Registry mapping KerML operator strings to native evaluation functions
+- Covers: arithmetic (`+`, `-`, `*`, `/`, `%`, `**`), comparison (`<`, `>`, `<=`, `>=`), equality (`=`, `<>`),
+  boolean (`and`, `or`, `not`, `xor`, `implies`), string (`ToString`, `Size`, `Substring`, `Concat`),
+  control (`if`, `??`, `#`)
+- Handles Integer/Rational promotion and short-circuit boolean evaluation
+
+**KerMLExpressionEvaluator** (`KerMLExpressionEvaluator.kt`)
+
+```kotlin
+class KerMLExpressionEvaluator(engine: MDMEngine, functionLibrary: KernelFunctionLibrary) {
+    fun evaluate(expression: MDMObject, target: MDMObject): List<MDMObject>
+    fun isModelLevelEvaluable(expression: MDMObject, visited: Set<MDMObject> = emptySet()): Boolean
+}
+```
+
+Dispatches on `MDMObject.className`:
+- **LiteralExpression** → returns `Sequence{self}`
+- **OperatorExpression** → evaluate arguments, apply operator via KernelFunctionLibrary
+- **InvocationExpression** → evaluate arguments, bind to parameters, apply function body
+- **FeatureReferenceExpression** → resolve referent Feature, return its value
+- **FeatureChainExpression** → evaluate source, navigate target feature on result
+- **SelectExpression / CollectExpression / IndexExpression** → collection operations
+- **NullExpression** → returns empty sequence
+
+**KerMLExpressionOperationHandler** (`KerMLExpressionOperationHandler.kt`)
+- Wires the evaluator into MDMEngine by replacing OCL-based operation bodies with `MetaOperation.native{}` handlers
+- Installs native `evaluate(target)`, `modelLevelEvaluable(visited)`, and `checkCondition(target)` operations on
+  Expression metaclasses
+
+### Layer 2: Behavior Execution Engine (`gearshift-kerml-runtime/.../exec/`)
+
+Token-passing execution semantics for Behaviors composed of Steps connected by Successions, with data transfer via
+Flows. Inspired by fUML but dramatically simplified.
+
+**Execution Model** (`ExecutionModel.kt`)
+- `Token` (sealed): `ControlToken` (execution flow) and `ObjectToken` (carries data)
+- `StepState`: WAITING → READY → EXECUTING → COMPLETED
+- `StepExecution`: runtime state per Step node
+- `ExecutionGraph`: Steps + SuccessionEdges + FlowEdges with topology queries
+
+**ExecutionContext** (`ExecutionContext.kt`)
+- Lexical scoping with `bind()`, `resolve()`, `isDefined()`, `createChild()`
+- Parent chain for nested behavior invocations
+
+**BehaviorExecutionEngine** (`BehaviorExecutionEngine.kt`)
+
+```kotlin
+class BehaviorExecutionEngine(
+    engine: MDMEngine, expressionEvaluator: KerMLExpressionEvaluator, maxSteps: Int = 1000
+) {
+    fun execute(behavior: MDMObject, inputs: Map<String, Any?> = emptyMap()): ExecutionResult
+}
+```
+
+Execution loop:
+1. Build execution graph from Behavior's Steps and Successions
+2. Place initial control tokens on Steps with no predecessors
+3. Find READY steps (all input tokens available)
+4. Execute step: Expression → Layer 1 evaluator; Behavior → recurse
+5. Evaluate guard conditions on outgoing Successions
+6. Propagate tokens along satisfied Successions, transfer data via Flows
+7. Repeat until no READY steps or `maxSteps` exceeded
+
+### Layer 3: Z3/SMT Constraint Solver
+
+Constraint solving for parametric analysis, requirement conflict detection, and trade studies.
+
+**OclToZ3Translator** (`mdm-framework/.../query/ocl/OclToZ3Translator.kt`)
+- Implements `OclVisitor<Expr<*>>` — translates OCL AST to Z3 expressions
+- Supports: arithmetic, comparison, equality, boolean operators, if-then-else, let expressions, variables, literals
+- Unsupported (throws `UnsupportedOperationException`): iterators, navigation, strings, type operations
+
+**ConstraintSolverService** (`mdm-framework/.../constraints/ConstraintSolverService.kt`)
+
+```kotlin
+class ConstraintSolverService {
+    fun solve(variables: List<Z3Variable>, constraints: List<String>): SolverResult
+    fun isSatisfiable(variables: List<Z3Variable>, constraints: List<String>): Boolean
+    fun optimize(variables, constraints, objective, minimize): OptimizationResult
+    fun findConflicts(variables, constraints): ConflictResult
+}
+```
+
+- Creates a new Z3 Context per call and disposes it after use (thread-safe)
+- Parses OCL via `OclParser`, translates via `OclToZ3Translator`
+- Uses Z3 `assertAndTrack()` + `unsatCore()` for conflict detection
+- Uses Z3 `Optimize` class for minimization/maximization
+
+**ParametricAnalysisService** (`gearshift-kerml-runtime/.../analysis/ParametricAnalysisService.kt`)
+- KerML-specific layer that extracts constraints from Invariant model elements
+- Infers Z3Sort from Feature types (Integer→INT, Real→REAL, Boolean→BOOL)
+- `solveConstraints()`: find satisfying assignments over KerML Features
+- `checkRequirementConsistency()`: detect conflicting requirements
+- `tradeStudy()`: optimize an objective subject to constraints
+
+**Dependency**: `tools.aqua:z3-turnkey:4.13.0` (bundles Z3 Java API + native binaries for all platforms)
 
 ## KerML Metamodel Implementation
 
@@ -505,6 +623,7 @@ interface LifecycleHandler {
 - **Gradle** 8.5+ - Build tool
 - **Jackson** 2.16+ - JSON serialization
 - **ANTLR** 4.13+ - Grammar parsing (OCL, KerML)
+- **Z3** 4.13+ (via z3-turnkey) - SMT solver for constraint solving and parametric analysis
 - **SLF4J + kotlin-logging** - Logging
 - **ConcurrentHashMap** - Thread-safe collections
 
@@ -547,10 +666,13 @@ achievements:
 
 1. **Complete Metamodel**: 85+ KerML metaclasses with full inheritance hierarchy
 2. **OCL Support**: Full parser and executor for Object Constraint Language
-3. **Constraint System**: Derivation, validation, and implicit relationship support
-4. **Graph Storage**: MDMObjects and MDMLinks as property graph with efficient indexing
-5. **Code Generation**: Auto-generated type-safe interfaces
-6. **Versioning Ready**: Architecture supports Git-like version control with KerML as commit payload
+3. **Expression Evaluation**: Native KerML expression tree evaluation with KernelFunctionLibrary
+4. **Behavior Execution**: Token-passing engine for Steps, Successions, and Flows
+5. **Parametric Analysis**: Z3/SMT solver integration for constraint solving, optimization, and conflict detection
+6. **Constraint System**: Derivation, validation, and implicit relationship support
+7. **Graph Storage**: MDMObjects and MDMLinks as property graph with efficient indexing
+8. **Code Generation**: Auto-generated type-safe interfaces
+9. **Versioning Ready**: Architecture supports Git-like version control with KerML as commit payload
 
 The "metadata that feels like JSON" philosophy makes defining metamodels intuitive while maintaining the rigor of formal
 metamodeling approaches.
