@@ -1,5 +1,4 @@
 grammar KerML;
-import KerMLViews;
 
 // ===== Parser Rules =====
 
@@ -2437,6 +2436,50 @@ elementFilterMember
       FILTER condition=ownedExpression SEMICOLON
     ;
 
+// Views Extension (non-normative)
+// Collapsed from SysML into KerML for View, Rendering, Viewpoint, Expose.
+
+// View = TypePrefix 'view' ClassifierDeclaration ViewBody
+view
+    : typePrefix VIEW
+      classifierDeclaration viewBody
+    ;
+
+viewBody
+    : SEMICOLON
+    | LBRACE viewBodyElement* RBRACE
+    ;
+
+viewBodyElement
+    : typeBodyElement
+    | expose
+    | viewRenderingMember
+    ;
+
+// Expose = 'expose' ('all')? ImportDeclaration RelationshipBody
+expose
+    : EXPOSE ( isImportAll=ALL )?
+      importDeclaration relationshipBody
+    ;
+
+// ViewRenderingMember = MemberPrefix 'render' QualifiedName TypeBody
+viewRenderingMember
+    : memberPrefix RENDER
+      qualifiedName typeBody
+    ;
+
+// Rendering = TypePrefix 'rendering' ClassifierDeclaration TypeBody
+rendering
+    : typePrefix RENDERING
+      classifierDeclaration typeBody
+    ;
+
+// Viewpoint = TypePrefix 'viewpoint' ClassifierDeclaration FunctionBody
+viewpoint
+    : typePrefix VIEWPOINT
+      classifierDeclaration functionBody
+    ;
+
 // ===== Lexer Rules =====
 
 // 8.2.2.6 Reserved Words
@@ -2475,6 +2518,7 @@ DISJOINT : 'disjoint' ;
 DOC : 'doc' ;
 ELSE : 'else' ;
 END : 'end' ;
+EXPOSE : 'expose' ;
 EXPR : 'expr' ;
 FALSE : 'false' ;
 FEATURE : 'feature' ;
@@ -2524,6 +2568,8 @@ PUBLIC : 'public' ;
 REDEFINES : 'redefines' ;
 REDEFINITION : 'redefinition' ;
 REFERENCES : 'references' ;
+RENDER : 'render' ;
+RENDERING : 'rendering' ;
 REP : 'rep' ;
 RETURN : 'return' ;
 SPECIALIZATION : 'specialization' ;
@@ -2544,6 +2590,8 @@ TYPED : 'typed' ;
 TYPING : 'typing' ;
 UNIONS : 'unions' ;
 VAR : 'var' ;
+VIEW : 'view' ;
+VIEWPOINT : 'viewpoint' ;
 XOR : 'xor' ;
 
 // 8.2.2.7 Symbols
