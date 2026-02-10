@@ -24,6 +24,10 @@ import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.interfaces.Annotation as KerMLAnnotation
 import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
 
+/**
+ * Implementation of FeatureChaining.
+ * A Relationship that represents a feature chaining
+ */
 open class FeatureChainingImpl(
     className: String,
     metaClass: FrameworkMetaClass,

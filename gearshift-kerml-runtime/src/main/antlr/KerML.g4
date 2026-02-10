@@ -1,4 +1,5 @@
 grammar KerML;
+import KerMLViews;
 
 // ===== Parser Rules =====
 
@@ -352,6 +353,7 @@ nonFeatureElement
     | multiplicity
     | package
     | libraryPackage
+    | rendering
     | specialization
     | conjugation
     | subclassification
@@ -361,6 +363,8 @@ nonFeatureElement
     | subsetting
     | redefinition
     | typeFeaturing
+    | view
+    | viewpoint
     ;
 
 // FeatureElement : Feature =
@@ -1269,7 +1273,7 @@ behavior
 //     TypeBody
 step
     : featurePrefix
-      STEP featureDeclaration valuePart?
+      STEP featureDeclaration? valuePart?
       typeBody
     ;
 
@@ -1327,7 +1331,7 @@ resultExpressionMember
 //     FunctionBody
 expression
     : featurePrefix
-      EXPR featureDeclaration valuePart?
+      EXPR featureDeclaration? valuePart?
       functionBody
     ;
 
@@ -1349,7 +1353,7 @@ predicate
 //     FunctionBody
 booleanExpression
     : featurePrefix
-      BOOL featureDeclaration valuePart?
+      BOOL featureDeclaration? valuePart?
       functionBody
     ;
 
@@ -1361,7 +1365,7 @@ booleanExpression
 invariant
     : featurePrefix
       INV ( TRUE | isNegated=FALSE )?
-      featureDeclaration valuePart?
+      featureDeclaration? valuePart?
       functionBody
     ;
 

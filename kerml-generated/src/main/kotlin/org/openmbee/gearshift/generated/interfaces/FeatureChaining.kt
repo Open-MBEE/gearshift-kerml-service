@@ -16,6 +16,9 @@
 
 package org.openmbee.gearshift.generated.interfaces
 
+/**
+ * A Relationship that represents a feature chaining
+ */
 interface FeatureChaining : Relationship {
 
     var chainingFeature: Feature

@@ -99,7 +99,21 @@ data class GearshiftSettings(
      * library elements get deterministic IDs; user elements get random
      * UUIDs. Enable for reproducible test fixtures or diff-friendly output.
      */
-    val deterministicElementIds: Boolean = false
+    val deterministicElementIds: Boolean = false,
+
+    // ── Server / CORS ──────────────────────────────────────────────────
+
+    /**
+     * Server port for the API.
+     */
+    val serverPort: Int = 8080,
+
+    /**
+     * Allowed CORS origins. Each entry should be a full origin
+     * (e.g., "http://localhost:4200"). An empty list disables CORS.
+     * Use ["*"] to allow all origins (development only).
+     */
+    val corsAllowedOrigins: List<String> = listOf("http://localhost:4200")
 ) {
     companion object {
         /**

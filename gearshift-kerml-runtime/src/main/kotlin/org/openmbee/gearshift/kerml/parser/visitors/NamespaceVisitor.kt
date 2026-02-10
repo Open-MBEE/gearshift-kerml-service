@@ -376,6 +376,12 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
             return
         }
 
+        // Rendering
+        ctx.rendering()?.let { r ->
+            RenderingVisitor().visit(r, kermlParseContext)
+            return
+        }
+
         // Interaction
         ctx.interaction()?.let { inter ->
             InteractionVisitor().visit(inter, kermlParseContext)
@@ -443,6 +449,18 @@ class NamespaceVisitor : BaseTypedVisitor<KerMLParser.NamespaceContext, Namespac
 
         ctx.typeFeaturing()?.let { _ ->
             // TODO: Delegate to TypeFeaturingVisitor
+            return
+        }
+
+        // View
+        ctx.view()?.let { v ->
+            ViewVisitor().visit(v, kermlParseContext)
+            return
+        }
+
+        // Viewpoint
+        ctx.viewpoint()?.let { vp ->
+            ViewpointVisitor().visit(vp, kermlParseContext)
             return
         }
     }

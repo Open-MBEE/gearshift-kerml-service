@@ -15,11 +15,14 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.generated.interfaces.Invariant
 import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Visitor for Invariant elements.
@@ -80,7 +83,11 @@ class InvariantVisitor : BaseFeatureVisitor<KerMLParser.InvariantContext, Invari
         ctx: KerMLParser.FunctionBodyContext,
         kermlParseContext: KermlParseContext
     ) {
+        logger.info { "parseFunctionBody: ctx.functionBodyPart=${ctx.functionBodyPart() != null}" }
         ctx.functionBodyPart()?.let { bodyPart ->
+            logger.info { "parseFunctionBody: typeBodyElements=${bodyPart.typeBodyElement()?.size}, " +
+                    "returnFeatureMembers=${bodyPart.returnFeatureMember()?.size}, " +
+                    "resultExpressionMember=${bodyPart.resultExpressionMember() != null}" }
             bodyPart.typeBodyElement()?.forEach { bodyElement ->
                 parseTypeBodyElement(bodyElement, kermlParseContext)
             }
@@ -91,8 +98,22 @@ class InvariantVisitor : BaseFeatureVisitor<KerMLParser.InvariantContext, Invari
                 }
             }
 
-            bodyPart.resultExpressionMember()?.let { _ ->
-                kermlParseContext.create<ResultExpressionMembership>()
+            bodyPart.resultExpressionMember()?.let { remCtx ->
+                logger.info { "parseFunctionBody: resultExpressionMember found, ownedExpression=${remCtx.ownedExpression() != null}" }
+                val membership = kermlParseContext.create<ResultExpressionMembership>()
+                remCtx.ownedExpression()?.let { ownedExprCtx ->
+                    val resultExpr = OwnedExpressionVisitor().visit(ownedExprCtx, kermlParseContext)
+                    logger.info { "parseFunctionBody: resultExpr=${resultExpr?.javaClass?.simpleName}, " +
+                            "parent=${kermlParseContext.parent?.javaClass?.simpleName}, " +
+                            "parentIsMDMObject=${kermlParseContext.parent is org.openmbee.mdm.framework.runtime.MDMObject}" }
+                    membership.ownedMemberElement = resultExpr
+                    // Store result expression directly for efficient access by analysis services
+                    // (avoids navigating derived properties like ownedFeatureMembership)
+                    val parentMdm = kermlParseContext.parent as? org.openmbee.mdm.framework.runtime.MDMObject
+                    parentMdm?.setProperty("resultExpression", resultExpr)
+                    logger.info { "VERIFY: set resultExpression on invariant id=${parentMdm?.id}, " +
+                            "readback=${parentMdm?.getProperty("resultExpression")?.javaClass?.simpleName}" }
+                }
             }
         }
     }

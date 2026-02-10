@@ -22,6 +22,7 @@ import org.openmbee.mdm.framework.constraints.OptimizationResult
 import org.openmbee.mdm.framework.constraints.SolverResult
 import org.openmbee.mdm.framework.constraints.Z3Sort
 import org.openmbee.mdm.framework.constraints.Z3Variable
+import org.openmbee.gearshift.generated.interfaces.FeatureReferenceExpression
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 
@@ -182,26 +183,30 @@ class ParametricAnalysisService(
     /**
      * Extract a constraint expression from an Invariant or ConstraintUsage element.
      *
-     * Uses a three-strategy fallthrough:
-     * 1. Walk the expression tree via ResultExpressionMembership (parsed KerML)
-     * 2. Check owned features for Expression elements (alternative tree shapes)
+     * Uses a multi-strategy fallthrough:
+     * 1. Raw `resultExpression` property (stored during parsing for direct access)
+     * 2. Walk the expression tree via ResultExpressionMembership (derived navigation)
      * 3. Legacy: string `expression` property (backward compat with hand-built tests)
      */
     internal fun extractConstraintExpression(invariant: MDMObject): String? {
-        // Strategy 1: Walk expression tree via ResultExpressionMembership
-        val resultExpr = getResultExpression(invariant)
-        if (resultExpr != null) {
-            val ocl = expressionTreeToOcl(resultExpr)
+        // Strategy 1: Raw resultExpression property (set during parsing, bypasses derived navigation)
+        val rawResultExpr = invariant.getProperty("resultExpression") as? MDMObject
+        logger.info { "extractConstraintExpression: invariant.className=${invariant.className}, " +
+                "rawResultExpr=${rawResultExpr?.className}" }
+        if (rawResultExpr != null) {
+            val ocl = expressionTreeToOcl(rawResultExpr)
             if (ocl != null) return ocl
         }
 
-        // Strategy 2: Check owned features for Expression elements
-        val ownedFeatures = getOwnedFeatures(invariant)
-        for (feature in ownedFeatures) {
-            if (engine.isInstanceOf(feature, "Expression")) {
-                val ocl = expressionTreeToOcl(feature)
+        // Strategy 2: Walk expression tree via derived ResultExpressionMembership
+        try {
+            val resultExpr = getResultExpression(invariant)
+            if (resultExpr != null) {
+                val ocl = expressionTreeToOcl(resultExpr)
                 if (ocl != null) return ocl
             }
+        } catch (e: Exception) {
+            logger.debug { "Derived navigation failed for ${invariant.id}: ${e.message}" }
         }
 
         // Strategy 3: Legacy string property (backward compat with hand-built tests)
@@ -222,6 +227,7 @@ class ParametricAnalysisService(
      * following the same pattern as [KerMLExpressionEvaluator.evaluate].
      */
     internal fun expressionTreeToOcl(expression: MDMObject): String? {
+        logger.info { "expressionTreeToOcl: className=${expression.className}, id=${expression.id}" }
         return when (expression.className) {
             "LiteralInteger" -> {
                 val value = engine.getPropertyValue(expression, "value")
@@ -247,8 +253,14 @@ class ParametricAnalysisService(
             else -> {
                 // For generic Expression, try its result expression
                 if (engine.isInstanceOf(expression, "Expression")) {
-                    val resultExpr = getResultExpression(expression)
-                    if (resultExpr != null) expressionTreeToOcl(resultExpr) else null
+                    // Try raw property first
+                    val rawResultExpr = expression.getProperty("resultExpression") as? MDMObject
+                    if (rawResultExpr != null) return expressionTreeToOcl(rawResultExpr)
+                    // Fall back to derived navigation
+                    try {
+                        val resultExpr = getResultExpression(expression)
+                        if (resultExpr != null) expressionTreeToOcl(resultExpr) else null
+                    } catch (_: Exception) { null }
                 } else {
                     null
                 }
@@ -259,6 +271,7 @@ class ParametricAnalysisService(
     private fun operatorExpressionToOcl(expression: MDMObject): String? {
         val operator = engine.getPropertyValue(expression, "operator") as? String ?: return null
         val args = getExpressionArguments(expression)
+        logger.info { "operatorExpressionToOcl: operator=$operator, args=${args.map { "${it.className}(${it.id})" }}" }
 
         val oclOp = mapOperatorToOcl(operator)
 
@@ -286,13 +299,36 @@ class ParametricAnalysisService(
     }
 
     private fun featureReferenceToOcl(expression: MDMObject): String? {
-        val referent = engine.getPropertyValue(expression, "referent") as? MDMObject ?: return null
-        return engine.getPropertyValue(referent, "declaredName") as? String
-            ?: engine.getPropertyValue(referent, "name") as? String
+        // Strategy 1: Kotlin property (set by ReferenceResolver via reflection)
+        if (expression is FeatureReferenceExpression) {
+            try {
+                val ref = expression.referent
+                val name = ref.declaredName ?: ref.name
+                if (name != null) return name
+            } catch (_: Exception) { /* referent may be uninitialized */ }
+        }
+
+        // Strategy 2: Engine navigation (derived property computation)
+        try {
+            val referent = engine.getPropertyValue(expression, "referent") as? MDMObject
+            if (referent != null) {
+                return engine.getPropertyValue(referent, "declaredName") as? String
+                    ?: engine.getPropertyValue(referent, "name") as? String
+            }
+        } catch (e: Exception) {
+            logger.debug { "Derived referent navigation failed: ${e.message}" }
+        }
+
+        return null
     }
 
     private fun invocationExpressionToOcl(expression: MDMObject): String? {
-        val function = engine.getPropertyValue(expression, "function") as? MDMObject
+        val function = try {
+            engine.getPropertyValue(expression, "function") as? MDMObject
+        } catch (e: Exception) {
+            logger.debug { "Derived function navigation failed: ${e.message}" }
+            null
+        }
         val funcName = if (function != null) {
             engine.getPropertyValue(function, "declaredName") as? String
                 ?: engine.getPropertyValue(function, "name") as? String
@@ -318,17 +354,37 @@ class ParametricAnalysisService(
      * matching the pattern in [KerMLExpressionEvaluator.getArguments].
      */
     private fun getExpressionArguments(expression: MDMObject): List<MDMObject> {
-        val argument = engine.getPropertyValue(expression, "argument")
-        return when (argument) {
-            is List<*> -> argument.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(argument)
-            null -> {
-                // Fall back to ownedFeature filtering (excluding result)
-                val ownedFeatures = getOwnedFeatures(expression)
-                val result = engine.getPropertyValue(expression, "result") as? MDMObject
-                ownedFeatures.filter { it.id != result?.id }
+        // Strategy 1: Raw _arguments property (stored during parsing by OwnedExpressionVisitor)
+        val rawArgs = expression.getProperty("_arguments")
+        logger.info { "getExpressionArguments: rawArgs=${rawArgs?.let { it::class.simpleName }}, " +
+                "isList=${rawArgs is List<*>}, expression.className=${expression.className}" }
+        if (rawArgs is List<*>) {
+            val args = rawArgs.filterIsInstance<MDMObject>()
+            logger.info { "getExpressionArguments: Strategy 1 found ${args.size} args: ${args.map { it.className }}" }
+            if (args.isNotEmpty()) return args
+        }
+
+        // Strategy 2: Try derived `argument` association end
+        try {
+            val argument = engine.getPropertyValue(expression, "argument")
+            val argList = when (argument) {
+                is List<*> -> argument.filterIsInstance<MDMObject>()
+                is MDMObject -> listOf(argument)
+                else -> emptyList()
             }
-            else -> emptyList()
+            if (argList.isNotEmpty()) return argList
+        } catch (e: Exception) {
+            logger.debug { "Derived argument navigation failed: ${e.message}" }
+        }
+
+        // Strategy 3: Fall back to ownedFeature filtering (excluding result)
+        try {
+            val ownedFeatures = getOwnedFeatures(expression)
+            val result = engine.getPropertyValue(expression, "result") as? MDMObject
+            return ownedFeatures.filter { it.id != result?.id }
+        } catch (e: Exception) {
+            logger.debug { "Owned features fallback failed: ${e.message}" }
+            return emptyList()
         }
     }
 
@@ -368,24 +424,40 @@ class ParametricAnalysisService(
      * then falls back to collecting owned features from the parent namespace.
      */
     private fun collectReferencedFeatures(invariant: MDMObject): List<MDMObject> {
-        // Try expression tree walking first
-        val resultExpr = getResultExpression(invariant)
-        if (resultExpr != null) {
+        // Try raw resultExpression property first (set during parsing)
+        val rawResultExpr = invariant.getProperty("resultExpression") as? MDMObject
+        if (rawResultExpr != null) {
             val referenced = mutableListOf<MDMObject>()
-            collectReferencedFeaturesFromExpression(resultExpr, referenced)
+            collectReferencedFeaturesFromExpression(rawResultExpr, referenced)
             if (referenced.isNotEmpty()) return referenced
         }
 
-        // Fall back to collecting features from the owning namespace
-        val owner = engine.getPropertyValue(invariant, "owner") as? MDMObject
-        if (owner != null) {
-            val features = engine.getPropertyValue(owner, "ownedFeature")
-            return when (features) {
-                is List<*> -> features.filterIsInstance<MDMObject>()
-                    .filter { engine.isInstanceOf(it, "Feature") }
-                is MDMObject -> if (engine.isInstanceOf(features, "Feature")) listOf(features) else emptyList()
-                else -> emptyList()
+        // Try derived expression tree walking
+        try {
+            val resultExpr = getResultExpression(invariant)
+            if (resultExpr != null) {
+                val referenced = mutableListOf<MDMObject>()
+                collectReferencedFeaturesFromExpression(resultExpr, referenced)
+                if (referenced.isNotEmpty()) return referenced
             }
+        } catch (e: Exception) {
+            logger.debug { "Derived expression navigation failed: ${e.message}" }
+        }
+
+        // Fall back to collecting features from the owning namespace
+        try {
+            val owner = engine.getPropertyValue(invariant, "owner") as? MDMObject
+            if (owner != null) {
+                val features = engine.getPropertyValue(owner, "ownedFeature")
+                return when (features) {
+                    is List<*> -> features.filterIsInstance<MDMObject>()
+                        .filter { engine.isInstanceOf(it, "Feature") }
+                    is MDMObject -> if (engine.isInstanceOf(features, "Feature")) listOf(features) else emptyList()
+                    else -> emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            logger.debug { "Owner/feature navigation failed: ${e.message}" }
         }
         return emptyList()
     }
@@ -396,7 +468,15 @@ class ParametricAnalysisService(
     private fun collectReferencedFeaturesFromExpression(expression: MDMObject, result: MutableList<MDMObject>) {
         when (expression.className) {
             "FeatureReferenceExpression" -> {
-                val referent = engine.getPropertyValue(expression, "referent") as? MDMObject
+                var referent: MDMObject? = null
+                // Try Kotlin property first (set by ReferenceResolver via reflection)
+                if (expression is FeatureReferenceExpression) {
+                    try { referent = expression.referent as? MDMObject } catch (_: Exception) {}
+                }
+                // Fall back to engine navigation
+                if (referent == null) {
+                    try { referent = engine.getPropertyValue(expression, "referent") as? MDMObject } catch (_: Exception) {}
+                }
                 if (referent != null && engine.isInstanceOf(referent, "Feature")) {
                     result.add(referent)
                 }
@@ -408,9 +488,17 @@ class ParametricAnalysisService(
             }
             else -> {
                 if (engine.isInstanceOf(expression, "Expression")) {
-                    val resultExpr = getResultExpression(expression)
-                    if (resultExpr != null) {
-                        collectReferencedFeaturesFromExpression(resultExpr, result)
+                    // Try raw property first
+                    val rawResultExpr = expression.getProperty("resultExpression") as? MDMObject
+                    if (rawResultExpr != null) {
+                        collectReferencedFeaturesFromExpression(rawResultExpr, result)
+                    } else {
+                        try {
+                            val resultExpr = getResultExpression(expression)
+                            if (resultExpr != null) {
+                                collectReferencedFeaturesFromExpression(resultExpr, result)
+                            }
+                        } catch (_: Exception) {}
                     }
                 }
             }
@@ -420,22 +508,36 @@ class ParametricAnalysisService(
     // === Navigation Helpers ===
 
     private fun getTypes(feature: MDMObject): List<MDMObject> {
-        // Try engine first (navigates association ends), then fall back to raw property
+        // Try engine first (navigates association ends)
         val types = engine.getPropertyValue(feature, "type")
-            ?: feature.getProperty("type")
-        return when (types) {
+        val typeList = when (types) {
             is List<*> -> types.filterIsInstance<MDMObject>()
             is MDMObject -> listOf(types)
+            else -> emptyList()
+        }
+        if (typeList.isNotEmpty()) return typeList
+
+        // Fall back to raw MDMObject property (for hand-built tests where
+        // type is set via feature.setProperty("type", ...) bypassing associations)
+        val rawTypes = feature.getProperty("type")
+        return when (rawTypes) {
+            is List<*> -> rawTypes.filterIsInstance<MDMObject>()
+            is MDMObject -> listOf(rawTypes)
             else -> emptyList()
         }
     }
 
     private fun getOwnedFeatures(element: MDMObject): List<MDMObject> {
-        val features = engine.getPropertyValue(element, "ownedFeature")
-        return when (features) {
-            is List<*> -> features.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(features)
-            else -> emptyList()
+        return try {
+            val features = engine.getPropertyValue(element, "ownedFeature")
+            when (features) {
+                is List<*> -> features.filterIsInstance<MDMObject>()
+                is MDMObject -> listOf(features)
+                else -> emptyList()
+            }
+        } catch (e: Exception) {
+            logger.debug { "Derived ownedFeature navigation failed: ${e.message}" }
+            emptyList()
         }
     }
 

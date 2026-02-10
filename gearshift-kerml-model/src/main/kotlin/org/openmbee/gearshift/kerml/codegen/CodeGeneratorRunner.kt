@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.codegen
 
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
+import org.openmbee.gearshift.kerml.ViewsExtensionLoader
 import org.openmbee.mdm.framework.codegen.CodeGenConfig
 import org.openmbee.mdm.framework.codegen.MetamodelCodeGenerator
 import org.openmbee.mdm.framework.codegen.TypeScriptCodeGenConfig
@@ -73,6 +74,7 @@ object CodeGeneratorRunner {
         // (we can't use KerMLElementFactory because it hasn't been generated yet)
         val schema = MetamodelRegistry()
         KerMLMetamodelLoader.initialize(schema)
+        ViewsExtensionLoader.initialize(schema)
         val engine = MDMEngine(schema, DefaultElementFactory())
 
         // Configure the generator
@@ -133,6 +135,7 @@ object CodeGeneratorRunner {
 
         val schema = MetamodelRegistry()
         KerMLMetamodelLoader.initialize(schema)
+        ViewsExtensionLoader.initialize(schema)
 
         val config = TypeScriptCodeGenConfig(
             outputDir = outputDir,

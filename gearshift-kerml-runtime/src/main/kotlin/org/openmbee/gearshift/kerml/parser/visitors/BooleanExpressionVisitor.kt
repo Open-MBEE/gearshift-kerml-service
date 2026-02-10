@@ -88,8 +88,15 @@ class BooleanExpressionVisitor : BaseFeatureVisitor<KerMLParser.BooleanExpressio
                 }
             }
 
-            bodyPart.resultExpressionMember()?.let { _ ->
-                kermlParseContext.create<ResultExpressionMembership>()
+            bodyPart.resultExpressionMember()?.let { remCtx ->
+                val membership = kermlParseContext.create<ResultExpressionMembership>()
+                remCtx.ownedExpression()?.let { ownedExprCtx ->
+                    val resultExpr = OwnedExpressionVisitor().visit(ownedExprCtx, kermlParseContext)
+                    membership.ownedMemberElement = resultExpr
+                    // Store result expression directly for efficient access by analysis services
+                    (kermlParseContext.parent as? org.openmbee.mdm.framework.runtime.MDMObject)
+                        ?.setProperty("resultExpression", resultExpr)
+                }
             }
         }
     }

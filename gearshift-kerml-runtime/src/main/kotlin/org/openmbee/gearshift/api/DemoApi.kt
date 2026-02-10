@@ -24,6 +24,7 @@ import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -32,6 +33,7 @@ import org.openmbee.mdm.framework.runtime.MountableEngine
 import org.openmbee.mdm.framework.runtime.MountRegistry
 import org.openmbee.mdm.framework.query.gql.query
 import org.openmbee.mdm.framework.query.gql.parser.GqlParseException
+import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.KerMLModel
 import org.openmbee.gearshift.kerml.generator.KerMLWriter
 
@@ -127,7 +129,8 @@ data class GenerateResponse(
  */
 class DemoApi(
     private val port: Int = 8080,
-    private val enableMounts: Boolean = false
+    private val enableMounts: Boolean = false,
+    private val settings: GearshiftSettings = GearshiftSettings.DEFAULT
 ) {
     private val model: KerMLModel
     private val projectStore: ProjectStore
@@ -137,10 +140,10 @@ class DemoApi(
             // Initialize kernel library once (idempotent)
             KerMLModel.initializeKernelLibrary()
             // Create model with mount support
-            KerMLModel.createWithMounts()
+            KerMLModel.createWithMounts(settings = settings)
         } else {
             // Simple model without library support
-            KerMLModel()
+            KerMLModel(settings = settings)
         }
         projectStore = ProjectStore(enableMounts)
     }
@@ -404,6 +407,28 @@ class DemoApi(
                     enable(SerializationFeature.INDENT_OUTPUT)
                     disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                     setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+                }
+            }
+
+            if (settings.corsAllowedOrigins.isNotEmpty()) {
+                install(CORS) {
+                    settings.corsAllowedOrigins.forEach { origin ->
+                        if (origin == "*") {
+                            anyHost()
+                        } else {
+                            allowHost(
+                                origin.removePrefix("http://").removePrefix("https://"),
+                                schemes = listOf("http", "https")
+                            )
+                        }
+                    }
+                    allowHeader(HttpHeaders.ContentType)
+                    allowHeader(HttpHeaders.Authorization)
+                    allowMethod(HttpMethod.Get)
+                    allowMethod(HttpMethod.Post)
+                    allowMethod(HttpMethod.Put)
+                    allowMethod(HttpMethod.Delete)
+                    allowMethod(HttpMethod.Options)
                 }
             }
 
@@ -725,9 +750,15 @@ fun main(args: Array<String>) {
     val port = args.firstOrNull { it.toIntOrNull() != null }?.toInt() ?: 8080
     val enableMounts = args.contains("--with-library")
 
+    val settings = GearshiftSettings(
+        serverPort = port,
+        corsAllowedOrigins = listOf("http://localhost:4200")
+    )
+
     println("Starting Gearshift KerML Demo API on port $port...")
+    println("CORS allowed origins: ${settings.corsAllowedOrigins}")
     if (enableMounts) {
         println("Library mounting enabled - loading kernel library...")
     }
-    DemoApi(port, enableMounts).start()
+    DemoApi(port, enableMounts, settings).start()
 }

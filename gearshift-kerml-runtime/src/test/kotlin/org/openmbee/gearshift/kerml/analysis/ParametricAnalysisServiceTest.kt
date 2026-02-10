@@ -20,6 +20,7 @@ import io.kotest.matchers.longs.shouldBeLessThanOrEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.string.shouldContain
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import org.openmbee.gearshift.kerml.KerMLTestSpec
@@ -217,15 +218,75 @@ class ParametricAnalysisServiceTest : KerMLTestSpec({
 
     // === Parsed KerML integration tests ===
 
+    describe("DEBUG: property storage diagnostics") {
+
+        it("should verify elements are registered after parsing") {
+            val model = freshModel()
+            val debugFile = java.io.File("/tmp/parametric_debug.txt")
+            val sb = StringBuilder()
+
+            val countBefore = model.engine.getAllElements().size
+            sb.appendLine("Elements BEFORE parse: $countBefore")
+
+            val result = model.parseString("package T { feature x : ScalarValues::Integer; inv { x == 42 } }")
+            sb.appendLine("parseString returned: ${result?.javaClass?.simpleName ?: "null"}")
+
+            val parseResult = model.getLastParseResult()
+            sb.appendLine("Parse success: ${parseResult?.success}")
+            sb.appendLine("Parse errors: ${parseResult?.errors}")
+            sb.appendLine("Parse rootNamespace: ${parseResult?.rootNamespace?.javaClass?.simpleName}")
+
+            val countAfter = model.engine.getAllElements().size
+            sb.appendLine("Elements AFTER parse: $countAfter")
+            sb.appendLine("New elements: ${countAfter - countBefore}")
+
+            // List all non-library elements
+            val mountableEngine = model.engine as org.openmbee.mdm.framework.runtime.MountableEngine
+            val localElements = mountableEngine.getLocalElements()
+            sb.appendLine("\n=== LOCAL ELEMENTS (${localElements.size}) ===")
+            localElements.forEach { elem ->
+                sb.appendLine("  ${elem.className} id=${elem.id} props=${elem.getAllProperties().keys}")
+            }
+
+            // Try getElementsByClass
+            val packages = model.engine.getElementsByClass("Package")
+            val invariants = model.engine.getElementsByClass("Invariant")
+            val features = model.engine.getElementsByClass("Feature")
+            sb.appendLine("\n=== getElementsByClass ===")
+            sb.appendLine("Package count: ${packages.size}")
+            sb.appendLine("Invariant count: ${invariants.size}")
+            sb.appendLine("Feature count: ${features.size}")
+
+            // Check user packages (not library)
+            val userPackages = packages.filter { it.getProperty("declaredName") == "T" }
+            sb.appendLine("User Package 'T': ${userPackages.size}")
+
+            // Check features named 'x'
+            val userFeatures = features.filter { model.engine.getPropertyValue(it, "declaredName") as? String == "x" }
+            sb.appendLine("Features named 'x': ${userFeatures.size}")
+
+            // Check the model root's owned members
+            val root = model.root
+            sb.appendLine("\n=== MODEL ROOT ===")
+            sb.appendLine("Root class: ${(root as org.openmbee.mdm.framework.runtime.MDMObject).className}")
+            sb.appendLine("Root id: ${(root as org.openmbee.mdm.framework.runtime.MDMObject).id}")
+            sb.appendLine("Root props: ${(root as org.openmbee.mdm.framework.runtime.MDMObject).getAllProperties().keys}")
+
+            debugFile.writeText(sb.toString())
+
+            countAfter shouldBeGreaterThan countBefore
+        }
+    }
+
     describe("expressionTreeToOcl") {
 
-        it("should convert LiteralInteger from parsed feature value") {
+        it("should convert LiteralInteger from parsed invariant body") {
             val model = freshModel()
-            model.parseString("package T { feature x : ScalarValues::Integer = 42; }")
+            model.parseString("package T { inv { 42 } }")
 
             val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
 
-            // Find the LiteralInteger with value 42 (not multiplicity bounds)
+            // Find the LiteralInteger with value 42
             val literal = model.engine.getAllElements()
                 .filter { it.className == "LiteralInteger" }
                 .firstOrNull { model.engine.getPropertyValue(it, "value") == 42L }
