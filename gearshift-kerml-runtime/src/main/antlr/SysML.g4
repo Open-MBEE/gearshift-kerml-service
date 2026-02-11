@@ -3263,8 +3263,8 @@ ownedExpressionMember
 // Refactored to use direct left recursion to eliminate mutual recursion
 ownedExpression
     : IF ownedExpression QUESTION ownedExpression ELSE ownedExpression emptyResultMember
-    | ownedExpression conditionalBinaryOperator ownedExpression emptyResultMember
-    | ownedExpression binaryOperator ownedExpression emptyResultMember
+    | ownedExpression conditionalBinaryOperator ownedExpression
+    | ownedExpression binaryOperator ownedExpression
     | unaryOperator ownedExpression emptyResultMember
     | classificationTestOperator typeReferenceMember emptyResultMember
     | ownedExpression classificationTestOperator typeReferenceMember emptyResultMember

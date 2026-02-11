@@ -28,7 +28,7 @@ open class MembershipExposeImpl(
     className: String,
     metaClass: FrameworkMetaClass,
     engine: MDMEngine
-) : ExposeImpl(className, metaClass, engine), MembershipExpose {
+) : MembershipImportImpl(className, metaClass, engine), MembershipExpose {
 
     /**
      * Create a new MembershipExpose instance.
@@ -67,14 +67,5 @@ open class MembershipExposeImpl(
         }
     }
 
-
-    override var importedMembership: Membership
-        get() {
-            val rawValue = engine.getProperty(id!!, "importedMembership")
-            return rawValue as Membership
-        }
-        set(value) {
-            engine.setProperty(id!!, "importedMembership", value)
-        }
 }
 

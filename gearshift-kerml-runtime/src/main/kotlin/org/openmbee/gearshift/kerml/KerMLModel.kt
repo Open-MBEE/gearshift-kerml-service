@@ -147,6 +147,7 @@ class KerMLModel(
         fun createKerMLEngine(): MDMEngine {
             val schema = MetamodelRegistry()
             KerMLMetamodelLoader.initialize(schema)
+            ViewsExtensionLoader.initialize(schema)
             val factory = KerMLElementFactory()
             return MDMEngine(schema, factory)
         }
@@ -161,6 +162,7 @@ class KerMLModel(
         fun createKerMLEngineWithMounts(): MountableEngine {
             val schema = MetamodelRegistry()
             KerMLMetamodelLoader.initialize(schema)
+            ViewsExtensionLoader.initialize(schema)
             val factory = KerMLElementFactory()
             return MountableEngine(schema, factory)
         }
@@ -333,25 +335,37 @@ class KerMLModel(
 
     /**
      * Get all elements of a specific type.
+     *
+     * @param includeLibrary When false (default), returns only local elements
+     *   (excluding mounted library content). Set to true to include library elements.
      */
-    inline fun <reified T : ModelElement> allOfType(): List<T> {
+    inline fun <reified T : ModelElement> allOfType(includeLibrary: Boolean = false): List<T> {
         val typeName = T::class.simpleName ?: return emptyList()
-        return engine.getElementsByClass(typeName).filterIsInstance<T>()
+        val elements = if (!includeLibrary && engine is MountableEngine) {
+            (engine as MountableEngine).getLocalElementsByClass(typeName)
+        } else {
+            engine.getElementsByClass(typeName)
+        }
+        return elements.filterIsInstance<T>()
     }
 
     /**
      * Find all elements matching a predicate.
+     *
+     * @param includeLibrary When false (default), searches only local elements.
      */
-    inline fun <reified T : ModelElement> findAll(predicate: (T) -> Boolean): List<T> {
-        return allOfType<T>().filter(predicate)
+    inline fun <reified T : ModelElement> findAll(includeLibrary: Boolean = false, predicate: (T) -> Boolean): List<T> {
+        return allOfType<T>(includeLibrary).filter(predicate)
     }
 
     /**
      * Find an element by name.
      * Returns the first element of the specified type whose name or declaredName matches.
+     *
+     * @param includeLibrary When false (default), searches only local elements.
      */
-    inline fun <reified T : Element> findByName(name: String): T? {
-        return allOfType<T>().firstOrNull {
+    inline fun <reified T : Element> findByName(name: String, includeLibrary: Boolean = false): T? {
+        return allOfType<T>(includeLibrary).firstOrNull {
             it.name == name || it.declaredName == name
         }
     }

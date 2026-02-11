@@ -107,7 +107,10 @@ object KerMLSemanticLibraryLoader {
         LibraryFile("VectorFunctions.kerml", "Kernel Function Library"),
         LibraryFile("ControlFunctions.kerml", "Kernel Function Library"),
         LibraryFile("DataFunctions.kerml", "Kernel Function Library"),
-        LibraryFile("OccurrenceFunctions.kerml", "Kernel Function Library")
+        LibraryFile("OccurrenceFunctions.kerml", "Kernel Function Library"),
+
+        // === Views Library (non-normative extension) ===
+        LibraryFile("Views.kerml", "Views Library")
     )
 
     /**
@@ -354,6 +357,7 @@ object KerMLSemanticLibraryLoader {
         // Create a dedicated engine
         val schema = MetamodelRegistry()
         KerMLMetamodelLoader.initialize(schema)
+        ViewsExtensionLoader.initialize(schema)
         val factory = KerMLElementFactory()
         val engine = MDMEngine(schema, factory)
 

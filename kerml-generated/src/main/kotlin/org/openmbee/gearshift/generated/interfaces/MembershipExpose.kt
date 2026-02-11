@@ -16,6 +16,6 @@
 
 package org.openmbee.gearshift.generated.interfaces
 
-interface MembershipExpose : Expose, MembershipImport {
+interface MembershipExpose : MembershipImport, Expose {
 }
 

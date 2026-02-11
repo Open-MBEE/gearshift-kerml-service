@@ -203,6 +203,12 @@ class MountableEngine(
         super.getAllElements()
 
     /**
+     * Get local elements of a specific class (excluding mounted content).
+     */
+    fun getLocalElementsByClass(className: String): List<MDMObject> =
+        super.getElementsByClass(className)
+
+    /**
      * Get all root namespaces including mounted ones.
      */
     override fun getRootNamespaces(): List<MDMObject> {

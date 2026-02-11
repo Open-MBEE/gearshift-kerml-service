@@ -28,7 +28,7 @@ open class NamespaceExposeImpl(
     className: String,
     metaClass: FrameworkMetaClass,
     engine: MDMEngine
-) : ExposeImpl(className, metaClass, engine), NamespaceExpose {
+) : NamespaceImportImpl(className, metaClass, engine), NamespaceExpose {
 
     /**
      * Create a new NamespaceExpose instance.
@@ -67,14 +67,5 @@ open class NamespaceExposeImpl(
         }
     }
 
-
-    override var importedNamespace: Namespace
-        get() {
-            val rawValue = engine.getProperty(id!!, "importedNamespace")
-            return rawValue as Namespace
-        }
-        set(value) {
-            engine.setProperty(id!!, "importedNamespace", value)
-        }
 }
 

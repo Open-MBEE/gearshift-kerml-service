@@ -20,5 +20,6 @@ import org.openmbee.mdm.framework.meta.MetaClass
 
 fun createExposeMetaClass() = MetaClass(
     name = "Expose",
+    isAbstract = true,
     superclasses = listOf("Import")
 )

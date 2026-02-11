@@ -285,6 +285,13 @@ typeArrowSuffix
 
 typeName
     : ID
+    | 'Sequence'
+    | 'Set'
+    | 'Bag'
+    | 'OrderedSet'
+    | 'Ref'
+    | 'Map'
+    | 'Function'
     ;
 
 // ----- Iterator Operations (with iterator variable and body) -----

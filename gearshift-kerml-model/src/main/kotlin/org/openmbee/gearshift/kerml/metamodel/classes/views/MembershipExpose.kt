@@ -20,5 +20,5 @@ import org.openmbee.mdm.framework.meta.MetaClass
 
 fun createMembershipExposeMetaClass() = MetaClass(
     name = "MembershipExpose",
-    superclasses = listOf("Expose", "MembershipImport"),
+    superclasses = listOf("MembershipImport", "Expose"),
 )

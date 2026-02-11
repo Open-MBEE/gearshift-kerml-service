@@ -257,20 +257,27 @@ class ReferenceResolver(private val engine: MDMEngine) {
     @Suppress("UNCHECKED_CAST")
     private fun setProperty(element: ModelElement, propertyName: String, value: ModelElement): Boolean {
         try {
-            // Find the property by name
+            // Try Kotlin reflection first (works for var properties)
             val property = element::class.memberProperties
                 .filterIsInstance<KMutableProperty1<ModelElement, Any?>>()
                 .firstOrNull { it.name == propertyName }
 
-            if (property == null) {
-                logger.warn { "Property '$propertyName' not found on ${element::class.simpleName}" }
-                return false
+            if (property != null) {
+                property.setter.call(element, value)
+                logger.debug { "Set ${element::class.simpleName}.$propertyName = ${(value as? Element)?.declaredName ?: value}" }
+                return true
             }
 
-            // Set the property value
-            property.setter.call(element, value)
-            logger.debug { "Set ${element::class.simpleName}.$propertyName = ${(value as? Element)?.declaredName ?: value}" }
-            return true
+            // Fall back to raw property storage for generated classes with val getters
+            // (e.g., derived association ends like FeatureReferenceExpression.referent)
+            if (element is MDMObject) {
+                element.setProperty(propertyName, value)
+                logger.debug { "Set ${element::class.simpleName}.$propertyName via MDMObject.setProperty = ${(value as? Element)?.declaredName ?: value}" }
+                return true
+            }
+
+            logger.warn { "Property '$propertyName' not found on ${element::class.simpleName}" }
+            return false
         } catch (e: Exception) {
             logger.warn { "Failed to set property '$propertyName' on ${element::class.simpleName}: ${e.message}" }
             return false

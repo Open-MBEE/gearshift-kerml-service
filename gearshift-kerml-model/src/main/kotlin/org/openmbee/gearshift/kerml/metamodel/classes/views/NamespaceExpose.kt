@@ -20,5 +20,5 @@ import org.openmbee.mdm.framework.meta.MetaClass
 
 fun createNamespaceExposeMetaClass() = MetaClass(
     name = "NamespaceExpose",
-    superclasses = listOf("Expose", "NamespaceImport"),
+    superclasses = listOf("NamespaceImport", "Expose"),
 )

@@ -21,10 +21,11 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.openmbee.gearshift.generated.interfaces.Feature
+import org.openmbee.gearshift.generated.interfaces.Invariant
 import org.openmbee.gearshift.kerml.KerMLModel
 import org.openmbee.gearshift.kerml.analysis.ParametricAnalysisService
 import org.openmbee.mdm.framework.constraints.ConstraintSolverService
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 // === DTOs ===
 
@@ -152,19 +153,15 @@ private fun executeAnalysis(
     request: ParametricAnalysisRequest,
     model: KerMLModel
 ): ParametricAnalysisResponse {
-    val engine = model.engine
     val solverService = ConstraintSolverService()
-    val service = ParametricAnalysisService(engine, solverService)
+    val service = ParametricAnalysisService(model.engine, solverService)
 
-    // Collect features and invariants from the model
-    val allElements = engine.getAllElements()
-    val features = allElements.filter { it.className == "Feature" }
-        .filter { engine.getPropertyValue(it, "declaredName") as? String != null }
-    val invariants = allElements.filter { engine.isInstanceOf(it, "Invariant") }
+    // Collect invariants from the model using typed interfaces
+    val invariants = model.allOfType<Invariant>()
 
     return when (request.operation) {
         "solve" -> {
-            val result = service.solveConstraints(features, invariants)
+            val result = service.solveConstraints(invariants)
             ParametricAnalysisResponse(
                 success = true,
                 satisfiable = result.satisfiable,
@@ -181,6 +178,7 @@ private fun executeAnalysis(
                     errors = listOf("'objective' field is required for optimize operation")
                 )
             }
+            val features = model.allOfType<Feature>().filter { it.declaredName != null }
             val result = service.tradeStudy(features, invariants, objective, request.minimize)
             ParametricAnalysisResponse(
                 success = true,

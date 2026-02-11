@@ -16,6 +16,6 @@
 
 package org.openmbee.gearshift.generated.interfaces
 
-interface NamespaceExpose : Expose, NamespaceImport {
+interface NamespaceExpose : NamespaceImport, Expose {
 }
 

@@ -604,7 +604,7 @@ open class MDMEngine(
                             logger.warn { "No evaluator registered for language: ${body.language}" }
                             null
                         } else {
-                            logger.debug { "Invoking operation $operationName on ${element.className} using ${body.language}" }
+                            //logger.debug { "Invoking operation $operationName on ${element.className} using ${body.language}" }
                             evaluator.evaluate(body.code, element, this, args)
                         }
                     }
@@ -649,10 +649,12 @@ open class MDMEngine(
                 logger.warn { "Operation $operationName has no body" }
                 null
             }
+
             is OperationBody.Native -> {
                 logger.debug { "Invoking native operation $operationName as $dispatchClass" }
                 body.impl(element, args, this)
             }
+
             is OperationBody.Expression -> {
                 when (body.language) {
                     BodyLanguage.PROPERTY_REF -> getPropertyValue(element, body.code)
@@ -662,7 +664,7 @@ open class MDMEngine(
                             logger.warn { "No evaluator registered for language: ${body.language}" }
                             null
                         } else {
-                            logger.debug { "Invoking operation $operationName as $dispatchClass using ${body.language}" }
+                            //logger.debug { "Invoking operation $operationName as $dispatchClass using ${body.language}" }
                             evaluator.evaluate(body.code, element, this, args)
                         }
                     }
@@ -769,7 +771,7 @@ open class MDMEngine(
             if (constraint != null) {
                 val evaluator = evaluators[constraint.language.uppercase()]
                 if (evaluator != null) {
-                    logger.debug { "Computing derived property ${property.name} via ${constraint.language} as $viewMetaClass" }
+                    //logger.debug { "Computing derived property ${property.name} via ${constraint.language} as $viewMetaClass" }
                     return evaluator.evaluate(constraint.expression, element, this)
                 } else {
                     logger.warn { "No evaluator for ${constraint.language} to compute ${property.name}" }
@@ -898,7 +900,7 @@ open class MDMEngine(
             if (constraint != null) {
                 val evaluator = evaluators[constraint.language.uppercase()]
                 if (evaluator != null) {
-                    logger.debug { "Computing derived property ${property.name} via ${constraint.language}" }
+                    //logger.debug { "Computing derived property ${property.name} via ${constraint.language}" }
                     return evaluator.evaluate(constraint.expression, element, this)
                 } else {
                     logger.warn { "No evaluator for ${constraint.language} to compute ${property.name}" }
@@ -1247,6 +1249,7 @@ open class MDMEngine(
                             result,
                             if (!result) "Constraint ${constraint.name} failed" else null
                         )
+
                         is ValidationResult -> result
                         else -> ValidationResult(true, null)
                     }

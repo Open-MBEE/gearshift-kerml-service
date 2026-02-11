@@ -24,48 +24,11 @@ import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.generated.interfaces.Annotation as KerMLAnnotation
 import org.openmbee.gearshift.generated.interfaces.Function as KerMLFunction
 
-open class ExposeImpl(
+abstract class ExposeImpl(
     className: String,
     metaClass: FrameworkMetaClass,
     engine: MDMEngine
 ) : ImportImpl(className, metaClass, engine), Expose {
-
-    /**
-     * Create a new Expose instance.
-     * @param parent The owning Element (optional)
-     */
-    constructor(
-        engine: MDMEngine,
-        parent: Element? = null,
-        aliasIds: List<String> = emptyList(),
-        declaredName: String? = null,
-        declaredShortName: String? = null,
-        elementId: String = "",
-        isImpliedIncluded: Boolean = false
-    ) : this("Expose", engine.schema.getClass("Expose")!!, engine) {
-        this.id = java.util.UUID.randomUUID().toString()
-        engine.registerElement(this)
-
-        if (aliasIds.isNotEmpty()) this.aliasIds = aliasIds
-        declaredName?.let { this.declaredName = it }
-        declaredShortName?.let { this.declaredShortName = it }
-        this.elementId = elementId
-        this.isImpliedIncluded = isImpliedIncluded
-
-        // Establish ownership via appropriate intermediate
-        parent?.let { owner ->
-            val resolver = OwnershipResolver(engine.schema)
-            val resolved = resolver.resolve(owner.className, "Expose")
-            if (resolved != null) {
-                val membership = engine.createElement(resolved.intermediateType)
-                engine.setProperty(membership.id!!, resolved.binding.ownedElementEnd, this)
-                engine.setProperty(membership.id!!, resolved.binding.ownerEnd, owner)
-                // Set member names on membership for navigation
-                declaredName?.let { engine.setProperty(membership.id!!, "memberName", it) }
-                declaredShortName?.let { engine.setProperty(membership.id!!, "memberShortName", it) }
-            }
-        }
-    }
 
 }
 

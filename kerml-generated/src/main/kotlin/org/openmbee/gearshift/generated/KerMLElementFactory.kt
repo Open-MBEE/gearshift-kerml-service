@@ -67,7 +67,6 @@ class KerMLElementFactory : ElementFactory {
             "Documentation" -> DocumentationImpl(className, metaClass, eng)
             "ElementFilterMembership" -> ElementFilterMembershipImpl(className, metaClass, eng)
             "EndFeatureMembership" -> EndFeatureMembershipImpl(className, metaClass, eng)
-            "Expose" -> ExposeImpl(className, metaClass, eng)
             "Expression" -> ExpressionImpl(className, metaClass, eng)
             "Feature" -> FeatureImpl(className, metaClass, eng)
             "FeatureChainExpression" -> FeatureChainExpressionImpl(className, metaClass, eng)

@@ -30,10 +30,14 @@ import org.openmbee.mdm.framework.query.ocl.antlr.OCLParser
 object OclParser {
 
     /**
-     * Parse an OCL expression Convstring and return the AST.
+     * Parse an OCL expression string and return the AST.
      */
     fun parse(input: String): OclExpression {
-        val lexer = OCLLexer(CharStreams.fromString(input))
+        // Normalize arrow operators: collapse whitespace between '->' and the method name
+        // so that lexer tokens like '->reject' can match even when the OCL expression
+        // spans multiple lines (e.g., "ownedMembership->\n    reject(...)")
+        val normalized = input.replace(Regex("->\\s+"), "->")
+        val lexer = OCLLexer(CharStreams.fromString(normalized))
         val tokens = CommonTokenStream(lexer)
         val parser = OCLParser(tokens)
 
