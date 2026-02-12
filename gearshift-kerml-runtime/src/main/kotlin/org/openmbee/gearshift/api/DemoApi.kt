@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.api
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
@@ -36,6 +37,8 @@ import org.openmbee.mdm.framework.query.gql.parser.GqlParseException
 import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.KerMLModel
 import org.openmbee.gearshift.kerml.generator.KerMLWriter
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Response for the library status endpoint.
@@ -755,10 +758,10 @@ fun main(args: Array<String>) {
         corsAllowedOrigins = listOf("http://localhost:4200")
     )
 
-    println("Starting Gearshift KerML Demo API on port $port...")
-    println("CORS allowed origins: ${settings.corsAllowedOrigins}")
+    logger.info { "Starting Gearshift KerML Demo API on port $port" }
+    logger.info { "CORS allowed origins: ${settings.corsAllowedOrigins}" }
     if (enableMounts) {
-        println("Library mounting enabled - loading kernel library...")
+        logger.info { "Library mounting enabled - loading kernel library..." }
     }
     DemoApi(port, enableMounts, settings).start()
 }

@@ -15,108 +15,214 @@
  */
 package org.openmbee.gearshift.kerml.exec
 
-import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
+import org.openmbee.gearshift.generated.interfaces.Behavior
+import org.openmbee.gearshift.generated.interfaces.Step
+import org.openmbee.gearshift.kerml.KerMLTestSpec
 import org.openmbee.gearshift.kerml.eval.KerMLExpressionEvaluator
 import org.openmbee.gearshift.kerml.eval.KernelFunctionLibrary
-import org.openmbee.mdm.framework.runtime.MDMEngine
-import org.openmbee.mdm.framework.runtime.MetamodelRegistry
+import org.openmbee.mdm.framework.runtime.MDMObject
 
-class BehaviorExecutionEngineTest : DescribeSpec({
+class BehaviorExecutionEngineTest : KerMLTestSpec({
 
-    lateinit var engine: MDMEngine
-    lateinit var executionEngine: BehaviorExecutionEngine
+    val model = freshModel()
 
-    beforeEach {
-        val registry = MetamodelRegistry()
-        registry.ensureBaseClassRegistered()
-        KerMLMetamodelLoader.initialize(registry)
-        engine = MDMEngine(registry)
-        val library = KernelFunctionLibrary(engine)
-        val evaluator = KerMLExpressionEvaluator(engine, library)
-        executionEngine = BehaviorExecutionEngine(engine, evaluator)
+    fun createExecutionEngine(maxSteps: Int = 1000): BehaviorExecutionEngine {
+        val library = KernelFunctionLibrary(model.engine)
+        val evaluator = KerMLExpressionEvaluator(model.engine, library)
+        return BehaviorExecutionEngine(model.engine, evaluator, maxSteps)
     }
 
     describe("execution graph construction") {
 
-        it("should build a graph with steps from a behavior") {
-            val behavior = engine.createElement("Behavior")
+        it("should build a graph with steps from a parsed behavior") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior ComputeFlow {
+                        step s1;
+                        step s2;
+                    }
+                }
+            """.trimIndent()
+            )
 
-            // Create steps as owned features
-            val step1 = engine.createElement("Step")
-            val step2 = engine.createElement("Step")
+            val behavior = model.findByName<Behavior>("ComputeFlow")
+            behavior.shouldNotBeNull()
 
-            linkOwnedFeature(engine, behavior, step1)
-            linkOwnedFeature(engine, behavior, step2)
-
-            val graph = executionEngine.buildExecutionGraph(behavior)
+            val executionEngine = createExecutionEngine()
+            val graph = executionEngine.buildExecutionGraph(behavior as MDMObject)
 
             graph.steps.size shouldBe 2
         }
 
-        it("should identify initial steps with no predecessors") {
-            val behavior = engine.createElement("Behavior")
+        it("should identify all steps as initial when no successions") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior Parallel {
+                        step s1;
+                        step s2;
+                    }
+                }
+            """.trimIndent()
+            )
 
-            val step1 = engine.createElement("Step")
-            val step2 = engine.createElement("Step")
+            val behavior = model.findByName<Behavior>("Parallel")
+            behavior.shouldNotBeNull()
 
-            linkOwnedFeature(engine, behavior, step1)
-            linkOwnedFeature(engine, behavior, step2)
+            val executionEngine = createExecutionEngine()
+            val graph = executionEngine.buildExecutionGraph(behavior as MDMObject)
 
-            val graph = executionEngine.buildExecutionGraph(behavior)
-
-            // Without successions, all steps are initial
             graph.findInitialSteps() shouldHaveSize 2
+        }
+
+        it("should build a graph with successions from parsed behavior") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior Sequential {
+                        step s1;
+                        step s2;
+                        succession first s1 then s2;
+                    }
+                }
+            """.trimIndent()
+            )
+
+            val behavior = model.findByName<Behavior>("Sequential")
+            behavior.shouldNotBeNull()
+
+            val executionEngine = createExecutionEngine()
+            val graph = executionEngine.buildExecutionGraph(behavior as MDMObject)
+
+            graph.steps.size shouldBe 2
+            graph.successions.size shouldBe 1
         }
     }
 
     describe("basic execution") {
 
         it("should execute a behavior with no steps") {
-            val behavior = engine.createElement("Behavior")
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior EmptyBehavior { }
+                }
+            """.trimIndent()
+            )
 
-            val result = executionEngine.execute(behavior)
+            val behavior = model.findByName<Behavior>("EmptyBehavior")
+            behavior.shouldNotBeNull()
+
+            val executionEngine = createExecutionEngine()
+            val result = executionEngine.execute(behavior as MDMObject)
 
             result.status shouldBe ExecutionStatus.COMPLETED
             result.stepsExecuted shouldBe 0
         }
 
-        it("should execute a behavior with a single expression step") {
-            val behavior = engine.createElement("Behavior")
+        it("should execute a behavior with parallel steps") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior TwoSteps {
+                        step s1;
+                        step s2;
+                    }
+                }
+            """.trimIndent()
+            )
 
-            // Create a LiteralInteger expression as a step
-            val exprStep = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(exprStep, "value", 42L)
+            val behavior = model.findByName<Behavior>("TwoSteps")
+            behavior.shouldNotBeNull()
 
-            linkOwnedFeature(engine, behavior, exprStep)
-
-            val result = executionEngine.execute(behavior)
+            val executionEngine = createExecutionEngine()
+            val result = executionEngine.execute(behavior as MDMObject)
 
             result.status shouldBe ExecutionStatus.COMPLETED
-            result.stepsExecuted shouldBe 1
-            result.trace shouldHaveSize 1
-            result.trace.first().stepClassName shouldBe "LiteralInteger"
+            result.stepsExecuted shouldBe 2
+        }
+
+        it("should execute a behavior with sequenced steps") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior Pipeline {
+                        step s1;
+                        step s2;
+                        succession first s1 then s2;
+                    }
+                }
+            """.trimIndent()
+            )
+
+            val behavior = model.findByName<Behavior>("Pipeline")
+            behavior.shouldNotBeNull()
+
+            val executionEngine = createExecutionEngine()
+            val result = executionEngine.execute(behavior as MDMObject)
+
+            result.status shouldBe ExecutionStatus.COMPLETED
+            result.stepsExecuted shouldBe 2
+            result.trace shouldHaveSize 2
+        }
+
+        it("should execute a three-step pipeline") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior ThreeStage {
+                        step first_step;
+                        step middle_step;
+                        step last_step;
+                        succession first first_step then middle_step;
+                        succession first middle_step then last_step;
+                    }
+                }
+            """.trimIndent()
+            )
+
+            val behavior = model.findByName<Behavior>("ThreeStage")
+            behavior.shouldNotBeNull()
+
+            val executionEngine = createExecutionEngine()
+            val result = executionEngine.execute(behavior as MDMObject)
+
+            result.status shouldBe ExecutionStatus.COMPLETED
+            result.stepsExecuted shouldBe 3
+            result.trace shouldHaveSize 3
         }
     }
 
     describe("max steps termination") {
 
         it("should terminate with MAX_STEPS_EXCEEDED status") {
-            val registry = MetamodelRegistry()
-            registry.ensureBaseClassRegistered()
-            KerMLMetamodelLoader.initialize(registry)
-            val limitedEngine = MDMEngine(registry)
-            val library = KernelFunctionLibrary(limitedEngine)
-            val evaluator = KerMLExpressionEvaluator(limitedEngine, library)
-            val limitedExecEngine = BehaviorExecutionEngine(limitedEngine, evaluator, maxSteps = 0)
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior BoundedBehavior {
+                        step s1;
+                    }
+                }
+            """.trimIndent()
+            )
 
-            val behavior = limitedEngine.createElement("Behavior")
-            val step = limitedEngine.createElement("Step")
-            linkOwnedFeature(limitedEngine, behavior, step)
+            val behavior = model.findByName<Behavior>("BoundedBehavior")
+            behavior.shouldNotBeNull()
 
-            val result = limitedExecEngine.execute(behavior)
+            val executionEngine = createExecutionEngine(maxSteps = 0)
+            val result = executionEngine.execute(behavior as MDMObject)
 
             result.status shouldBe ExecutionStatus.MAX_STEPS_EXCEEDED
         }
@@ -170,28 +276,25 @@ class BehaviorExecutionEngineTest : DescribeSpec({
             token.value shouldBe 42
         }
 
-        it("should track step states") {
-            val step = engine.createElement("Step")
-            val exec = StepExecution(step)
+        it("should track step states on parsed step") {
+            model.reset()
+            model.parseString(
+                """
+                package T {
+                    behavior B {
+                        step s;
+                    }
+                }
+            """.trimIndent()
+            )
+
+            val step = model.allOfType<Step>().firstOrNull()
+            step.shouldNotBeNull()
+
+            val exec = StepExecution(step as MDMObject)
             exec.state shouldBe StepState.WAITING
             exec.state = StepState.READY
             exec.state shouldBe StepState.READY
         }
     }
 })
-
-/**
- * Helper to link an owned feature to a namespace in tests.
- */
-private fun linkOwnedFeature(engine: MDMEngine, owner: org.openmbee.mdm.framework.runtime.MDMObject, feature: org.openmbee.mdm.framework.runtime.MDMObject) {
-    val association = engine.schema.getAssociation("featuringTypeOwnedFeature")
-    if (association != null) {
-        engine.link(owner.id!!, feature.id!!, association.name)
-    } else {
-        val ownerAssoc = engine.schema.getAssociation("namespaceOwnedMember")
-            ?: engine.schema.getAssociation("elementOwnedElement")
-        if (ownerAssoc != null) {
-            engine.link(owner.id!!, feature.id!!, ownerAssoc.name)
-        }
-    }
-}

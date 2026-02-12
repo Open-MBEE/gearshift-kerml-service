@@ -15,14 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors.base
 
-import org.openmbee.gearshift.generated.interfaces.Differencing
-import org.openmbee.gearshift.generated.interfaces.Disjoining
-import org.openmbee.gearshift.generated.interfaces.FeatureMembership
-import org.openmbee.gearshift.generated.interfaces.Intersecting
-import org.openmbee.gearshift.generated.interfaces.Namespace
-import org.openmbee.gearshift.generated.interfaces.OwningMembership
-import org.openmbee.gearshift.generated.interfaces.Type
-import org.openmbee.gearshift.generated.interfaces.Unioning
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.*
@@ -40,7 +33,7 @@ import org.openmbee.gearshift.kerml.parser.visitors.*
  * for Classifier, Feature, and other typed elements.
  *
  * @param Ctx The ANTLR parser context type
- * @param Result The typed wrapper type (must extend Type)
+ * @param Result The generated KerMLImpl class (must extend Type)
  */
 abstract class BaseTypeVisitor<Ctx, Result : Type> : BaseTypedVisitor<Ctx, Result>() {
 

@@ -200,13 +200,13 @@ object KerMLSemanticLibraryLoader {
         fileName: String
     ): LibraryLoadResult {
         return try {
-            println("DEBUG: Loading library file: $filePath")
+            logger.debug { "Loading library file: $filePath" }
             val lexer = KerMLLexer(CharStreams.fromPath(filePath))
             val tokens = CommonTokenStream(lexer)
             val parser = KerMLParser(tokens)
 
             val tree = parser.rootNamespace()
-            println("DEBUG: Parsed tree, namespace body elements: ${tree.namespaceBodyElement().size}")
+            logger.debug { "Parsed tree, namespace body elements: ${tree.namespaceBodyElement().size}" }
 
             // Use the new typed visitor with KermlParseContext
             // Mark as library context so elements get deterministic IDs based on qualified names
@@ -217,24 +217,24 @@ object KerMLSemanticLibraryLoader {
             // Assign spec-compliant UUID v5 IDs to all library elements
             LibraryElementIdAssigner.assignIds(rootNamespace)
 
-            println("DEBUG: Root namespace created with id: ${rootNamespace.id}")
+            logger.debug { "Root namespace created with id: ${rootNamespace.id}" }
 
             // Check what memberships we have
             val memberships = rootNamespace.ownedMembership
-            println("DEBUG: Root namespace has ${memberships.size} ownedMemberships")
+            logger.debug { "Root namespace has ${memberships.size} ownedMemberships" }
             for (m in memberships) {
                 val element = m.memberElement
-                println("DEBUG:   Membership: ${m.memberName} -> ${element?.let { "${it::class.simpleName}(${it.declaredName})" }}")
+                logger.debug { "  Membership: ${m.memberName} -> ${element?.let { "${it::class.simpleName}(${it.declaredName})" }}" }
 
                 // If it's a namespace, check its contents
                 if (element is Namespace) {
                     val innerMemberships = element.ownedMembership
-                    println("DEBUG:     Inner namespace has ${innerMemberships.size} ownedMemberships")
+                    logger.debug { "    Inner namespace has ${innerMemberships.size} ownedMemberships" }
                     for (inner in innerMemberships.take(5)) {
-                        println("DEBUG:       - ${inner.memberName} -> ${inner.memberElement?.let { "${it::class.simpleName}(${it.declaredName})" }}")
+                        logger.debug { "      - ${inner.memberName} -> ${inner.memberElement?.let { "${it::class.simpleName}(${it.declaredName})" }}" }
                     }
                     if (innerMemberships.size > 5) {
-                        println("DEBUG:       ... and ${innerMemberships.size - 5} more")
+                        logger.debug { "      ... and ${innerMemberships.size - 5} more" }
                     }
                 }
             }
@@ -250,8 +250,7 @@ object KerMLSemanticLibraryLoader {
 
             LibraryLoadResult(fileName, filePath, parseResult)
         } catch (e: Exception) {
-            println("DEBUG: Error loading library: ${e.message}")
-            e.printStackTrace()
+            logger.error(e) { "Error loading library file: ${e.message}" }
             LibraryLoadResult(fileName, filePath, null, "Parse error: ${e.message}")
         }
     }

@@ -2691,7 +2691,9 @@ REGULAR_COMMENT
 // 3. BASIC_NAME must be defined AFTER reserved keywords (8.2.2.6) to ensure proper lexer priority
 
 // UNRESTRICTED_NAME: single_quote ( NAME_CHARACTER | ESCAPE_SEQUENCE )* single_quote
-UNRESTRICTED_NAME
+// NOTE: Must be a fragment so that quoted names produce NAME tokens, not UNRESTRICTED_NAME tokens.
+// Without fragment, 'locale', '+', '==' etc. are emitted as their own token type and rejected by parser rules.
+fragment UNRESTRICTED_NAME
     : '\'' ( NAME_CHARACTER | ESCAPE_SEQUENCE )* '\''
     ;
 

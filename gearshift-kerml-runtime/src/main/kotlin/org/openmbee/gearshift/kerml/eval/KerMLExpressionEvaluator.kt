@@ -16,6 +16,17 @@
 package org.openmbee.gearshift.kerml.eval
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.generated.interfaces.Behavior
+import org.openmbee.gearshift.generated.interfaces.Element
+import org.openmbee.gearshift.generated.interfaces.Expression
+import org.openmbee.gearshift.generated.interfaces.FeatureChainExpression
+import org.openmbee.gearshift.generated.interfaces.FeatureReferenceExpression
+import org.openmbee.gearshift.generated.interfaces.FeatureValue
+import org.openmbee.gearshift.generated.interfaces.InvocationExpression
+import org.openmbee.gearshift.generated.interfaces.MetadataAccessExpression
+import org.openmbee.gearshift.generated.interfaces.OperatorExpression
+import org.openmbee.gearshift.generated.interfaces.ResultExpressionMembership
+import org.openmbee.gearshift.generated.interfaces.Type
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 
@@ -89,7 +100,7 @@ class KerMLExpressionEvaluator(
             expression.className == "ConstructorExpression" -> evaluateConstructor(expression, target)
 
             // Generic Expression base case — delegate to result expression
-            engine.isInstanceOf(expression, "Expression") -> evaluateGenericExpression(expression, target)
+            expression is Expression -> evaluateGenericExpression(expression, target)
 
             else -> {
                 logger.warn { "Unknown expression type: ${expression.className}" }
@@ -117,19 +128,17 @@ class KerMLExpressionEvaluator(
             expression.className == "NullExpression" -> true
             expression.className == "MetadataAccessExpression" -> true
 
-            expression.className == "FeatureReferenceExpression" -> {
-                val referent = getReferent(expression)
+            expression is FeatureReferenceExpression -> {
+                val referent = expression.referent as? MDMObject
                 if (referent == null || referent in visited) return false
-                // The referent must not have its own complex owned features
-                val ownedFeatures = getOwnedFeatures(referent)
-                ownedFeatures.isEmpty()
+                (referent as? Type)?.ownedFeature?.isEmpty() ?: true
             }
 
-            engine.isInstanceOf(expression, "InvocationExpression") -> {
+            expression is InvocationExpression -> {
                 val newVisited = visited + expression
                 val arguments = getArguments(expression)
                 arguments.all { arg ->
-                    if (engine.isInstanceOf(arg, "Expression")) {
+                    if (arg is Expression) {
                         isModelLevelEvaluable(arg, newVisited)
                     } else {
                         true
@@ -137,7 +146,7 @@ class KerMLExpressionEvaluator(
                 }
             }
 
-            engine.isInstanceOf(expression, "Expression") -> {
+            expression is Expression -> {
                 val resultExpression = getResultExpression(expression)
                 if (resultExpression != null) {
                     isModelLevelEvaluable(resultExpression, visited + expression)
@@ -158,15 +167,15 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateOperator(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        val operator = engine.getPropertyValue(expression, "operator") as? String
-        if (operator == null) {
+        val operator = (expression as? OperatorExpression)?.operator
+        if (operator.isNullOrEmpty()) {
             logger.warn { "OperatorExpression has no operator" }
             return emptyList()
         }
 
         val arguments = getArguments(expression)
         val evaluatedArgs = arguments.map { arg ->
-            if (engine.isInstanceOf(arg, "Expression")) {
+            if (arg is Expression) {
                 val result = evaluate(arg, target)
                 if (result.size == 1) result.first() else result
             } else {
@@ -193,17 +202,15 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateInvocation(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        // Get the function being invoked
-        val function = getFunction(expression)
+        val function = (expression as? Expression)?.function as? MDMObject
         if (function == null) {
             logger.warn { "InvocationExpression has no function" }
             return emptyList()
         }
 
-        // Evaluate arguments
         val arguments = getArguments(expression)
         val evaluatedArgs = arguments.map { arg ->
-            if (engine.isInstanceOf(arg, "Expression")) {
+            if (arg is Expression) {
                 evaluate(arg, target)
             } else {
                 listOf(arg)
@@ -211,11 +218,10 @@ class KerMLExpressionEvaluator(
         }
 
         // Bind parameters to evaluated arguments
-        val parameters = getParameters(function)
+        val parameters = (function as? Behavior)?.parameter ?: emptyList()
         val bindings = mutableMapOf<String, Any?>()
         parameters.forEachIndexed { index, param ->
-            val paramName = engine.getPropertyValue(param, "declaredName") as? String
-                ?: engine.getPropertyValue(param, "name") as? String
+            val paramName = (param as? Element)?.declaredName ?: (param as? Element)?.name
             if (paramName != null && index < evaluatedArgs.size) {
                 bindings[paramName] = if (evaluatedArgs[index].size == 1) {
                     evaluatedArgs[index].first()
@@ -225,7 +231,6 @@ class KerMLExpressionEvaluator(
             }
         }
 
-        // Get the result expression of the function
         val resultExpr = getResultExpression(function)
         return if (resultExpr != null) {
             evaluate(resultExpr, target)
@@ -235,63 +240,47 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateFeatureReference(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        val referent = getReferent(expression)
+        val referent = (expression as? FeatureReferenceExpression)?.referent as? MDMObject
         if (referent == null) {
             logger.warn { "FeatureReferenceExpression has no referent" }
             return emptyList()
         }
 
         // If referent has a value (e.g., is a Feature with a FeatureValue), evaluate it
-        val featureValue = getFeatureValue(referent)
+        val featureValue = (referent as? Element)?.ownedRelationship
+            ?.filterIsInstance<FeatureValue>()?.firstOrNull()
         if (featureValue != null) {
-            val valueExpr = getValueExpression(featureValue)
-            if (valueExpr != null && engine.isInstanceOf(valueExpr, "Expression")) {
+            val valueExpr = featureValue.value as? MDMObject
+            if (valueExpr != null && valueExpr is Expression) {
                 return evaluate(valueExpr, target)
             }
         }
 
-        // Navigate the referent feature on the target
-        val referentName = engine.getPropertyValue(referent, "declaredName") as? String
-            ?: engine.getPropertyValue(referent, "name") as? String
-        if (referentName != null) {
-            val value = engine.getPropertyValue(target, referentName)
-            return when (value) {
-                null -> emptyList()
-                is MDMObject -> listOf(value)
-                is List<*> -> value.filterIsInstance<MDMObject>()
-                else -> emptyList()
-            }
-        }
-
-        // Fall back to returning the referent itself
+        // FeatureReferenceExpression resolves to its referent
         return listOf(referent)
     }
 
     private fun evaluateFeatureChain(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        // FeatureChainExpression has two arguments: source expression and target feature
         val arguments = getArguments(expression)
         if (arguments.size < 2) {
             logger.warn { "FeatureChainExpression requires at least 2 arguments" }
             return emptyList()
         }
 
-        // Evaluate the source expression
         val sourceArg = arguments[0]
-        val sourceResults = if (engine.isInstanceOf(sourceArg, "Expression")) {
+        val sourceResults = if (sourceArg is Expression) {
             evaluate(sourceArg, target)
         } else {
             listOf(sourceArg)
         }
 
-        // Navigate target feature on each source result
-        val targetFeature = getTargetFeature(expression)
+        val targetFeature = (expression as? FeatureChainExpression)?.targetFeature as? MDMObject
         if (targetFeature == null) {
             logger.warn { "FeatureChainExpression has no target feature" }
             return emptyList()
         }
 
-        val featureName = engine.getPropertyValue(targetFeature, "declaredName") as? String
-            ?: engine.getPropertyValue(targetFeature, "name") as? String
+        val featureName = (targetFeature as? Element)?.declaredName ?: (targetFeature as? Element)?.name
         if (featureName == null) {
             logger.warn { "Target feature has no name" }
             return emptyList()
@@ -312,16 +301,14 @@ class KerMLExpressionEvaluator(
         val arguments = getArguments(expression)
         if (arguments.size < 2) return emptyList()
 
-        // First argument is the source collection
-        val sourceResults = if (engine.isInstanceOf(arguments[0], "Expression")) {
+        val sourceResults = if (arguments[0] is Expression) {
             evaluate(arguments[0], target)
         } else {
             listOf(arguments[0])
         }
 
-        // Second argument is the predicate expression
         val predicate = arguments[1]
-        if (!engine.isInstanceOf(predicate, "Expression")) return sourceResults
+        if (predicate !is Expression) return sourceResults
 
         return sourceResults.filter { element ->
             val predicateResult = evaluate(predicate, element)
@@ -333,16 +320,14 @@ class KerMLExpressionEvaluator(
         val arguments = getArguments(expression)
         if (arguments.size < 2) return emptyList()
 
-        // First argument is the source collection
-        val sourceResults = if (engine.isInstanceOf(arguments[0], "Expression")) {
+        val sourceResults = if (arguments[0] is Expression) {
             evaluate(arguments[0], target)
         } else {
             listOf(arguments[0])
         }
 
-        // Second argument is the body expression
         val body = arguments[1]
-        if (!engine.isInstanceOf(body, "Expression")) return sourceResults
+        if (body !is Expression) return sourceResults
 
         return sourceResults.flatMap { element ->
             evaluate(body, element)
@@ -353,15 +338,13 @@ class KerMLExpressionEvaluator(
         val arguments = getArguments(expression)
         if (arguments.size < 2) return emptyList()
 
-        // First argument is the source collection
-        val sourceResults = if (engine.isInstanceOf(arguments[0], "Expression")) {
+        val sourceResults = if (arguments[0] is Expression) {
             evaluate(arguments[0], target)
         } else {
             listOf(arguments[0])
         }
 
-        // Second argument is the index expression
-        val indexResult = if (engine.isInstanceOf(arguments[1], "Expression")) {
+        val indexResult = if (arguments[1] is Expression) {
             evaluate(arguments[1], target)
         } else {
             listOf(arguments[1])
@@ -380,43 +363,34 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateMetadataAccess(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        val referencedElement = getReferencedElement(expression)
+        val referencedElement = (expression as? MetadataAccessExpression)?.referencedElement
         if (referencedElement == null) {
             logger.warn { "MetadataAccessExpression has no referenced element" }
             return emptyList()
         }
 
-        // Return the metadata annotations on the referenced element
-        val metadata = engine.getPropertyValue(referencedElement, "ownedAnnotation")
-        return when (metadata) {
-            null -> emptyList()
-            is MDMObject -> listOf(metadata)
-            is List<*> -> metadata.filterIsInstance<MDMObject>()
-            else -> emptyList()
-        }
+        return referencedElement.ownedAnnotation.filterIsInstance<MDMObject>()
     }
 
     private fun evaluateConstructor(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        // Get the type being instantiated
-        val instantiatedType = getInstantiatedType(expression)
+        val instantiatedType = (expression as? org.openmbee.gearshift.generated.interfaces.InstantiationExpression)
+            ?.instantiatedType as? MDMObject
         if (instantiatedType == null) {
             logger.warn { "ConstructorExpression has no instantiated type" }
             return emptyList()
         }
 
-        val typeName = engine.getPropertyValue(instantiatedType, "declaredName") as? String
-            ?: engine.getPropertyValue(instantiatedType, "name") as? String
+        val typeName = (instantiatedType as? Element)?.declaredName
+            ?: (instantiatedType as? Element)?.name
             ?: instantiatedType.className
 
-        // Create a new instance of the type
         val instance = engine.createElement(typeName)
 
-        // Evaluate and bind arguments to the instance's features
         val arguments = getArguments(expression)
         for (arg in arguments) {
-            if (engine.isInstanceOf(arg, "Expression")) {
+            if (arg is Expression) {
                 val result = evaluate(arg, target)
-                val featureName = engine.getPropertyValue(arg, "declaredName") as? String
+                val featureName = (arg as? Element)?.declaredName
                 if (featureName != null && result.isNotEmpty()) {
                     engine.setPropertyValue(instance, featureName, result.first())
                 }
@@ -427,7 +401,6 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateGenericExpression(expression: MDMObject, target: MDMObject): List<MDMObject> {
-        // Generic Expression — delegate to its result expression if it has one
         val resultExpr = getResultExpression(expression)
         return if (resultExpr != null) {
             evaluate(resultExpr, target)
@@ -444,124 +417,39 @@ class KerMLExpressionEvaluator(
 
     /**
      * Get the arguments of an InvocationExpression or OperatorExpression.
-     * Arguments are the owned Features with direction=in (excluding result).
+     *
+     * Uses the `_arguments` parser shortcut first, then falls back to typed navigation.
      */
     private fun getArguments(expression: MDMObject): List<MDMObject> {
-        val argument = engine.getPropertyValue(expression, "argument")
-        return when (argument) {
-            null -> {
-                // Fall back to ownedFeature filtering
-                val ownedFeatures = getOwnedFeatures(expression)
-                val result = getResult(expression)
-                ownedFeatures.filter { it.id != result?.id }
-            }
-            is List<*> -> argument.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(argument)
-            else -> emptyList()
+        // Parser shortcut: _arguments stored directly by OwnedExpressionVisitor
+        val rawArgs = expression.getProperty("_arguments")
+        if (rawArgs is List<*>) {
+            val args = rawArgs.filterIsInstance<MDMObject>()
+            if (args.isNotEmpty()) return args
         }
-    }
 
-    /**
-     * Get the function that types this Expression.
-     */
-    private fun getFunction(expression: MDMObject): MDMObject? {
-        val fn = engine.getPropertyValue(expression, "function")
-        return fn as? MDMObject
-    }
-
-    /**
-     * Get the result parameter of an Expression or Function.
-     */
-    private fun getResult(expression: MDMObject): MDMObject? {
-        val result = engine.getPropertyValue(expression, "result")
-        return result as? MDMObject
-    }
-
-    /**
-     * Get the parameters of a Behavior or Function.
-     */
-    private fun getParameters(behavior: MDMObject): List<MDMObject> {
-        val params = engine.getPropertyValue(behavior, "parameter")
-        return when (params) {
-            is List<*> -> params.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(params)
-            else -> emptyList()
-        }
+        // Typed navigation: ownedFeature minus result
+        val typed = expression as? Type ?: return emptyList()
+        val result = (expression as? Expression)?.result as? MDMObject
+        return typed.ownedFeature.filterIsInstance<MDMObject>().filter { it.id != result?.id }
     }
 
     /**
      * Get the result expression (via ResultExpressionMembership).
+     *
+     * Uses the `resultExpression` parser shortcut first, then falls back to typed navigation.
      */
     private fun getResultExpression(element: MDMObject): MDMObject? {
-        val memberships = engine.getPropertyValue(element, "ownedFeatureMembership")
-        val membershipList = when (memberships) {
-            is List<*> -> memberships.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(memberships)
-            else -> return null
-        }
+        // Parser shortcut: resultExpression stored directly by ExpressionVisitor
+        val rawResultExpr = element.getProperty("resultExpression") as? MDMObject
+        if (rawResultExpr != null) return rawResultExpr
 
-        // Find ResultExpressionMembership
-        val resultMembership = membershipList.firstOrNull {
-            engine.isInstanceOf(it, "ResultExpressionMembership")
-        } ?: return null
+        // Typed navigation via ownedFeatureMembership → ResultExpressionMembership
+        val resultMembership = (element as? Type)?.ownedFeatureMembership
+            ?.filterIsInstance<ResultExpressionMembership>()
+            ?.firstOrNull() ?: return null
 
-        // Get the owned result expression
-        return engine.getPropertyValue(resultMembership, "ownedResultExpression") as? MDMObject
-    }
-
-    /**
-     * Get the referent of a FeatureReferenceExpression.
-     */
-    private fun getReferent(expression: MDMObject): MDMObject? {
-        return engine.getPropertyValue(expression, "referent") as? MDMObject
-    }
-
-    /**
-     * Get the target feature of a FeatureChainExpression.
-     */
-    private fun getTargetFeature(expression: MDMObject): MDMObject? {
-        return engine.getPropertyValue(expression, "targetFeature") as? MDMObject
-    }
-
-    /**
-     * Get the referenced element of a MetadataAccessExpression.
-     */
-    private fun getReferencedElement(expression: MDMObject): MDMObject? {
-        return engine.getPropertyValue(expression, "referencedElement") as? MDMObject
-    }
-
-    /**
-     * Get the instantiated type of an InstantiationExpression.
-     */
-    private fun getInstantiatedType(expression: MDMObject): MDMObject? {
-        return engine.getPropertyValue(expression, "instantiatedType") as? MDMObject
-    }
-
-    /**
-     * Get the FeatureValue of a Feature (if any).
-     */
-    private fun getFeatureValue(feature: MDMObject): MDMObject? {
-        val valuation = engine.getPropertyValue(feature, "valuation")
-        return valuation as? MDMObject
-    }
-
-    /**
-     * Get the value expression from a FeatureValue.
-     */
-    private fun getValueExpression(featureValue: MDMObject): MDMObject? {
-        return engine.getPropertyValue(featureValue, "value") as? MDMObject
-    }
-
-    /**
-     * Get owned features of an element.
-     */
-    private fun getOwnedFeatures(element: MDMObject): List<MDMObject> {
-        val features = engine.getPropertyValue(element, "ownedFeature")
-        return when (features) {
-            is List<*> -> features.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(features)
-            else -> emptyList()
-        }
+        return resultMembership.ownedMemberFeature as? MDMObject
     }
 
     companion object {

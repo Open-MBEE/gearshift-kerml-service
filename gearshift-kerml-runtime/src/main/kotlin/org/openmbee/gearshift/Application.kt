@@ -15,81 +15,69 @@
  */
 package org.openmbee.gearshift
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.generated.KerMLElementFactory
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 import org.openmbee.mdm.framework.runtime.SessionManager
 
+private val logger = KotlinLogging.logger {}
+
 /**
  * Main application entry point for the GearShift KerML Service.
  */
 fun main(args: Array<String>) {
-    println("=".repeat(70))
-    println("GearShift KerML Service")
-    println("Metadata-driven KerML Implementation using Mdm Framework")
-    println("=".repeat(70))
-    println()
+    logger.info { "GearShift KerML Service — Metadata-driven KerML Implementation using Mdm Framework" }
 
     // Initialize the schema (metamodel registry)
     val schema = MetamodelRegistry()
-    println("Initializing KerML Metamodel...")
+    logger.info { "Initializing KerML Metamodel..." }
     KerMLMetamodelLoader.initialize(schema)
-    println()
 
     // Validate metamodel
     val errors = schema.validate()
     if (errors.isEmpty()) {
-        println("✓ Metamodel is valid!")
+        logger.info { "Metamodel is valid" }
     } else {
-        println("✗ Metamodel has errors:")
-        errors.forEach { println("  - $it") }
+        logger.error { "Metamodel has errors:" }
+        errors.forEach { logger.error { "  - $it" } }
     }
-    println()
 
     // Show metamodel statistics
     val allClasses = schema.getAllClasses()
-    println("Metamodel Statistics:")
-    println("  Total MetaClasses: ${allClasses.size}")
+    logger.info { "Metamodel Statistics: ${allClasses.size} total MetaClasses" }
     allClasses.take(10).forEach { metaClass ->
-        println("  - ${metaClass.name}")
-        println("      Superclasses: ${metaClass.superclasses.joinToString(", ")}")
-        println("      Attributes: ${metaClass.attributes.size}")
-        println("      Constraints: ${metaClass.constraints.size}")
+        logger.info { "  - ${metaClass.name} (superclasses: ${metaClass.superclasses.joinToString(", ")}, attributes: ${metaClass.attributes.size}, constraints: ${metaClass.constraints.size})" }
     }
     if (allClasses.size > 10) {
-        println("  ... and ${allClasses.size - 10} more")
+        logger.info { "  ... and ${allClasses.size - 10} more" }
     }
-    println()
 
     // Create session manager and a session
     val factory = KerMLElementFactory()
     val sessionManager = SessionManager(schema, factory)
     val session = sessionManager.createSession("Demo Session")
 
-    println("Created session: ${session.name} (${session.id})")
-    println()
+    logger.info { "Created session: ${session.name} (${session.id})" }
 
     // Example: Create some instances
-    println("Creating example instances...")
+    logger.info { "Creating example instances..." }
 
     // Create a Feature instance
     val feature = session.createElement("Feature")
     session.engine.setProperty(feature.id!!, "declaredName", "MyFeature")
 
-    println("Created Feature instance: ${feature.id}")
-    println("  declaredName = ${session.engine.getProperty(feature.id!!, "declaredName")}")
-    println()
+    logger.info { "Created Feature instance: ${feature.id}" }
+    logger.info { "  declaredName = ${session.engine.getProperty(feature.id!!, "declaredName")}" }
 
     // Query for all Features
     val allFeatures = session.getElementsByClass("Feature")
-    println("Total Feature instances: ${allFeatures.size}")
-    println()
+    logger.info { "Total Feature instances: ${allFeatures.size}" }
 
     // Show element count
-    println("Total elements in session: ${session.getAllElements().size}")
-    println()
+    logger.info { "Total elements in session: ${session.getAllElements().size}" }
 
     // Cleanup
     sessionManager.closeAll()
-    println("Session closed.")
+    logger.info { "Session closed." }
 }

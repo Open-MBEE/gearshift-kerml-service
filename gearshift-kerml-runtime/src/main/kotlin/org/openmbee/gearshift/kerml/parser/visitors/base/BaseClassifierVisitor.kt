@@ -31,7 +31,7 @@ import org.openmbee.gearshift.kerml.parser.KermlParseContext
  * This follows the KerML hierarchy where Classifier extends Type.
  *
  * @param Ctx The ANTLR parser context type
- * @param Result The typed wrapper type (must extend Classifier)
+ * @param Result The generated KerMLImpl class (must extend Classifier)
  */
 abstract class BaseClassifierVisitor<Ctx, Result : Classifier> : BaseTypeVisitor<Ctx, Result>() {
 

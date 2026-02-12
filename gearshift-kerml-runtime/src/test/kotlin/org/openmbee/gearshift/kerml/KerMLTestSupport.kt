@@ -15,8 +15,11 @@
  */
 package org.openmbee.gearshift.kerml
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.kotest.core.spec.style.DescribeSpec
 import org.openmbee.mdm.framework.runtime.MountRegistry
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Test support for KerML tests with shared library loading.
@@ -61,9 +64,9 @@ abstract class KerMLTestSpec(body: KerMLTestSpec.() -> Unit) : DescribeSpec() {
             if (!libraryInitialized) {
                 val mount = KerMLModel.initializeKernelLibrary()
                 if (mount != null) {
-                    println("KerMLTestSpec: Library loaded with ${mount.engine.elementCount()} elements")
+                    logger.info { "KerMLTestSpec: Library loaded with ${mount.engine.elementCount()} elements" }
                 } else {
-                    System.err.println("KerMLTestSpec: WARNING - Library not available, tests may fail")
+                    logger.warn { "KerMLTestSpec: Library not available, tests may fail" }
                 }
                 libraryInitialized = true
             }
@@ -73,6 +76,13 @@ abstract class KerMLTestSpec(body: KerMLTestSpec.() -> Unit) : DescribeSpec() {
     init {
         // Initialize library before any tests run
         ensureLibraryInitialized()
+
+        beforeSpec {
+            TestLogContext.start(this::class.simpleName ?: "UnknownSpec")
+        }
+        afterSpec {
+            TestLogContext.stop()
+        }
 
         // Run the test body
         body()

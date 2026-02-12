@@ -15,12 +15,18 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private val logger = KotlinLogging.logger {}
+
+@ExtendWith(TestLogExtension::class)
 class ClassifierGeneratorTest {
 
     @Test
@@ -37,8 +43,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "behavior DoSomething")
     }
@@ -57,8 +62,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "function Add")
     }
@@ -77,8 +81,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "predicate IsValid")
     }
@@ -97,8 +100,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "interaction Handshake")
     }
@@ -117,8 +119,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "assoc struct Link")
     }
@@ -138,8 +139,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "abstract behavior Action")
         assertContains(generated, "behavior SpecialAction")
@@ -162,8 +162,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "class Foo")
         assertContains(generated, "doc")
@@ -187,8 +186,7 @@ class ClassifierGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         // Verify round-trip parsability
         val model2 = KerMLModel().parseString(generated)

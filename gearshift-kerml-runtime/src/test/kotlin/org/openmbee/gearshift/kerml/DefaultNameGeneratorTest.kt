@@ -16,9 +16,11 @@
 package org.openmbee.gearshift.kerml
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
+@ExtendWith(TestLogExtension::class)
 class DefaultNameGeneratorTest {
 
     @Test

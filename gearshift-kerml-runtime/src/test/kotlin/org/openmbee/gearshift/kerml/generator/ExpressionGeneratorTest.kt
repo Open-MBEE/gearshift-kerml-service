@@ -15,11 +15,17 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 
+private val logger = KotlinLogging.logger {}
+
+@ExtendWith(TestLogExtension::class)
 class ExpressionGeneratorTest {
 
     @Test
@@ -39,8 +45,7 @@ class ExpressionGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "items")
         assertContains(generated, "Integer")
@@ -63,8 +68,7 @@ class ExpressionGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "name")
         assertContains(generated, "String")
@@ -87,8 +91,7 @@ class ExpressionGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "count")
         assertContains(generated, "Integer")
@@ -111,8 +114,7 @@ class ExpressionGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "enabled")
         assertContains(generated, "Boolean")
@@ -135,8 +137,7 @@ class ExpressionGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "message")
         assertContains(generated, "String")

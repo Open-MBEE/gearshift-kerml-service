@@ -1,0 +1,38 @@
+<configuration>
+    <!-- Console: WARN only (quiet) -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>WARN</level>
+        </filter>
+        <encoder>
+            <pattern>%-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Per-test-class log files via MDC -->
+    <appender name="SIFT" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator>
+            <key>testClass</key>
+            <defaultValue>_none</defaultValue>
+        </discriminator>
+        <sift>
+            <appender name="FILE-${testClass}" class="ch.qos.logback.core.FileAppender">
+                <file>build/test-logs/${testClass}.log</file>
+                <append>false</append>
+                <encoder>
+                    <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+                </encoder>
+            </appender>
+        </sift>
+    </appender>
+
+    <!-- Our code at DEBUG; everything else stays at WARN via root -->
+    <logger name="org.openmbee" level="DEBUG" additivity="false">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="SIFT" />
+    </logger>
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

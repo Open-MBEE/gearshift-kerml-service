@@ -15,11 +15,17 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 
+private val logger = KotlinLogging.logger {}
+
+@ExtendWith(TestLogExtension::class)
 class ExpressionContainerGeneratorTest {
 
     @Test
@@ -41,8 +47,7 @@ class ExpressionContainerGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "function Sum")
     }
@@ -64,8 +69,7 @@ class ExpressionContainerGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "class Constrained")
     }
@@ -92,8 +96,7 @@ class ExpressionContainerGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         val model2 = KerMLModel().parseString(generated)
         assertNotNull(model2, "Generated KerML should be parseable")

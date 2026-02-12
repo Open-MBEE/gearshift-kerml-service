@@ -15,11 +15,17 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 
+private val logger = KotlinLogging.logger {}
+
+@ExtendWith(TestLogExtension::class)
 class StepGeneratorTest {
 
     @Test
@@ -38,8 +44,7 @@ class StepGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "behavior MyBehavior")
         assertContains(generated, "step doWork")
@@ -62,8 +67,7 @@ class StepGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "step init")
         assertContains(generated, "Action")
@@ -87,8 +91,7 @@ class StepGeneratorTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         // Verify round-trip parsability
         val model2 = KerMLModel().parseString(generated)

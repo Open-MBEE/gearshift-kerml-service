@@ -74,14 +74,8 @@ open class FeatureReferenceExpressionImpl(
 
     override val referent: Feature
         get() {
-            // Check raw stored property first (set by parser reference resolver)
-            val stored = properties["referent"]
-            if (stored is Feature) return stored
-
-            // Fall back to engine derivation (via ownedMembership navigation)
             val rawValue = engine.getProperty(id!!, "referent")
-            return rawValue as? Feature
-                ?: throw IllegalStateException("referent is not set on FeatureReferenceExpression $id")
+            return rawValue as Feature
         }
 
     override fun evaluate(target: Element): List<Element> {

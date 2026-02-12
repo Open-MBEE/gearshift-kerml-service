@@ -24,6 +24,23 @@ import org.openmbee.mdm.framework.runtime.MDMObject
 private val logger = KotlinLogging.logger {}
 
 /**
+ * Result of an impact/dependency analysis for a specific feature.
+ *
+ * @param featureName The feature being analyzed
+ * @param affectedInvariants IDs of invariants that reference this feature
+ * @param coConstrainedFeatures Names of other features that appear in the same invariants
+ * @param violatedInvariants IDs of invariants violated by a proposed value (empty if no proposedValue)
+ * @param stillSatisfiable Whether the system is still satisfiable with the proposed value (null if no proposedValue)
+ */
+data class ImpactAnalysisResult(
+    val featureName: String,
+    val affectedInvariants: List<String>,
+    val coConstrainedFeatures: List<String>,
+    val violatedInvariants: List<String> = emptyList(),
+    val stillSatisfiable: Boolean? = null
+)
+
+/**
  * KerML-specific parametric analysis service.
  *
  * Extracts constraints from KerML model elements (Invariants, Features),
@@ -133,6 +150,125 @@ class ParametricAnalysisService(
         return solverService.optimize(variables, constraintExprs, objective, minimize)
     }
 
+    /**
+     * Analyze the impact of changing a specific feature.
+     *
+     * Finds all invariants that reference the feature, identifies co-constrained
+     * features, and optionally checks whether a proposed value would violate any
+     * constraints.
+     *
+     * @param featureName The name of the feature to analyze
+     * @param allInvariants All invariants to scan for references
+     * @param proposedValue Optional new value to check against constraints
+     * @return Impact analysis result
+     */
+    fun analyzeImpact(
+        featureName: String,
+        allInvariants: List<BooleanExpression>,
+        proposedValue: Any? = null
+    ): ImpactAnalysisResult {
+        // 1. Find all invariants that reference the target feature
+        val affectedInvariants = allInvariants.filter { inv ->
+            collectReferencedFeatures(inv).any { f ->
+                f.declaredName == featureName || f.name == featureName
+            }
+        }
+
+        // 2. Collect all co-constrained features (other features in those invariants)
+        val coConstrained = affectedInvariants
+            .flatMap { collectReferencedFeatures(it) }
+            .filter { it.declaredName != featureName && it.name != featureName }
+            .mapNotNull { it.declaredName ?: it.name }
+            .distinct()
+
+        // 3. If proposedValue provided, check which invariants become violated
+        if (proposedValue != null) {
+            val violated = mutableListOf<String>()
+            for (inv in affectedInvariants) {
+                val expr = extractConstraintExpression(inv) ?: continue
+                val features = collectReferencedFeatures(inv)
+                val variables = features.mapNotNull { featureToVariable(it) }
+                val extraConstraint = "($featureName = $proposedValue)"
+                val sat = solverService.isSatisfiable(variables, listOf(expr, extraConstraint))
+                if (!sat) {
+                    violated.add((inv as MDMObject).id ?: "unknown")
+                }
+            }
+            val allFeatures = affectedInvariants
+                .flatMap { collectReferencedFeatures(it) }
+                .distinctBy { (it as MDMObject).id }
+            val allExprs = affectedInvariants.mapNotNull { extractConstraintExpression(it) }
+            val overallSat = solverService.isSatisfiable(
+                allFeatures.mapNotNull { featureToVariable(it) },
+                allExprs + "($featureName = $proposedValue)"
+            )
+            return ImpactAnalysisResult(
+                featureName = featureName,
+                affectedInvariants = affectedInvariants.map { (it as MDMObject).id ?: "unknown" },
+                coConstrainedFeatures = coConstrained,
+                violatedInvariants = violated,
+                stillSatisfiable = overallSat
+            )
+        }
+
+        return ImpactAnalysisResult(
+            featureName = featureName,
+            affectedInvariants = affectedInvariants.map { (it as MDMObject).id ?: "unknown" },
+            coConstrainedFeatures = coConstrained
+        )
+    }
+
+    /**
+     * Persist solver result assignments back to the model as FeatureValues.
+     *
+     * For each assignment, creates a FeatureValue with the appropriate literal
+     * expression and links it to the feature via associations.
+     *
+     * @param assignments Map of feature name to solved value
+     * @param referencedFeatures Features that were part of the constraint system
+     */
+    fun applySolution(
+        assignments: Map<String, Any?>,
+        referencedFeatures: List<Feature>
+    ) {
+        for ((name, value) in assignments) {
+            val feature = referencedFeatures.firstOrNull {
+                it.declaredName == name || it.name == name
+            } ?: continue
+
+            val featureValue = engine.createElement("FeatureValue")
+            engine.setPropertyValue(featureValue, "isDefault", false)
+            engine.setPropertyValue(featureValue, "isInitial", false)
+
+            val literal = when (value) {
+                is Long, is Int -> {
+                    val lit = engine.createElement("LiteralInteger")
+                    engine.setPropertyValue(lit, "value", (value as Number).toInt())
+                    lit
+                }
+
+                is Double, is Float -> {
+                    val lit = engine.createElement("LiteralRational")
+                    engine.setPropertyValue(lit, "value", (value as Number).toDouble())
+                    lit
+                }
+
+                is Boolean -> {
+                    val lit = engine.createElement("LiteralBoolean")
+                    engine.setPropertyValue(lit, "value", value)
+                    lit
+                }
+
+                else -> continue
+            }
+
+            // Link FeatureValue → Expression (value)
+            engine.link(featureValue.id!!, literal.id!!, "expressedValuationValueAssociation")
+            // Link FeatureValue → Feature (featureWithValue)
+            engine.link(featureValue.id!!, (feature as MDMObject).id!!, "valuationFeatureWithValueAssociation")
+        }
+    }
+
     // === Model Element Extraction ===
 
     /**
@@ -144,9 +280,8 @@ class ParametricAnalysisService(
 
         val sort = inferSort(feature)
 
-        val obj = feature as MDMObject
-        val lowerBound = extractLowerBound(obj)
-        val upperBound = extractUpperBound(obj)
+        val lowerBound = extractLowerBound(feature)
+        val upperBound = extractUpperBound(feature)
 
         return Z3Variable(name, sort, lowerBound, upperBound)
     }
@@ -170,11 +305,8 @@ class ParametricAnalysisService(
         }
         for (type in typeList) {
             val typeName = when (type) {
-                is Type -> type.declaredName ?: type.name ?: (type as MDMObject).className
-                is MDMObject -> engine.getPropertyValue(type, "declaredName") as? String
-                    ?: engine.getPropertyValue(type, "name") as? String
-                    ?: type.className
-
+                is Element -> type.declaredName ?: type.name ?: (type as MDMObject).className
+                is MDMObject -> type.className
                 else -> continue
             }
             return sortFromTypeName(typeName)
@@ -250,12 +382,12 @@ class ParametricAnalysisService(
             expression is OperatorExpression -> operatorExpressionToOcl(expression)
             expression is FeatureReferenceExpression -> featureReferenceToOcl(expression)
             expression is InvocationExpression -> invocationExpressionToOcl(expression)
-            engine.isInstanceOf(expression, "Expression") -> {
+            expression is Expression -> {
                 // Generic Expression fallback: try its result expression
                 val rawResultExpr = expression.getProperty("resultExpression") as? MDMObject
                 if (rawResultExpr != null) return expressionTreeToOcl(rawResultExpr)
                 try {
-                    val resultExpr = getResultExpression(expression)
+                    val resultExpr = getResultExpression(expression as MDMObject)
                     if (resultExpr != null) expressionTreeToOcl(resultExpr) else null
                 } catch (_: Exception) {
                     null
@@ -306,11 +438,12 @@ class ParametricAnalysisService(
         }
 
         // Strategy 2: Engine navigation (derived property computation)
+        // Use engine.getPropertyValue since typed access already failed above,
+        // but cast result to Feature for name access.
         try {
-            val referent = engine.getPropertyValue(expression as MDMObject, "referent") as? MDMObject
+            val referent = engine.getPropertyValue(expression as MDMObject, "referent") as? Feature
             if (referent != null) {
-                return engine.getPropertyValue(referent, "declaredName") as? String
-                    ?: engine.getPropertyValue(referent, "name") as? String
+                return referent.declaredName ?: referent.name
             }
         } catch (e: Exception) {
             logger.debug { "Derived referent navigation failed: ${e.message}" }
@@ -324,13 +457,10 @@ class ParametricAnalysisService(
             val func = expression.function
             func?.declaredName ?: func?.name
         } catch (_: Exception) {
-            // Fallback to engine navigation
+            // Fallback: engine navigation, cast to typed interface for name access
             try {
-                val function = engine.getPropertyValue(expression as MDMObject, "function") as? MDMObject
-                function?.let {
-                    engine.getPropertyValue(it, "declaredName") as? String
-                        ?: engine.getPropertyValue(it, "name") as? String
-                }
+                val func = engine.getPropertyValue(expression as MDMObject, "function") as? Element
+                func?.let { it.declaredName ?: it.name }
             } catch (e: Exception) {
                 logger.debug { "Derived function navigation failed: ${e.message}" }
                 null
@@ -361,29 +491,23 @@ class ParametricAnalysisService(
             if (args.isNotEmpty()) return args
         }
 
-        // Strategy 2: Try derived `argument` association end
+        // Strategy 2: Typed argument property (on InstantiationExpression)
         try {
-            val argument = engine.getPropertyValue(expression, "argument")
-            val argList = when (argument) {
-                is List<*> -> argument.filterIsInstance<MDMObject>()
-                is MDMObject -> listOf(argument)
-                else -> emptyList()
-            }
-            if (argList.isNotEmpty()) return argList
+            val argList = (expression as? InstantiationExpression)?.argument?.map { it as MDMObject }
+            if (argList != null && argList.isNotEmpty()) return argList
         } catch (e: Exception) {
             logger.debug { "Derived argument navigation failed: ${e.message}" }
         }
 
         // Strategy 3: Fall back to ownedFeature filtering (excluding result)
         try {
-            val features = engine.getPropertyValue(expression, "ownedFeature")
-            val ownedFeatures = when (features) {
-                is List<*> -> features.filterIsInstance<MDMObject>()
-                is MDMObject -> listOf(features)
-                else -> emptyList()
+            val ownedFeatures = (expression as Type).ownedFeature.map { it as MDMObject }
+            val resultObj = try {
+                (expression as Expression).result as? MDMObject
+            } catch (_: Exception) {
+                null
             }
-            val result = engine.getPropertyValue(expression, "result") as? MDMObject
-            return ownedFeatures.filter { it.id != result?.id }
+            return ownedFeatures.filter { it.id != resultObj?.id }
         } catch (e: Exception) {
             logger.debug { "Owned features fallback failed: ${e.message}" }
             return emptyList()
@@ -394,18 +518,14 @@ class ParametricAnalysisService(
      * Navigate ResultExpressionMembership to get the ownedResultExpression.
      */
     private fun getResultExpression(element: MDMObject): MDMObject? {
-        val memberships = engine.getPropertyValue(element, "ownedFeatureMembership")
-        val membershipList = when (memberships) {
-            is List<*> -> memberships.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(memberships)
-            else -> return null
-        }
+        val membershipList = (element as Type).ownedFeatureMembership
 
         val resultMembership = membershipList.firstOrNull {
-            engine.isInstanceOf(it, "ResultExpressionMembership")
+            it is ResultExpressionMembership
         } ?: return null
 
-        return engine.getPropertyValue(resultMembership, "ownedResultExpression") as? MDMObject
+        // ownedResultExpression is not on the typed ResultExpressionMembership interface
+        return engine.getPropertyValue(resultMembership as MDMObject, "ownedResultExpression") as? MDMObject
     }
 
     /**
@@ -425,7 +545,7 @@ class ParametricAnalysisService(
      * First tries to walk the expression tree to find FeatureReferenceExpressions,
      * then falls back to collecting owned features from the parent namespace.
      */
-    private fun collectReferencedFeatures(constraint: BooleanExpression): List<Feature> {
+    internal fun collectReferencedFeatures(constraint: BooleanExpression): List<Feature> {
         val obj = constraint as MDMObject
 
         // Try raw resultExpression property first (set during parsing)
@@ -450,14 +570,9 @@ class ParametricAnalysisService(
 
         // Fall back to collecting features from the owning namespace
         try {
-            val owner = engine.getPropertyValue(obj, "owner") as? MDMObject
-            if (owner != null) {
-                val features = engine.getPropertyValue(owner, "ownedFeature")
-                return when (features) {
-                    is List<*> -> features.filterIsInstance<Feature>()
-                    is Feature -> listOf(features)
-                    else -> emptyList()
-                }
+            val owner = (obj as Element).owner
+            if (owner is Type) {
+                return owner.ownedFeature.filterIsInstance<Feature>()
             }
         } catch (e: Exception) {
             logger.debug { "Owner/feature navigation failed: ${e.message}" }
@@ -489,7 +604,7 @@ class ParametricAnalysisService(
                 }
             }
 
-            engine.isInstanceOf(expression, "Expression") -> {
+            expression is Expression -> {
                 val rawResultExpr = expression.getProperty("resultExpression") as? MDMObject
                 if (rawResultExpr != null) {
                     collectReferencedFeaturesFromExpression(rawResultExpr, result)
@@ -508,31 +623,21 @@ class ParametricAnalysisService(
 
     // === Navigation Helpers ===
 
-    private fun extractLowerBound(feature: MDMObject): Number? {
-        val multiplicity = engine.getPropertyValue(feature, "multiplicity") as? MDMObject
-        if (multiplicity != null) {
-            val lower = engine.getPropertyValue(multiplicity, "lowerBound")
-            if (lower is LiteralInteger) {
-                return lower.value
-            }
-            if (lower is MDMObject && engine.isInstanceOf(lower, "LiteralInteger")) {
-                return engine.getPropertyValue(lower, "value") as? Number
-            }
-        }
+    private fun extractLowerBound(feature: Feature): Number? {
+        val multiplicity = (feature as Type).multiplicity as? MultiplicityRange ?: return null
+        val lower = multiplicity.lowerBound ?: return null
+        if (lower is LiteralInteger) return lower.value
         return null
     }
 
-    private fun extractUpperBound(feature: MDMObject): Number? {
-        val multiplicity = engine.getPropertyValue(feature, "multiplicity") as? MDMObject
-        if (multiplicity != null) {
-            val upper = engine.getPropertyValue(multiplicity, "upperBound")
-            if (upper is LiteralInteger) {
-                return upper.value
-            }
-            if (upper is MDMObject && engine.isInstanceOf(upper, "LiteralInteger")) {
-                return engine.getPropertyValue(upper, "value") as? Number
-            }
+    private fun extractUpperBound(feature: Feature): Number? {
+        val multiplicity = (feature as Type).multiplicity as? MultiplicityRange ?: return null
+        return try {
+            val upper = multiplicity.upperBound
+            if (upper is LiteralInteger) upper.value else null
+        } catch (_: Exception) {
+            // upperBound is non-null typed but may be unset at runtime
+            null
         }
-        return null
     }
 }

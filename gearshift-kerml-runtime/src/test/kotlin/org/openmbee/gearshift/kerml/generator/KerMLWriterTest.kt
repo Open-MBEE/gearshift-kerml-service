@@ -15,16 +15,22 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import java.io.File
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private val logger = KotlinLogging.logger {}
+
 /**
  * Tests for KerMLWriter - the KerML text generator.
  */
+@ExtendWith(TestLogExtension::class)
 class KerMLWriterTest {
 
     @Test
@@ -41,8 +47,7 @@ class KerMLWriterTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "package Vehicles")
         assertContains(generated, "class Vehicle")
@@ -67,8 +72,7 @@ class KerMLWriterTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         assertContains(generated, "package Vehicles")
         assertContains(generated, "class Vehicle")
@@ -97,8 +101,7 @@ class KerMLWriterTest {
 
         // Write to file for inspection
         File(outputDir, "abstract-class-with-specialization.kerml").writeText(generated)
-        println("Generated KerML written to: build/generated-kerml/abstract-class-with-specialization.kerml")
-        println(generated)
+        logger.debug { "Generated KerML written to: build/generated-kerml/abstract-class-with-specialization.kerml\n$generated" }
 
         assertContains(generated, "abstract class Vehicle")
         assertContains(generated, "class Car")
@@ -129,10 +132,7 @@ class KerMLWriterTest {
         val writer = KerMLWriter()
         val generatedKerml = writer.write(model1)
 
-        println("Original KerML:")
-        println(originalKerml)
-        println("\nGenerated KerML:")
-        println(generatedKerml)
+        logger.debug { "Original KerML:\n$originalKerml\n\nGenerated KerML:\n$generatedKerml" }
 
         // Parse generated
         val model2 = KerMLModel().parseString(generatedKerml)
@@ -156,8 +156,7 @@ class KerMLWriterTest {
         val writer = KerMLWriter.verbose()
         val generated = writer.write(model)
 
-        println("Generated KerML (verbose):")
-        println(generated)
+        logger.debug { "Generated KerML (verbose):\n$generated" }
 
         // In verbose mode, should use 'specializes' instead of ':>'
         assertContains(generated, "specializes")
@@ -179,8 +178,7 @@ class KerMLWriterTest {
         val writer = KerMLWriter.compact()
         val generated = writer.write(model)
 
-        println("Generated KerML (compact):")
-        println(generated)
+        logger.debug { "Generated KerML (compact):\n$generated" }
 
         // Should not have consecutive blank lines
         val consecutiveBlankLines = generated.contains("\n\n\n")

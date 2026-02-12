@@ -15,12 +15,18 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.openmbee.gearshift.kerml.KerMLModel
+import org.openmbee.gearshift.kerml.TestLogExtension
 import kotlin.test.assertContains
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private val logger = KotlinLogging.logger {}
+
+@ExtendWith(TestLogExtension::class)
 class GenerateApiTest {
 
     @Test
@@ -62,8 +68,7 @@ class GenerateApiTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML:")
-        println(generated)
+        logger.debug { "Generated KerML:\n$generated" }
 
         // Verify key elements are present
         assertContains(generated, "package ComprehensiveTest")
@@ -103,8 +108,7 @@ class GenerateApiTest {
         val writer = KerMLWriter.verbose()
         val generated = writer.write(model)
 
-        println("Generated KerML (verbose):")
-        println(generated)
+        logger.debug { "Generated KerML (verbose):\n$generated" }
 
         assertContains(generated, "specializes")
         assertContains(generated, "abstract class Vehicle")
@@ -133,8 +137,7 @@ class GenerateApiTest {
         val writer = KerMLWriter()
         val generated = writer.write(model)
 
-        println("Generated KerML (all types):")
-        println(generated)
+        logger.debug { "Generated KerML (all types):\n$generated" }
 
         assertContains(generated, "class MyClass")
         assertContains(generated, "datatype MyDataType")

@@ -24,7 +24,7 @@ import org.openmbee.gearshift.kerml.antlr.KerMLParser
  * Abstract base class providing common functionality for typed visitors.
  *
  * @param Ctx The ANTLR parser context type this visitor handles
- * @param Result The typed wrapper type this visitor produces
+ * @param Result The generated KerMLImpl class this visitor produces
  */
 abstract class BaseTypedVisitor<Ctx, Result : ModelElement> : TypedKerMLVisitor<Ctx, Result> {
 

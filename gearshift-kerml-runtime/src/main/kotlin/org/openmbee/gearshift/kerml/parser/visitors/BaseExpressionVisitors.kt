@@ -120,10 +120,14 @@ class FeatureReferenceExpressionVisitor :
     ): FeatureReferenceExpression {
         val expr = kermlParseContext.create<FeatureReferenceExpression>()
 
-        // Parse the feature reference
+        // Parse the feature reference — create a Membership whose memberElement
+        // is the referenced Feature. The derived 'referent' property navigates:
+        //   ownedMembership->reject(ParameterMembership)->first().memberElement
         ctx.featureReferenceMember()?.featureReference()?.qualifiedName()?.let { qn ->
             val referencedName = extractQualifiedName(qn)
-            kermlParseContext.registerReference(expr, "referent", referencedName)
+            val membership = kermlParseContext.create<Membership>()
+            membership.membershipOwningNamespace = expr
+            kermlParseContext.registerReference(membership, "memberElement", referencedName)
         }
 
         // Create membership with parent
@@ -155,10 +159,14 @@ class MetadataAccessExpressionVisitor :
     ): MetadataAccessExpression {
         val expr = kermlParseContext.create<MetadataAccessExpression>()
 
-        // Parse the element reference
+        // Parse the element reference — create a Membership whose memberElement
+        // is the referenced Element. The derived 'referencedElement' property navigates:
+        //   ownedMembership->first().memberElement
         ctx.elementReferenceMember()?.qualifiedName()?.let { qn ->
             val referencedName = extractQualifiedName(qn)
-            kermlParseContext.registerReference(expr, "referencedElement", referencedName)
+            val membership = kermlParseContext.create<Membership>()
+            membership.membershipOwningNamespace = expr
+            kermlParseContext.registerReference(membership, "memberElement", referencedName)
         }
 
         // Create membership with parent

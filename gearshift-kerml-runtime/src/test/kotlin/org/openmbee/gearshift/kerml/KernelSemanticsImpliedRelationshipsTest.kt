@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.kerml
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -23,6 +24,8 @@ import org.openmbee.gearshift.generated.interfaces.Redefinition
 import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.generated.interfaces.TypeFeaturing
 import org.openmbee.mdm.framework.runtime.MissingRequiredAssociationException
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Tests for KerML 8.4.3 Table 9 - Core Semantics Implied Relationships Supporting Kernel Semantics.
@@ -57,41 +60,40 @@ class KernelSemanticsImpliedRelationshipsTest : KerMLTestSpec({
                 val currentTemp = factory.findByName<Feature>("currentTemp")
                 currentTemp.shouldNotBeNull()
 
-                // DEBUG: Check intermediate derivations
-                println("DEBUG: currentTemp.ownedRelationship.size = ${currentTemp.ownedRelationship.size}")
+                // Debug: Check intermediate derivations
+                logger.debug { "currentTemp.ownedRelationship.size = ${currentTemp.ownedRelationship.size}" }
                 currentTemp.ownedRelationship.forEach { rel ->
                     val mdmObj = rel as org.openmbee.mdm.framework.runtime.MDMObject
-                    println("DEBUG:   ownedRelationship: ${mdmObj.className} id=${mdmObj.id}")
+                    logger.debug { "  ownedRelationship: ${mdmObj.className} id=${mdmObj.id}" }
                 }
 
-                println("DEBUG: currentTemp.ownedSpecialization.size = ${currentTemp.ownedSpecialization.size}")
+                logger.debug { "currentTemp.ownedSpecialization.size = ${currentTemp.ownedSpecialization.size}" }
                 currentTemp.ownedSpecialization.forEach { spec ->
                     val mdmObj = spec as org.openmbee.mdm.framework.runtime.MDMObject
-                    println("DEBUG:   ownedSpecialization: ${mdmObj.className} id=${mdmObj.id}")
+                    logger.debug { "  ownedSpecialization: ${mdmObj.className} id=${mdmObj.id}" }
                 }
 
-                println("DEBUG: currentTemp.ownedTyping.size = ${currentTemp.ownedTyping.size}")
+                logger.debug { "currentTemp.ownedTyping.size = ${currentTemp.ownedTyping.size}" }
                 currentTemp.ownedTyping.forEach { typing ->
                     val typeObj = try {
                         typing.type
                     } catch (e: Exception) {
                         null
                     }
-                    println("DEBUG:   ownedTyping: type=${typeObj?.declaredName}")
+                    logger.debug { "  ownedTyping: type=${typeObj?.declaredName}" }
                 }
 
-                // DEBUG: Check what types currentTemp has
-                println("DEBUG: currentTemp.type.size = ${currentTemp.type.size}")
+                logger.debug { "currentTemp.type.size = ${currentTemp.type.size}" }
                 currentTemp.type.forEach { t ->
                     val mdmObj = t as org.openmbee.mdm.framework.runtime.MDMObject
-                    println("DEBUG:   type: ${t.declaredName} (className=${mdmObj.className})")
+                    logger.debug { "  type: ${t.declaredName} (className=${mdmObj.className})" }
                 }
 
-                // DEBUG: Check if Temperature is a DataType
+                // Check if Temperature is a DataType
                 val temperature = factory.findByName<org.openmbee.gearshift.generated.interfaces.Type>("Temperature")
                 if (temperature != null) {
                     val mdmObj = temperature as org.openmbee.mdm.framework.runtime.MDMObject
-                    println("DEBUG: Temperature className = ${mdmObj.className}")
+                    logger.debug { "Temperature className = ${mdmObj.className}" }
                 }
 
                 // Find all Subsetting instances for currentTemp
@@ -109,12 +111,12 @@ class KernelSemanticsImpliedRelationshipsTest : KerMLTestSpec({
                     }
                 }
 
-                println("DEBUG: currentTempSubsettings.size = ${currentTempSubsettings.size}")
+                logger.debug { "currentTempSubsettings.size = ${currentTempSubsettings.size}" }
                 currentTempSubsettings.forEach { sub ->
                     try {
-                        println("DEBUG:   subsetting: isImplied=${sub.isImplied}, subsettedFeature=${sub.subsettedFeature?.declaredName ?: sub.subsettedFeature?.name}")
+                        logger.debug { "  subsetting: isImplied=${sub.isImplied}, subsettedFeature=${sub.subsettedFeature?.declaredName ?: sub.subsettedFeature?.name}" }
                     } catch (e: Exception) {
-                        println("DEBUG:   subsetting: error accessing subsettedFeature")
+                        logger.debug { "  subsetting: error accessing subsettedFeature" }
                     }
                 }
 
@@ -286,18 +288,18 @@ class KernelSemanticsImpliedRelationshipsTest : KerMLTestSpec({
                 val owningMembership = wheels.owningMembership
                 val owningFeatureMembership = wheels.owningFeatureMembership
                 val owningType = wheels.owningType
-                println("DEBUG: wheels.owningMembership = $owningMembership (${(owningMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
-                println("DEBUG: wheels.owningFeatureMembership = $owningFeatureMembership (${(owningFeatureMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
-                println("DEBUG: wheels.owningType = $owningType (${(owningType as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})")
+                logger.debug { "wheels.owningMembership = $owningMembership (${(owningMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})" }
+                logger.debug { "wheels.owningFeatureMembership = $owningFeatureMembership (${(owningFeatureMembership as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})" }
+                logger.debug { "wheels.owningType = $owningType (${(owningType as? org.openmbee.mdm.framework.runtime.MDMObject)?.className})" }
 
                 // Find all TypeFeaturing instances
                 val typeFeaturings = factory.allOfType<TypeFeaturing>()
-                println("DEBUG: Total TypeFeaturing count = ${typeFeaturings.size}")
+                logger.debug { "Total TypeFeaturing count = ${typeFeaturings.size}" }
                 typeFeaturings.forEach { tf ->
                     try {
-                        println("DEBUG:   TypeFeaturing: featureOfType=${tf.featureOfType.declaredName}, featuringType=${tf.featuringType.declaredName}")
+                        logger.debug { "  TypeFeaturing: featureOfType=${tf.featureOfType.declaredName}, featuringType=${tf.featuringType.declaredName}" }
                     } catch (e: Exception) {
-                        println("DEBUG:   TypeFeaturing: error - ${e.message}")
+                        logger.debug { "  TypeFeaturing: error - ${e.message}" }
                     }
                 }
 

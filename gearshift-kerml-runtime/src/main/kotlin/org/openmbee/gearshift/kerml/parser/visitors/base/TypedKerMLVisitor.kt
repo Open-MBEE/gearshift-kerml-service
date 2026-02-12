@@ -26,7 +26,7 @@ import org.openmbee.gearshift.kerml.parser.KermlParseContext
  * a typed wrapper result (Result).
  *
  * @param Ctx The ANTLR parser context type this visitor handles
- * @param Result The typed wrapper type this visitor produces
+ * @param Result The generated KerMLImpl class this visitor produces
  */
 interface TypedKerMLVisitor<Ctx, Result : ModelElement> {
 

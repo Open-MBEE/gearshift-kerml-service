@@ -16,15 +16,21 @@
 
 package org.openmbee.gearshift.kerml.parser
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.antlr.v4.runtime.*
 import org.openmbee.gearshift.kerml.antlr.SysMLLexer
 import org.openmbee.gearshift.kerml.antlr.SysMLParser
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.openmbee.gearshift.kerml.TestLogExtension
 import java.io.File
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Test class for validating the SysML grammar against the SysML Standard Library.
  */
+@ExtendWith(TestLogExtension::class)
 class SysMLGrammarTest {
 
     // Try multiple possible locations for the library
@@ -88,8 +94,7 @@ class SysMLGrammarTest {
     @Test
     fun `parse all SysML Standard Library files`() {
         if (!libraryPath.exists()) {
-            println("WARNING: SysML Standard Library not found at $libraryPath")
-            println("Skipping grammar validation tests.")
+            logger.warn { "SysML Standard Library not found at $libraryPath — skipping grammar validation tests" }
             return
         }
 
@@ -98,9 +103,7 @@ class SysMLGrammarTest {
             .toList()
             .sortedBy { it.name }
 
-        println("\n" + "=".repeat(80))
-        println("SysML Grammar Test - Parsing ${sysmlFiles.size} files")
-        println("=".repeat(80) + "\n")
+        logger.info { "SysML Grammar Test — Parsing ${sysmlFiles.size} files" }
 
         var totalErrors = 0
         var filesWithErrors = 0
@@ -112,28 +115,18 @@ class SysMLGrammarTest {
             if (errors.isNotEmpty()) {
                 filesWithErrors++
                 totalErrors += errors.size
-                println("❌ $relativePath (${errors.size} errors)")
-                errors.take(10).forEach { error ->
-                    println("   $error")
-                }
-                if (errors.size > 10) {
-                    println("   ... and ${errors.size - 10} more errors")
-                }
-                println()
+                val errorSummary = errors.take(10).joinToString("\n   ")
+                val moreMsg = if (errors.size > 10) "\n   ... and ${errors.size - 10} more errors" else ""
+                logger.warn { "$relativePath (${errors.size} errors)\n   $errorSummary$moreMsg" }
             } else {
-                println("✓ $relativePath")
+                logger.debug { "OK: $relativePath" }
             }
         }
 
-        println("\n" + "=".repeat(80))
-        println("Summary: ${sysmlFiles.size - filesWithErrors}/${sysmlFiles.size} files parsed successfully")
-        println("Total errors: $totalErrors in $filesWithErrors files")
-        println("=".repeat(80))
+        logger.info { "Summary: ${sysmlFiles.size - filesWithErrors}/${sysmlFiles.size} files parsed successfully, $totalErrors errors in $filesWithErrors files" }
 
-        // Don't fail the test - just report errors for now
-        // We expect errors while the grammar is being developed
         if (totalErrors > 0) {
-            println("\nNote: Errors are expected while the grammar is under development.")
+            logger.info { "Errors are expected while the grammar is under development." }
         }
     }
 
@@ -146,20 +139,18 @@ class SysMLGrammarTest {
         val testFile = File(libraryPath, "Quantities and Units/Quantities.sysml")
 
         if (!testFile.exists()) {
-            println("Test file not found: $testFile")
+            logger.warn { "Test file not found: $testFile" }
             return
         }
 
-        println("Parsing: ${testFile.name}")
-        println("-".repeat(40))
+        logger.info { "Parsing: ${testFile.name}" }
 
         val errors = parseFile(testFile)
 
         if (errors.isEmpty()) {
-            println("✓ No parse errors!")
+            logger.info { "No parse errors!" }
         } else {
-            println("Found ${errors.size} errors:")
-            errors.forEach { println("  $it") }
+            logger.warn { "Found ${errors.size} errors:\n${errors.joinToString("\n") { "  $it" }}" }
         }
     }
 }

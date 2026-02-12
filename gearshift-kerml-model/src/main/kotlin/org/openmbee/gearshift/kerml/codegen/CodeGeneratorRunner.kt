@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.codegen
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
 import org.openmbee.gearshift.kerml.ViewsExtensionLoader
 import org.openmbee.mdm.framework.codegen.CodeGenConfig
@@ -27,6 +28,8 @@ import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Main entry point for running the metamodel code generator.
@@ -61,9 +64,9 @@ object CodeGeneratorRunner {
             Paths.get("kerml-generated/src/main/kotlin")
         }
 
-        println("Generating metamodel code to: $outputDir")
+        logger.info { "Generating metamodel code to: $outputDir" }
         generate(outputDir)
-        println("Code generation complete!")
+        logger.info { "Code generation complete!" }
     }
 
     /**
@@ -100,10 +103,7 @@ object CodeGeneratorRunner {
 
         // Print statistics
         val stats = KerMLMetamodelLoader.getStatistics(engine.schema)
-        println("Generated code for ${stats["total"]} metamodel classes:")
-        println("  - Root package: ${stats["root"]} classes")
-        println("  - Core package: ${stats["core"]} classes")
-        println("  - Kernel package: ${stats["kernel"]} classes")
+        logger.info { "Generated code for ${stats["total"]} metamodel classes: root=${stats["root"]}, core=${stats["core"]}, kernel=${stats["kernel"]}" }
     }
 
     private fun generateBaseClasses(generator: MetamodelCodeGenerator, config: CodeGenConfig) {
@@ -131,7 +131,7 @@ object CodeGeneratorRunner {
             Paths.get("build/generated-ts")
         }
 
-        println("Generating TypeScript types to: $outputDir")
+        logger.info { "Generating TypeScript types to: $outputDir" }
 
         val schema = MetamodelRegistry()
         KerMLMetamodelLoader.initialize(schema)
@@ -152,10 +152,6 @@ object CodeGeneratorRunner {
         val concreteCount = allClasses.count { !it.isAbstract }
         val abstractCount = allClasses.count { it.isAbstract }
 
-        println("TypeScript generation complete!")
-        println("  - Total interfaces: ${allClasses.size}")
-        println("  - Abstract: $abstractCount")
-        println("  - Concrete (in union type): $concreteCount")
-        println("  - Output: ${config.modelFileName}, ${config.metaclassTypeFileName}")
+        logger.info { "TypeScript generation complete! Total interfaces: ${allClasses.size}, abstract: $abstractCount, concrete (in union type): $concreteCount, output: ${config.modelFileName}, ${config.metaclassTypeFileName}" }
     }
 }

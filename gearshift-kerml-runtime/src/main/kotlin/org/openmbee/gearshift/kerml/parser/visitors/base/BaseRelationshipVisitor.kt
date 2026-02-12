@@ -33,7 +33,7 @@ import org.openmbee.gearshift.kerml.parser.KermlParseContext
  * and is the base for Specialization, Conjugation, Disjoining, etc.
  *
  * @param Ctx The ANTLR parser context type
- * @param Result The typed wrapper type (must extend Relationship)
+ * @param Result The generated KerMLImpl class (must extend Relationship)
  */
 abstract class BaseRelationshipVisitor<Ctx, Result : Relationship> : BaseTypedVisitor<Ctx, Result>() {
 

@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.kerml
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -27,6 +28,8 @@ import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Function
 import org.openmbee.gearshift.generated.interfaces.Namespace
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Tests that verify all KerML standard library files load correctly.
@@ -62,14 +65,14 @@ class KerMLLibraryLoadingTest : KerMLTestSpec({
                 // All should succeed
                 val failures = results.filter { !it.success }
                 if (failures.isNotEmpty()) {
-                    println("Failed library files:")
-                    failures.forEach { println("  - ${it.fileName}: ${it.error}") }
+                    logger.warn { "Failed library files:" }
+                    failures.forEach { logger.warn { "  - ${it.fileName}: ${it.error}" } }
                 }
                 failures shouldHaveSize 0
 
                 // Print summary
                 val successCount = results.count { it.success }
-                println("Successfully loaded $successCount/${results.size} library files")
+                logger.info { "Successfully loaded $successCount/${results.size} library files" }
             }
         }
 

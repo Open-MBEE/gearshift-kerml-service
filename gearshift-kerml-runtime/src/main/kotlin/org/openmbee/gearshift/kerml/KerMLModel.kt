@@ -521,6 +521,7 @@ class KerMLModel(
      */
     override fun reset() {
         lastParseResult = null
+        semanticHandler.clearCache()
         super.reset()
     }
 }

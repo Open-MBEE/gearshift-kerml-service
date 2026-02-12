@@ -15,82 +15,99 @@
  */
 package org.openmbee.gearshift.kerml.eval
 
-import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import org.openmbee.gearshift.kerml.KerMLMetamodelLoader
-import org.openmbee.mdm.framework.runtime.MDMEngine
+import org.openmbee.gearshift.generated.interfaces.Feature
+import org.openmbee.gearshift.generated.interfaces.Invariant
+import org.openmbee.gearshift.kerml.KerMLTestSpec
 import org.openmbee.mdm.framework.runtime.MDMObject
-import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 
-class KerMLExpressionEvaluatorTest : DescribeSpec({
+class KerMLExpressionEvaluatorTest : KerMLTestSpec({
 
-    lateinit var engine: MDMEngine
+    val model = freshModel()
     lateinit var library: KernelFunctionLibrary
     lateinit var evaluator: KerMLExpressionEvaluator
 
     beforeEach {
-        val registry = MetamodelRegistry()
-        registry.ensureBaseClassRegistered()
-        KerMLMetamodelLoader.initialize(registry)
-        engine = MDMEngine(registry)
-        library = KernelFunctionLibrary(engine)
-        evaluator = KerMLExpressionEvaluator(engine, library)
+        model.reset()
+        library = KernelFunctionLibrary(model.engine)
+        evaluator = KerMLExpressionEvaluator(model.engine, library)
+    }
+
+    fun extractBodyExpression(): MDMObject {
+        val invariant = model.allOfType<Invariant>().first() as MDMObject
+        val resultExpr = invariant.getProperty("resultExpression") as? MDMObject
+        if (resultExpr != null) return resultExpr
+        val memberships = model.engine.getPropertyValue(invariant, "ownedFeatureMembership")
+        val membershipList = when (memberships) {
+            is List<*> -> memberships.filterIsInstance<MDMObject>()
+            is MDMObject -> listOf(memberships)
+            else -> error("Invariant has no resultExpression or ownedFeatureMembership")
+        }
+        val resultMembership = membershipList.firstOrNull {
+            model.engine.isInstanceOf(it, "ResultExpressionMembership")
+        } ?: error("No ResultExpressionMembership found in invariant")
+        return model.engine.getPropertyValue(resultMembership, "ownedResultExpression") as? MDMObject
+            ?: error("ResultExpressionMembership has no ownedResultExpression")
     }
 
     describe("LiteralExpression evaluation") {
 
-        it("should evaluate LiteralBoolean to itself") {
-            val literal = engine.createElement("LiteralBoolean")
-            engine.setPropertyValue(literal, "value", true)
+        it("should evaluate LiteralInteger") {
+            model.parseString("package T { feature target; inv { 42 } }")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(literal, target)
-
-            result shouldHaveSize 1
-            result.first().id shouldBe literal.id
-        }
-
-        it("should evaluate LiteralInteger to itself") {
-            val literal = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(literal, "value", 42L)
-
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(literal, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
-            result.first().id shouldBe literal.id
-            engine.getPropertyValue(result.first(), "value") shouldBe 42L
+            result.first().className shouldBe "LiteralInteger"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 42
         }
 
-        it("should evaluate LiteralString to itself") {
-            val literal = engine.createElement("LiteralString")
-            engine.setPropertyValue(literal, "value", "hello")
+        it("should evaluate LiteralBoolean") {
+            model.parseString("package T { feature target; inv { true } }")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(literal, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
-            engine.getPropertyValue(result.first(), "value") shouldBe "hello"
+            result.first().className shouldBe "LiteralBoolean"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe true
         }
 
-        it("should evaluate LiteralRational to itself") {
-            val literal = engine.createElement("LiteralRational")
-            engine.setPropertyValue(literal, "value", 3.14)
+        it("should evaluate LiteralString") {
+            model.parseString("""package T { feature target; inv { "hello" } }""")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(literal, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
-            engine.getPropertyValue(result.first(), "value") shouldBe 3.14
+            result.first().className shouldBe "LiteralString"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe "hello"
         }
 
-        it("should evaluate LiteralInfinity to itself") {
-            val literal = engine.createElement("LiteralInfinity")
+        it("should evaluate LiteralRational") {
+            model.parseString("package T { feature target; inv { 3.14 } }")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(literal, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralRational"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 3.14
+        }
+
+        it("should evaluate LiteralInfinity") {
+            model.parseString("package T { feature target; inv { * } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
             result.first().className shouldBe "LiteralInfinity"
@@ -100,10 +117,11 @@ class KerMLExpressionEvaluatorTest : DescribeSpec({
     describe("NullExpression evaluation") {
 
         it("should evaluate NullExpression to empty sequence") {
-            val nullExpr = engine.createElement("NullExpression")
+            model.parseString("package T { feature target; inv { null } }")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(nullExpr, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result.shouldBeEmpty()
         }
@@ -111,95 +129,168 @@ class KerMLExpressionEvaluatorTest : DescribeSpec({
 
     describe("OperatorExpression evaluation") {
 
-        it("should evaluate addition of two literal integers") {
-            // Build: OperatorExpression(+, [LiteralInteger(3), LiteralInteger(5)])
-            val opExpr = engine.createElement("OperatorExpression")
-            engine.setPropertyValue(opExpr, "operator", "+")
+        it("should evaluate addition") {
+            model.parseString("package T { feature target; inv { 3 + 5 } }")
 
-            val arg1 = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(arg1, "value", 3L)
-
-            val arg2 = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(arg2, "value", 5L)
-
-            // Link arguments via ownedFeature
-            linkOwnedFeature(engine, opExpr, arg1)
-            linkOwnedFeature(engine, opExpr, arg2)
-
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(opExpr, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
             result.first().className shouldBe "LiteralInteger"
-            engine.getPropertyValue(result.first(), "value") shouldBe 8L
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 8L
         }
 
-        it("should evaluate boolean comparison") {
-            val opExpr = engine.createElement("OperatorExpression")
-            engine.setPropertyValue(opExpr, "operator", "<")
+        it("should evaluate subtraction") {
+            model.parseString("package T { feature target; inv { 10 - 3 } }")
 
-            val arg1 = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(arg1, "value", 3L)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
-            val arg2 = engine.createElement("LiteralInteger")
-            engine.setPropertyValue(arg2, "value", 5L)
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralInteger"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 7L
+        }
 
-            linkOwnedFeature(engine, opExpr, arg1)
-            linkOwnedFeature(engine, opExpr, arg2)
+        it("should evaluate multiplication") {
+            model.parseString("package T { feature target; inv { 4 * 3 } }")
 
-            val target = engine.createElement("Element")
-            val result = evaluator.evaluate(opExpr, target)
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralInteger"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 12L
+        }
+
+        it("should evaluate less-than comparison") {
+            model.parseString("package T { feature target; inv { 3 < 5 } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
 
             result shouldHaveSize 1
             result.first().className shouldBe "LiteralBoolean"
-            engine.getPropertyValue(result.first(), "value") shouldBe true
+            model.engine.getPropertyValue(result.first(), "value") shouldBe true
+        }
+
+        it("should evaluate greater-than comparison") {
+            model.parseString("package T { feature target; inv { 5 > 3 } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralBoolean"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe true
+        }
+
+        it("should evaluate boolean 'and'") {
+            model.parseString("package T { feature target; inv { true and false } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralBoolean"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe false
+        }
+
+        it("should evaluate boolean 'or'") {
+            model.parseString("package T { feature target; inv { true or false } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralBoolean"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe true
+        }
+
+        it("should evaluate boolean 'not'") {
+            model.parseString("package T { feature target; inv { not true } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralBoolean"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe false
+        }
+
+        it("should evaluate nested arithmetic") {
+            model.parseString("package T { feature target; inv { (2 + 3) * 4 } }")
+
+            val expr = extractBodyExpression()
+            val target = model.findByName<Feature>("target") as MDMObject
+            val result = evaluator.evaluate(expr, target)
+
+            result shouldHaveSize 1
+            result.first().className shouldBe "LiteralInteger"
+            model.engine.getPropertyValue(result.first(), "value") shouldBe 20L
+        }
+    }
+
+    describe("FeatureReferenceExpression evaluation") {
+
+        it("should resolve feature reference to referent") {
+            model.parseString(
+                """
+                package T {
+                    feature x;
+                    inv { x }
+                }
+            """.trimIndent()
+            )
+
+            val expr = extractBodyExpression()
+            val x = model.findByName<Feature>("x") as MDMObject
+            val result = evaluator.evaluate(expr, x)
+
+            result shouldHaveSize 1
+            (result.first() as Feature).declaredName shouldBe "x"
         }
     }
 
     describe("modelLevelEvaluable") {
 
         it("should return true for LiteralExpression") {
-            val literal = engine.createElement("LiteralBoolean")
-            engine.setPropertyValue(literal, "value", true)
+            model.parseString("package T { inv { 42 } }")
 
-            evaluator.isModelLevelEvaluable(literal) shouldBe true
+            val expr = extractBodyExpression()
+
+            evaluator.isModelLevelEvaluable(expr) shouldBe true
         }
 
         it("should return true for NullExpression") {
-            val nullExpr = engine.createElement("NullExpression")
+            model.parseString("package T { inv { null } }")
 
-            evaluator.isModelLevelEvaluable(nullExpr) shouldBe true
+            val expr = extractBodyExpression()
+
+            evaluator.isModelLevelEvaluable(expr) shouldBe true
         }
 
-        it("should return true for MetadataAccessExpression") {
-            val metaExpr = engine.createElement("MetadataAccessExpression")
+        it("should return true for OperatorExpression with literal args") {
+            model.parseString("package T { inv { 3 + 5 } }")
 
-            evaluator.isModelLevelEvaluable(metaExpr) shouldBe true
+            val expr = extractBodyExpression()
+
+            evaluator.isModelLevelEvaluable(expr) shouldBe true
         }
 
-        it("should return false for unknown element types") {
-            val element = engine.createElement("Element")
+        it("should return false for non-expression Element") {
+            model.parseString("package T { feature notAnExpression; }")
 
-            evaluator.isModelLevelEvaluable(element) shouldBe false
+            val feature = model.findByName<Feature>("notAnExpression") as MDMObject
+
+            evaluator.isModelLevelEvaluable(feature) shouldBe false
         }
     }
 })
-
-/**
- * Helper to link an owned feature to a namespace.
- * Uses the ownedFeature association if available.
- */
-private fun linkOwnedFeature(engine: MDMEngine, owner: MDMObject, feature: MDMObject) {
-    // Try to use the standard ownedFeature association
-    val association = engine.schema.getAssociation("featuringTypeOwnedFeature")
-    if (association != null) {
-        engine.link(owner.id!!, feature.id!!, association.name)
-    } else {
-        // Fall back to a generic ownership association
-        val ownerAssoc = engine.schema.getAssociation("namespaceOwnedMember")
-            ?: engine.schema.getAssociation("elementOwnedElement")
-        if (ownerAssoc != null) {
-            engine.link(owner.id!!, feature.id!!, ownerAssoc.name)
-        }
-    }
-}

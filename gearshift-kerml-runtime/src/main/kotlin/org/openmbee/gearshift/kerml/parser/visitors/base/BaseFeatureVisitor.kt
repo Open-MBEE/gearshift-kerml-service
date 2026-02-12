@@ -31,7 +31,7 @@ import org.openmbee.gearshift.kerml.parser.KermlParseContext
  * This follows the KerML hierarchy where Feature extends Type.
  *
  * @param Ctx The ANTLR parser context type
- * @param Result The typed wrapper type (must extend Feature)
+ * @param Result The generated KerMLImpl class (must extend Feature)
  */
 abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, Result>() {
 
@@ -457,12 +457,12 @@ abstract class BaseFeatureVisitor<Ctx, Result : Feature> : BaseTypeVisitor<Ctx, 
                     val endFeatureContext = connectorContext.withParent(endFeature, "")
                     generalType.ownedFeatureChain().featureChain()
                         ?.ownedFeatureChaining()?.forEach { ownedChaining ->
-                        val chaining = endFeatureContext.create<FeatureChaining>()
-                        ownedChaining.chainingFeature?.let { qn ->
-                            val name = extractQualifiedName(qn)
-                            endFeatureContext.registerReference(chaining, "chainingFeature", name)
+                            val chaining = endFeatureContext.create<FeatureChaining>()
+                            ownedChaining.chainingFeature?.let { qn ->
+                                val name = extractQualifiedName(qn)
+                                endFeatureContext.registerReference(chaining, "chainingFeature", name)
+                            }
                         }
-                    }
                 } else if (generalType?.qualifiedName() != null) {
                     val name = extractQualifiedName(generalType.qualifiedName())
 

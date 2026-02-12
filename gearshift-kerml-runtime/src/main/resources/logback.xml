@@ -1,0 +1,20 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Application loggers -->
+    <logger name="org.openmbee.gearshift" level="INFO" />
+    <logger name="org.openmbee.mdm" level="INFO" />
+
+    <!-- Third-party loggers -->
+    <logger name="org.antlr" level="WARN" />
+    <logger name="io.netty" level="WARN" />
+    <logger name="io.ktor" level="WARN" />
+
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

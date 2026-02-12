@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.exec
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.eval.KerMLExpressionEvaluator
 import org.openmbee.mdm.framework.runtime.MDMEngine
@@ -77,16 +78,13 @@ class BehaviorExecutionEngine(
      * Build an execution graph from a Behavior's Steps, Successions, and Flows.
      */
     internal fun buildExecutionGraph(behavior: MDMObject): ExecutionGraph {
-        // Get Steps
-        val steps = getSteps(behavior)
+        val typed = behavior as Behavior
+        val steps = typed.step.map { it as MDMObject }
         val stepExecutions = steps.associate { step ->
             step.id!! to StepExecution(step)
         }
 
-        // Get Successions (Features that are Successions, connecting Steps)
         val successions = getSuccessions(behavior, stepExecutions)
-
-        // Get Flows (Features that are Flows, carrying data between Steps)
         val flows = getFlows(behavior, stepExecutions)
 
         return ExecutionGraph(stepExecutions, successions, flows)
@@ -183,8 +181,8 @@ class BehaviorExecutionEngine(
 
         when {
             // If the step is an Expression, evaluate it
-            engine.isInstanceOf(step, "Expression") -> {
-                val target = engine.createElement("Element")  // Dummy target for now
+            step is Expression -> {
+                val target = engine.createElement("Element")
                 val results = expressionEvaluator.evaluate(step, target)
                 if (results.isNotEmpty()) {
                     stepExec.outputValues["result"] = if (results.size == 1) results.first() else results
@@ -194,18 +192,17 @@ class BehaviorExecutionEngine(
             }
 
             // If the step is typed by a Behavior, recursively execute it
-            engine.isInstanceOf(step, "Step") -> {
-                val behaviors = getStepBehaviors(step)
+            step is Step -> {
+                val typedStep = step as Step
+                val behaviors = typedStep.behavior.map { it as MDMObject }
                 if (behaviors.isNotEmpty()) {
                     val childBehavior = behaviors.first()
                     val childContext = context.createChild()
 
                     // Bind input parameters from context
-                    val params = getParameters(step)
-                    for (param in params) {
-                        val paramName = engine.getPropertyValue(param, "declaredName") as? String
-                            ?: engine.getPropertyValue(param, "name") as? String
-                            ?: continue
+                    for (param in typedStep.parameter) {
+                        val typedParam = param as Feature
+                        val paramName = typedParam.declaredName ?: typedParam.name ?: continue
                         val value = context.resolve(paramName)
                         if (value != null) {
                             childContext.bind(paramName, value)
@@ -322,8 +319,8 @@ class BehaviorExecutionEngine(
             val results = expressionEvaluator.evaluate(guardExpression, target)
             if (results.size == 1) {
                 val result = results.first()
-                if (engine.isInstanceOf(result, "LiteralBoolean")) {
-                    engine.getPropertyValue(result, "value") as? Boolean ?: false
+                if (result is LiteralBoolean) {
+                    result.value
                 } else {
                     false
                 }
@@ -347,14 +344,11 @@ class BehaviorExecutionEngine(
         val outputs = mutableMapOf<String, Any?>()
 
         // Get output parameters from the behavior
-        val params = getParameters(behavior)
-        for (param in params) {
-            val direction = engine.getPropertyValue(param, "direction") as? String
-                ?: getDirection(param)
+        for (param in (behavior as Behavior).parameter) {
+            val typedParam = param as Feature
+            val direction = typedParam.direction ?: "in"
             if (direction == "out" || direction == "inout" || direction == "return") {
-                val paramName = engine.getPropertyValue(param, "declaredName") as? String
-                    ?: engine.getPropertyValue(param, "name") as? String
-                    ?: continue
+                val paramName = typedParam.declaredName ?: typedParam.name ?: continue
                 val value = context.resolve(paramName)
                 if (value != null) {
                     outputs[paramName] = value
@@ -376,47 +370,20 @@ class BehaviorExecutionEngine(
 
     // === Model Navigation Helpers ===
 
-    private fun getSteps(behavior: MDMObject): List<MDMObject> {
-        val steps = engine.getPropertyValue(behavior, "step")
-        return when (steps) {
-            is List<*> -> steps.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(steps)
-            else -> {
-                // Fall back to feature->selectByKind(Step)
-                val features = engine.getPropertyValue(behavior, "feature")
-                when (features) {
-                    is List<*> -> features.filterIsInstance<MDMObject>()
-                        .filter { engine.isInstanceOf(it, "Step") }
-                    is MDMObject -> if (engine.isInstanceOf(features, "Step")) listOf(features) else emptyList()
-                    else -> emptyList()
-                }
-            }
-        }
-    }
-
     private fun getSuccessions(
         behavior: MDMObject,
         stepMap: Map<String, StepExecution>
     ): List<SuccessionEdge> {
-        val features = engine.getPropertyValue(behavior, "ownedFeature")
-        val featureList = when (features) {
-            is List<*> -> features.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(features)
-            else -> emptyList()
-        }
-
-        return featureList
-            .filter { engine.isInstanceOf(it, "Succession") }
+        return (behavior as Type).ownedFeature
+            .filterIsInstance<Succession>()
             .mapNotNull { succession ->
-                val connectorEnds = getConnectorEnds(succession)
+                val connectorEnds = getConnectorEnds(succession as MDMObject)
                 if (connectorEnds.size >= 2) {
-                    val sourceId = connectorEnds[0].id
-                    val targetId = connectorEnds[1].id
-                    if (sourceId != null && targetId != null &&
-                        sourceId in stepMap && targetId in stepMap
-                    ) {
-                        val guard = getGuardExpression(succession)
-                        SuccessionEdge(succession, sourceId, targetId, guard)
+                    val sourceId = resolveConnectorEndStepId(connectorEnds[0], stepMap)
+                    val targetId = resolveConnectorEndStepId(connectorEnds[1], stepMap)
+                    if (sourceId != null && targetId != null) {
+                        val guard = getGuardExpression(succession as MDMObject)
+                        SuccessionEdge(succession as MDMObject, sourceId, targetId, guard)
                     } else null
                 } else null
             }
@@ -426,76 +393,69 @@ class BehaviorExecutionEngine(
         behavior: MDMObject,
         stepMap: Map<String, StepExecution>
     ): List<FlowEdge> {
-        val features = engine.getPropertyValue(behavior, "ownedFeature")
-        val featureList = when (features) {
-            is List<*> -> features.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(features)
-            else -> emptyList()
-        }
-
-        return featureList
-            .filter { engine.isInstanceOf(it, "Flow") }
+        return (behavior as Type).ownedFeature
+            .filterIsInstance<Flow>()
             .mapNotNull { flow ->
-                val sourceOutput = engine.getPropertyValue(flow, "sourceOutputFeature") as? MDMObject
-                val targetInput = engine.getPropertyValue(flow, "targetInputFeature") as? MDMObject
-                val connectorEnds = getConnectorEnds(flow)
+                val sourceFeatureName = flow.sourceOutputFeature?.let { it.declaredName ?: it.name }
+                val targetFeatureName = flow.targetInputFeature?.let { it.declaredName ?: it.name }
+                val connectorEnds = getConnectorEnds(flow as MDMObject)
 
                 if (connectorEnds.size >= 2) {
-                    val sourceId = connectorEnds[0].id
-                    val targetId = connectorEnds[1].id
-                    if (sourceId != null && targetId != null &&
-                        sourceId in stepMap && targetId in stepMap
-                    ) {
-                        val sourceFeatureName = sourceOutput?.let {
-                            engine.getPropertyValue(it, "declaredName") as? String
-                                ?: engine.getPropertyValue(it, "name") as? String
-                        }
-                        val targetFeatureName = targetInput?.let {
-                            engine.getPropertyValue(it, "declaredName") as? String
-                                ?: engine.getPropertyValue(it, "name") as? String
-                        }
-                        FlowEdge(flow, sourceId, targetId, sourceFeatureName, targetFeatureName)
+                    val sourceId = resolveConnectorEndStepId(connectorEnds[0], stepMap)
+                    val targetId = resolveConnectorEndStepId(connectorEnds[1], stepMap)
+                    if (sourceId != null && targetId != null) {
+                        FlowEdge(flow as MDMObject, sourceId, targetId, sourceFeatureName, targetFeatureName)
                     } else null
                 } else null
             }
     }
 
     private fun getConnectorEnds(connector: MDMObject): List<MDMObject> {
-        val ends = engine.getPropertyValue(connector, "connectorEnd")
-            ?: engine.getPropertyValue(connector, "relatedFeature")
-        return when (ends) {
-            is List<*> -> ends.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(ends)
-            else -> emptyList()
+        // Try derived connectorEnd first (works when derivation is fully implemented)
+        val ends = (connector as Connector).connectorEnd.map { it as MDMObject }
+        if (ends.isNotEmpty()) return ends
+
+        // Fallback: walk ownedRelationship to find EndFeatureMembership → memberElement
+        // Use engine.getPropertyValue for membership navigation since non-null typed
+        // properties may actually be unset in intermediate model objects.
+        val result = mutableListOf<MDMObject>()
+        for (rel in (connector as Element).ownedRelationship) {
+            val member = engine.getPropertyValue(rel as MDMObject, "memberElement") as? MDMObject ?: continue
+            if (member is EndFeatureMembership) {
+                val endFeature = engine.getPropertyValue(member, "memberElement") as? MDMObject
+                if (endFeature != null) result.add(endFeature)
+            }
         }
+        return result
+    }
+
+    /**
+     * Resolve a connector EndFeature to a step ID in the step map.
+     *
+     * Connector ends are EndFeatures whose declaredName references the target step.
+     * If the end's ID is directly in the step map (manual construction), use that.
+     * Otherwise, match by declaredName against the steps.
+     */
+    private fun resolveConnectorEndStepId(
+        endFeature: MDMObject,
+        stepMap: Map<String, StepExecution>
+    ): String? {
+        // Direct ID match (manually constructed models)
+        val endId = endFeature.id
+        if (endId != null && endId in stepMap) return endId
+
+        // Name-based match (parsed models): EndFeature.declaredName == Step.declaredName
+        val endName = (endFeature as Feature).declaredName ?: return null
+        return stepMap.entries.firstOrNull { (_, exec) ->
+            val step = exec.step as Feature
+            (step.declaredName ?: step.name) == endName
+        }?.key
     }
 
     private fun getGuardExpression(succession: MDMObject): MDMObject? {
+        // guardExpression is not yet in the typed Succession interface
         val guard = engine.getPropertyValue(succession, "guardExpression")
         return guard as? MDMObject
-    }
-
-    private fun getStepBehaviors(step: MDMObject): List<MDMObject> {
-        val behaviors = engine.getPropertyValue(step, "behavior")
-        return when (behaviors) {
-            is List<*> -> behaviors.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(behaviors)
-            else -> emptyList()
-        }
-    }
-
-    private fun getParameters(element: MDMObject): List<MDMObject> {
-        val params = engine.getPropertyValue(element, "parameter")
-        return when (params) {
-            is List<*> -> params.filterIsInstance<MDMObject>()
-            is MDMObject -> listOf(params)
-            else -> emptyList()
-        }
-    }
-
-    private fun getDirection(param: MDMObject): String {
-        // Check the direction via the directionOf operation or stored property
-        return engine.getPropertyValue(param, "direction") as? String ?: "in"
     }
 
     companion object {

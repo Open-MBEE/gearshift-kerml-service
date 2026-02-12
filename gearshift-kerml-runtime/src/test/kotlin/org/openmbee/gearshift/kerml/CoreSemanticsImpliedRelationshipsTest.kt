@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.kerml
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -23,6 +24,8 @@ import org.openmbee.gearshift.generated.interfaces.Subclassification
 import org.openmbee.gearshift.generated.interfaces.Subsetting
 import org.openmbee.gearshift.generated.interfaces.Class as KerMLClass
 import org.openmbee.mdm.framework.runtime.MissingRequiredAssociationException
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Tests for KerML 8.4.3 Core Semantics Implied Relationships (Table 8).
@@ -109,11 +112,11 @@ class CoreSemanticsImpliedRelationshipsTest : KerMLTestSpec({
                 car.name.shouldNotBeNull()
 
                 // Debug: Check ownership chain
-                println("DEBUG: Car.id = ${car.id}")
-                println("DEBUG: Car.declaredName = ${car.declaredName}")
-                println("DEBUG: Car.owningMembership = ${car.owningMembership}")
-                println("DEBUG: Car.owningRelationship = ${car.owningRelationship}")
-                println("DEBUG: Car.owner = ${car.owner}")
+                logger.debug { "Car.id = ${car.id}" }
+                logger.debug { "Car.declaredName = ${car.declaredName}" }
+                logger.debug { "Car.owningMembership = ${car.owningMembership}" }
+                logger.debug { "Car.owningRelationship = ${car.owningRelationship}" }
+                logger.debug { "Car.owner = ${car.owner}" }
 
                 car.owner.shouldNotBeNull()
                 car.owner!!.declaredName shouldBe "Test"

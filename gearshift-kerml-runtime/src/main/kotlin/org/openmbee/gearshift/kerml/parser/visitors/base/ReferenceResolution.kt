@@ -268,12 +268,15 @@ class ReferenceResolver(private val engine: MDMEngine) {
                 return true
             }
 
-            // Fall back to raw property storage for generated classes with val getters
-            // (e.g., derived association ends like FeatureReferenceExpression.referent)
+            // If reflection found no mutable property, the property is likely derived (val).
+            // Derived properties must not be set directly — fix the visitor to set the
+            // structural backing instead (e.g., create a Membership for derived navigation).
             if (element is MDMObject) {
-                element.setProperty(propertyName, value)
-                logger.debug { "Set ${element::class.simpleName}.$propertyName via MDMObject.setProperty = ${(value as? Element)?.declaredName ?: value}" }
-                return true
+                throw IllegalStateException(
+                    "Cannot directly set '${propertyName}' on ${element.className}[${element.id}]: " +
+                        "property is read-only (likely derived). Fix the visitor to build the " +
+                        "structural model so the derivation constraint can compute this value."
+                )
             }
 
             logger.warn { "Property '$propertyName' not found on ${element::class.simpleName}" }
