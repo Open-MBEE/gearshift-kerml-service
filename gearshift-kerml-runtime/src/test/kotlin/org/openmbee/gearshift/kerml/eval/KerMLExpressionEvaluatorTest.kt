@@ -18,7 +18,9 @@ package org.openmbee.gearshift.kerml.eval
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import org.openmbee.gearshift.generated.interfaces.Feature
+import org.openmbee.gearshift.generated.interfaces.FeatureChainExpression
 import org.openmbee.gearshift.generated.interfaces.Invariant
 import org.openmbee.gearshift.kerml.KerMLTestSpec
 import org.openmbee.mdm.framework.runtime.MDMObject
@@ -291,6 +293,65 @@ class KerMLExpressionEvaluatorTest : KerMLTestSpec({
             val feature = model.findByName<Feature>("notAnExpression") as MDMObject
 
             evaluator.isModelLevelEvaluable(feature) shouldBe false
+        }
+    }
+
+    describe("FeatureChainExpression (dot-navigation) parsing") {
+
+        it("should parse source.feature as FeatureChainExpression") {
+            model.parseString(
+                """
+                package T {
+                    class C {
+                        feature sub : ScalarValues::Integer;
+                    }
+                    feature c : C;
+                    feature target;
+                    inv { c.sub }
+                }
+            """.trimIndent()
+            )
+
+            val expr = extractBodyExpression()
+            expr.shouldBeInstanceOf<FeatureChainExpression>()
+            (expr as FeatureChainExpression).operator shouldBe "."
+            // The _targetFeatureName should be set by the parser
+            (expr as MDMObject).getProperty("_targetFeatureName") shouldBe "sub"
+        }
+    }
+
+    describe("sum() function via KernelFunctionLibrary") {
+
+        it("should sum a list of integers") {
+            val result = library.apply("sum", listOf(listOf(
+                library.createLiteralInteger(10),
+                library.createLiteralInteger(20),
+                library.createLiteralInteger(30)
+            )))
+            result.shouldBeInstanceOf<FunctionResult.LiteralElement>()
+            val element = (result as FunctionResult.LiteralElement).element
+            library.extractNumber(element) shouldBe 60L
+        }
+
+        it("should return 0 for empty sum") {
+            val result = library.apply("sum", listOf(emptyList<Any>()))
+            result.shouldBeInstanceOf<FunctionResult.LiteralElement>()
+            val element = (result as FunctionResult.LiteralElement).element
+            library.extractNumber(element) shouldBe 0L
+        }
+    }
+
+    describe("product() function via KernelFunctionLibrary") {
+
+        it("should multiply a list of integers") {
+            val result = library.apply("product", listOf(listOf(
+                library.createLiteralInteger(2),
+                library.createLiteralInteger(3),
+                library.createLiteralInteger(5)
+            )))
+            result.shouldBeInstanceOf<FunctionResult.LiteralElement>()
+            val element = (result as FunctionResult.LiteralElement).element
+            library.extractNumber(element) shouldBe 30L
         }
     }
 })

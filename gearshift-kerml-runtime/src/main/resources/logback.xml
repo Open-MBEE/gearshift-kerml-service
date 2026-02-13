@@ -5,16 +5,16 @@
         </encoder>
     </appender>
 
-    <!-- Application loggers -->
-    <logger name="org.openmbee.gearshift" level="INFO" />
-    <logger name="org.openmbee.mdm" level="INFO" />
+    <!-- Application loggers — override with -Dgearshift.log.level=DEBUG -->
+    <logger name="org.openmbee.gearshift" level="${gearshift.log.level:-INFO}" />
+    <logger name="org.openmbee.mdm" level="${gearshift.log.level:-INFO}" />
 
     <!-- Third-party loggers -->
     <logger name="org.antlr" level="WARN" />
     <logger name="io.netty" level="WARN" />
     <logger name="io.ktor" level="WARN" />
 
-    <root level="WARN">
+    <root level="${root.log.level:-WARN}">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

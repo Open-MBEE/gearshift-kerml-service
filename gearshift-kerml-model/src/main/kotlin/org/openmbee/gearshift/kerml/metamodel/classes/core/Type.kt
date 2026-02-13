@@ -25,6 +25,7 @@ import org.openmbee.mdm.framework.meta.MetaOperation
 import org.openmbee.mdm.framework.meta.MetaParameter
 import org.openmbee.mdm.framework.meta.MetaProperty
 import org.openmbee.mdm.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Type metaclass.
@@ -280,11 +281,46 @@ fun createTypeMetaClass() = MetaClass(
             description = "A Type cannot be one of its own unioningTypes"
         ),
         MetaConstraint(
+            name = "computeFeatureFeatureOfType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "TypeFeaturing.allInstances()->select(tf | tf.featureOfType = self)",
+            isNormative = false,
+            description = "The TypeFeaturings that have this Feature as their featureOfType."
+        ),
+        MetaConstraint(
+            name = "computeFeatureTypedFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureTyping.allInstances()->select(ft | ft.typedFeature = self)",
+            isNormative = false,
+            description = "The FeatureTypings that have this Feature as their typedFeature."
+        ),
+        MetaConstraint(
             name = "computeMultiplicityTypeWithMultiplicity",
             type = ConstraintType.NON_NAVIGABLE_END,
             expression = "Type.allInstances()->select(t | t.multiplicity = self)->any(true)",
             isNormative = false,
             description = "The Type that has this Multiplicity as its multiplicity."
+        ),
+        MetaConstraint(
+            name = "computeTypeIntersectedType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "ownedIntersecting.typeIntersected",
+            isNormative = false,
+            description = "Types that are intersected by this Type's intersectingTypes."
+        ),
+        MetaConstraint(
+            name = "computeTypeInstantiationExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "InstantiationExpression.allInstances()->select(ie | ie.instantiatedType = self)",
+            isNormative = false,
+            description = "The InstantiationExpressions that have this Type as their instantiatedType."
+        ),
+        MetaConstraint(
+            name = "computeTypeUnionedType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "ownedUnioning.typeUnioned",
+            isNormative = false,
+            description = "Types that are unioned by this Type's unioningTypes."
         )
     ),
     operations = listOf(
@@ -367,11 +403,46 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = MetaOperation.ocl("""
-                let excludingSelf : Set(Type) = excludedTypes->including(self) in
-                supertypes(excludeImplied)->reject(t | excludingSelf->includes(t)).
-                    nonPrivateMemberships(excludedNamespaces, excludingSelf, excludeImplied)
-            """.trimIndent()),
+            body = MetaOperation.native { element, args, engine ->
+                val excludedTypes = when (val v = args["excludedTypes"]) {
+                    is Collection<*> -> v.filterNotNull().toMutableSet()
+                    is MDMObject -> mutableSetOf<Any>(v)
+                    else -> mutableSetOf()
+                }
+                val excludeImplied = args["excludeImplied"] as? Boolean ?: false
+                val excludedNamespaces = args["excludedNamespaces"] ?: emptySet<Any>()
+                // excludingSelf = excludedTypes + {self}
+                val excludingSelf = excludedTypes.also { it.add(element) }
+                // Get supertypes
+                val supertypes = engine.invokeOperation(
+                    element.id!!, "supertypes", mapOf("excludeImplied" to excludeImplied)
+                )
+                val supertypeList = when (supertypes) {
+                    is List<*> -> supertypes.filterIsInstance<MDMObject>()
+                    is MDMObject -> listOf(supertypes)
+                    else -> emptyList()
+                }
+                // Filter out excluded types
+                val validSupertypes = supertypeList.filter { it !in excludingSelf }
+                if (validSupertypes.isEmpty()) return@native emptyList<Any>()
+                // Get nonPrivateMemberships from each supertype
+                val result = mutableListOf<Any>()
+                for (supertype in validSupertypes) {
+                    val memberships = engine.invokeOperation(
+                        supertype.id!!, "nonPrivateMemberships",
+                        mapOf(
+                            "excludedNamespaces" to excludedNamespaces,
+                            "excludedTypes" to excludingSelf,
+                            "excludeImplied" to excludeImplied
+                        )
+                    )
+                    when (memberships) {
+                        is Collection<*> -> result.addAll(memberships.filterNotNull())
+                        is MDMObject -> result.add(memberships)
+                    }
+                }
+                result
+            },
             description = """
                 Return all the non-private Memberships of all the supertypes of this Type,
                 excluding any supertypes that are this Type or are in the given set of
@@ -388,10 +459,19 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = MetaOperation.ocl("""
-                removeRedefinedFeatures(
-                    inheritableMemberships(excludedNamespaces, excludedTypes, excludeImplied))
-            """.trimIndent()),
+            body = MetaOperation.native { element, args, engine ->
+                val inheritable = engine.invokeOperation(element.id!!, "inheritableMemberships", args)
+                val inheritableList = when (inheritable) {
+                    is Collection<*> -> inheritable.filterNotNull().toList()
+                    is MDMObject -> listOf(inheritable)
+                    else -> emptyList()
+                }
+                if (inheritableList.isEmpty()) return@native emptyList<Any>()
+                engine.invokeOperation(
+                    element.id!!, "removeRedefinedFeatures",
+                    mapOf("memberships" to inheritableList)
+                ) ?: emptyList<Any>()
+            },
             description = """
                 Return the Memberships inheritable from supertypes of this Type with
                 redefinedFeatures removed. When computing inheritableMemberships, exclude
@@ -438,17 +518,35 @@ fun createTypeMetaClass() = MetaClass(
                 MetaParameter(name = "excludedTypes", type = "Type", lowerBound = 0, upperBound = -1),
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = MetaOperation.ocl("""
-                let publicMemberships : OrderedSet(Membership) =
-                    membershipsOfVisibility(VisibilityKind::public, excludedNamespaces) in
-                let protectedMemberships : OrderedSet(Membership) =
-                    membershipsOfVisibility(VisibilityKind::protected, excludedNamespaces) in
-                let inheritedMemberships : OrderedSet(Membership) =
-                    inheritedMemberships(excludedNamespaces, excludedTypes, excludeImplied) in
-                publicMemberships->
-                    union(protectedMemberships)->
-                    union(inheritedMemberships)
-            """.trimIndent()),
+            body = MetaOperation.native { element, args, engine ->
+                val excludedNamespaces = args["excludedNamespaces"] ?: emptySet<Any>()
+                val result = mutableListOf<Any>()
+                // Public memberships
+                val publicMs = engine.invokeOperation(
+                    element.id!!, "membershipsOfVisibility",
+                    mapOf("visibility" to "public", "excluded" to excludedNamespaces)
+                )
+                when (publicMs) {
+                    is Collection<*> -> result.addAll(publicMs.filterNotNull())
+                    is MDMObject -> result.add(publicMs)
+                }
+                // Protected memberships
+                val protectedMs = engine.invokeOperation(
+                    element.id!!, "membershipsOfVisibility",
+                    mapOf("visibility" to "protected", "excluded" to excludedNamespaces)
+                )
+                when (protectedMs) {
+                    is Collection<*> -> result.addAll(protectedMs.filterNotNull())
+                    is MDMObject -> result.add(protectedMs)
+                }
+                // Inherited memberships
+                val inherited = engine.invokeOperation(element.id!!, "inheritedMemberships", args)
+                when (inherited) {
+                    is Collection<*> -> result.addAll(inherited.filterNotNull())
+                    is MDMObject -> result.add(inherited)
+                }
+                result
+            },
             description = """
                 Return the public, protected and inherited Memberships of this Type. When computing
                 imported Memberships, exclude the given set of excludedNamespaces. When computing
@@ -527,12 +625,24 @@ fun createTypeMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
-            body = MetaOperation.ocl("""
-                if isConjugated then Sequence{conjugator.originalType}
-                else if not excludeImplied then ownedSpecialization.general
-                else ownedSpecialization->reject(isImplied).general
-                endif endif
-            """.trimIndent()),
+            body = MetaOperation.native { element, args, engine ->
+                val excludeImplied = args["excludeImplied"] as? Boolean ?: false
+                val conjugator = engine.getProperty(element, "ownedConjugator") as? MDMObject
+                if (conjugator != null) {
+                    val originalType = engine.getProperty(conjugator, "originalType") as? MDMObject
+                    return@native if (originalType != null) listOf(originalType) else emptyList<Any>()
+                }
+                val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
+                val specList = when (ownedSpecs) {
+                    is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
+                    is MDMObject -> listOf(ownedSpecs)
+                    else -> emptyList()
+                }
+                val filtered = if (excludeImplied) {
+                    specList.filter { (engine.getProperty(it, "isImplied") as? Boolean) != true }
+                } else specList
+                filtered.mapNotNull { engine.getProperty(it, "general") as? MDMObject }
+            },
             description = """
                 If this Type is conjugated, then return just the originalType of the Conjugation.
                 Otherwise, return the general Types from all ownedSpecializations of this Type,

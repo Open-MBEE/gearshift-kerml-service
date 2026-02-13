@@ -21,6 +21,6 @@ package org.openmbee.gearshift.generated.interfaces
  */
 interface Rendering : Structure {
 
-    val subrendering: Set<Rendering>
+    val renderingFeature: RenderingFeature?
 }
 

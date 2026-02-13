@@ -223,7 +223,9 @@ class KerMLSemanticHandler(
      */
     private fun resolveSupertypeEndFeature(feature: Feature): MDMObject? {
         val owningType = feature.owningType ?: return null
-        val endFeatures = owningType.endFeature
+        // Use ownedEndFeature (local only) instead of endFeature (includes inherited),
+        // avoiding the Feature.type → featureMembership → inheritedMembership cascade.
+        val endFeatures = owningType.ownedEndFeature
         val position = endFeatures.indexOf(feature)
         if (position < 0) return null
 
@@ -231,7 +233,7 @@ class KerMLSemanticHandler(
         for (specialization in owningType.ownedSpecialization) {
             if (specialization.isImplied) continue
             val general = specialization.general ?: continue
-            val supertypeEndFeatures = general.endFeature
+            val supertypeEndFeatures = general.ownedEndFeature
             if (position < supertypeEndFeatures.size) {
                 return supertypeEndFeatures[position] as? MDMObject
             }
@@ -244,9 +246,16 @@ class KerMLSemanticHandler(
             is BindingCondition.Default -> true
 
             is BindingCondition.TypedBy -> {
-                // Check if instance is typed by the specified metaclass
+                // Check if instance is typed by the specified metaclass.
+                // Use the stored ownedTyping → FeatureTyping.type navigable path instead of
+                // the derived Feature.type which triggers Type.allInstances() and cascades
+                // into inheritedMemberships → supertypes → nonPrivateMemberships recursion.
                 if (instance is Feature) {
-                    instance.type.any { (it as MDMObject).className == condition.metaclass }
+                    instance.typing.any { typing ->
+                        val typedBy = (typing.type as? MDMObject)?.className
+                        typedBy == condition.metaclass ||
+                            engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
+                    }
                 } else false
             }
 
@@ -334,7 +343,11 @@ class KerMLSemanticHandler(
                 if (instance is Feature) {
                     val owningType = instance.owningType
                     if (owningType is Feature) {
-                        owningType.type.any { (it as MDMObject).className == condition.metaclass }
+                        owningType.typing.any { typing ->
+                            val typedBy = (typing.type as? MDMObject)?.className
+                            typedBy == condition.metaclass ||
+                                engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
+                        }
                     } else {
                         (owningType as? MDMObject)?.className == condition.metaclass
                     }

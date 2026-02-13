@@ -35,6 +35,13 @@ fun createPayloadFeatureMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "computePayloadFeatureFlowWithPayloadFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.payloadFeature = self)->any(true)",
+            isNormative = false,
+            description = "The Flow that has this PayloadFeature as its payloadFeature."
+        ),
+        MetaConstraint(
             name = "checkPayloadFeatureRedefinition",
             type = ConstraintType.VERIFICATION,
             expression = "redefinesFromLibrary('Transfers::Transfer::payload')",

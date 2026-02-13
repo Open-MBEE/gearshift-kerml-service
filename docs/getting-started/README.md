@@ -389,8 +389,8 @@ The repository automatically indexes by type and properties for fast queries.
 
 ## Next Steps
 
-- Read [ARCHITECTURE.md](ARCHITECTURE.md) for system design
-- See [NAME_RESOLUTION.md](NAME_RESOLUTION.md) for KerML name resolution details
+- Read [Architecture Overview](../architecture/overview.md) for system design
+- See [Name Resolution](../architecture/name-resolution.md) for KerML name resolution details
 - Explore [KerMLMetamodel.kt](../src/main/kotlin/org/openmbee/gearshift/kerml/KerMLMetamodel.kt) for complete KerML metamodel
 - Check [MetamodelExample.kt](../src/main/kotlin/org/openmbee/gearshift/kerml/examples/MetamodelExample.kt) for more examples
 
@@ -422,7 +422,7 @@ For name resolution issues:
 
 ## Resources
 
-- [README.md](../README.md) - Project overview
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [NAME_RESOLUTION.md](NAME_RESOLUTION.md) - Name resolution guide
+- [README.md](../../README.md) - Project overview
+- [Architecture Overview](../architecture/overview.md) - System architecture
+- [Name Resolution](../architecture/name-resolution.md) - Name resolution guide
 - KerML Specification v1.0 - Official specification (in references/)

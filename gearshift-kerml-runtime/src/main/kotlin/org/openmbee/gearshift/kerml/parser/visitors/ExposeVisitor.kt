@@ -51,7 +51,7 @@ class ExposeVisitor : BaseRelationshipVisitor<KerMLParser.ExposeContext, Expose>
         } else if (importDecl?.namespaceImport() != null) {
             parseNamespaceExpose(importDecl.namespaceImport(), kermlParseContext)
         } else {
-            kermlParseContext.create<MembershipExpose>()
+            kermlParseContext.createRelationship<MembershipExpose>()
         }
 
         // Parse isImportAll
@@ -59,10 +59,21 @@ class ExposeVisitor : BaseRelationshipVisitor<KerMLParser.ExposeContext, Expose>
             expose.isImportAll = true
         }
 
-        // Set import owning namespace
+        // Link Expose to its owning namespace via associations.
+        // Using engine.link() (not property setters) to create bidirectional links
+        // so the Expose appears in the parent's ownedRelationship/ownedImport.
         kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                expose.importOwningNamespace = parent
+                kermlParseContext.engine.link(
+                    sourceId = parent.id!!,
+                    targetId = expose.id!!,
+                    associationName = "importOwningNamespaceOwnedImportAssociation"
+                )
+                kermlParseContext.engine.link(
+                    sourceId = parent.id!!,
+                    targetId = expose.id!!,
+                    associationName = "owningRelatedElementOwnedRelationshipAssociation"
+                )
             }
         }
 
@@ -79,7 +90,7 @@ class ExposeVisitor : BaseRelationshipVisitor<KerMLParser.ExposeContext, Expose>
         ctx: KerMLParser.MembershipImportContext,
         kermlParseContext: KermlParseContext
     ): MembershipExpose {
-        val expose = kermlParseContext.create<MembershipExpose>()
+        val expose = kermlParseContext.createRelationship<MembershipExpose>()
 
         ctx.importedMembership?.let { qn ->
             val membershipName = extractQualifiedName(qn)
@@ -97,7 +108,7 @@ class ExposeVisitor : BaseRelationshipVisitor<KerMLParser.ExposeContext, Expose>
         ctx: KerMLParser.NamespaceImportContext,
         kermlParseContext: KermlParseContext
     ): NamespaceExpose {
-        val expose = kermlParseContext.create<NamespaceExpose>()
+        val expose = kermlParseContext.createRelationship<NamespaceExpose>()
 
         ctx.qualifiedName()?.let { qn ->
             val namespaceName = extractQualifiedName(qn)

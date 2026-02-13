@@ -107,6 +107,13 @@ fun createExpressionMetaClass() = MetaClass(
             description = "An Expression must have exactly one featureMembership (owned or inherited) that is a ResultParameterMembership."
         ),
         MetaConstraint(
+            name = "computeExpressionExpressedValuation",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureValue.allInstances()->select(fv | fv.value = self)->any(true)",
+            isNormative = false,
+            description = "The FeatureValue that has this Expression as its value."
+        ),
+        MetaConstraint(
             name = "computeExpressionConditionedPackage",
             type = ConstraintType.NON_NAVIGABLE_END,
             expression = "Package.allInstances()->select(pkg | pkg.filterCondition->includes(self))->any(true)",
@@ -140,6 +147,13 @@ fun createExpressionMetaClass() = MetaClass(
             expression = "MultiplicityRange.allInstances()->select(mr | mr.upperBound = self)->any(true)",
             isNormative = false,
             description = "The MultiplicityRange that has this Expression as its upper bound."
+        ),
+        MetaConstraint(
+            name = "computeExpressionOwningResultExpressionMembership",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningFeatureMembership.oclIsKindOf(ResultExpressionMembership) then owningFeatureMembership.oclAsType(ResultExpressionMembership) else null endif",
+            isNormative = false,
+            description = "The ResultExpressionMembership that owns this Expression, if owningFeatureMembership is a ResultExpressionMembership."
         ),
         MetaConstraint(
             name = "computeExpressionOwningFilter",

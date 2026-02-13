@@ -35,13 +35,6 @@ fun createFeatureTypingMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "if typedFeature = owningRelatedElement then typedFeature else null endif",
             description = "A typedFeature that is also the owningRelatedElement of this FeatureTyping."
-        ),
-        MetaConstraint(
-            name = "computeFeatureTypedFeature",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "FeatureTyping.allInstances()->select(ft | ft.typedFeature = self)",
-            isNormative = false,
-            description = "The FeatureTypings that have this Feature as their typedFeature."
         )
     ),
     description = "A specialization that types a feature with a type"

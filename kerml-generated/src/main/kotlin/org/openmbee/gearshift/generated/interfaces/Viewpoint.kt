@@ -20,5 +20,9 @@ package org.openmbee.gearshift.generated.interfaces
  * A Predicate that defines the concerns and constraints a View must satisfy for its stakeholders
  */
 interface Viewpoint : Predicate {
+
+    var viewpointPredicate: ViewpointPredicate
+
+    val viewpointStakeholder: List<Feature>
 }
 

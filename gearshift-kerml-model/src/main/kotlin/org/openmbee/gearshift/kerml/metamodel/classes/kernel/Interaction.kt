@@ -17,7 +17,9 @@ package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 
 import org.openmbee.mdm.framework.meta.BindingCondition
 import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
@@ -30,6 +32,15 @@ fun createInteractionMetaClass() = MetaClass(
     isAbstract = false,
     superclasses = listOf("Behavior", "Association"),
     attributes = emptyList(),
+    constraints = listOf(
+        MetaConstraint(
+            name = "computeFlowTypedFlow",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.interaction->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this Interaction as a type."
+        )
+    ),
     semanticBindings = listOf(
         SemanticBinding(
             name = "interactionTransferBinding",

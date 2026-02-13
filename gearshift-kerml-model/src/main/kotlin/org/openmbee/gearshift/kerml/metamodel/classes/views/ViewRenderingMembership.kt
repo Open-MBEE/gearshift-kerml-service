@@ -27,7 +27,7 @@ fun createViewRenderingMembershipMetaClass() = MetaClass(
         MetaConstraint(
             name = "deriveViewRenderingMembershipOwnedRendering",
             type = ConstraintType.DERIVATION,
-            expression = "ownedMemberFeature->selectByKind(Rendering)->first()",
+            expression = "ownedMemberFeature->selectByKind(RenderingFeature)->first()",
             description = "The Rendering owned through this ViewRenderingMembership."
         )
     ),

@@ -55,6 +55,14 @@ data class DataIdentityInput(
     val `@id`: String
 )
 
+data class CreateElementsRequest(
+    val kerml: String
+)
+
+data class UpdateElementRequest(
+    val properties: Map<String, Any?>
+)
+
 // === Response serialization helpers ===
 
 private fun ProjectMetadata.toApiResponse(defaultBranch: BranchData?): Map<String, Any?> = linkedMapOf(
@@ -105,6 +113,9 @@ private fun errorResponse(description: String): Map<String, Any> = mapOf(
  * - GET /projects/{projectId}/commits/{commitId}/elements[/{elementId}]
  * - GET /projects/{projectId}/commits/{commitId}/roots
  * - GET /projects/{projectId}/commits/{commitId}/elements/{elementId}/relationships
+ * - POST /projects/{projectId}/elements (create elements via KerML)
+ * - PATCH /projects/{projectId}/elements/{elementId} (update primitive properties)
+ * - DELETE /projects/{projectId}/elements/{elementId} (cascade delete)
  * - GET /projects/{projectId}/export
  * - POST /projects/import
  */
@@ -337,6 +348,109 @@ fun Route.sysmlApiRoutes(store: ProjectStore) {
             }.distinctBy { it["@id"] }
 
             call.respond(relationships)
+        }
+    }
+
+    // === Element mutation endpoints ===
+    // Mutations operate on the live model (branch head), not a specific commit.
+    // Each mutation creates a new commit and returns it in the response.
+
+    route("/projects/{projectId}/elements") {
+
+        post {
+            val projectId = call.parameters["projectId"]!!
+            if (store.getProject(projectId) == null) {
+                call.respond(HttpStatusCode.NotFound, errorResponse("Project not found: $projectId"))
+                return@post
+            }
+            try {
+                val request = call.receive<CreateElementsRequest>()
+                if (request.kerml.isBlank()) {
+                    call.respond(HttpStatusCode.BadRequest, errorResponse("KerML text is required"))
+                    return@post
+                }
+
+                val result = store.addElementsFromKerML(projectId, request.kerml)
+                if (result == null) {
+                    call.respond(HttpStatusCode.BadRequest, errorResponse("Failed to parse KerML fragment"))
+                    return@post
+                }
+
+                val model = store.getModel(projectId)!!
+                val serializer = ElementSerializer(model.engine)
+                val newElements = result.elementIds.mapNotNull { id ->
+                    model.engine.getElement(id)?.let { serializer.serialize(it) }
+                }
+
+                call.respond(HttpStatusCode.Created, mapOf(
+                    "commit" to result.commit.toApiResponse(),
+                    "elements" to newElements
+                ))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, errorResponse(e.message ?: "Invalid request"))
+            }
+        }
+
+        patch("/{elementId}") {
+            val projectId = call.parameters["projectId"]!!
+            val elementId = call.parameters["elementId"]!!
+            if (store.getProject(projectId) == null) {
+                call.respond(HttpStatusCode.NotFound, errorResponse("Project not found: $projectId"))
+                return@patch
+            }
+            try {
+                val request = call.receive<UpdateElementRequest>()
+                if (request.properties.isEmpty()) {
+                    call.respond(HttpStatusCode.BadRequest, errorResponse("At least one property is required"))
+                    return@patch
+                }
+
+                val result = store.updateElementProperties(projectId, elementId, request.properties)
+                if (result == null) {
+                    call.respond(HttpStatusCode.NotFound, errorResponse("Project not found: $projectId"))
+                    return@patch
+                }
+
+                val model = store.getModel(projectId)!!
+                val serializer = ElementSerializer(model.engine)
+                val element = model.engine.getElement(elementId)!!
+
+                call.respond(mapOf(
+                    "commit" to result.commit.toApiResponse(),
+                    "element" to serializer.serialize(element)
+                ))
+            } catch (e: NoSuchElementException) {
+                call.respond(HttpStatusCode.NotFound, errorResponse(e.message ?: "Element not found"))
+            } catch (e: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, errorResponse(e.message ?: "Invalid property"))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, errorResponse(e.message ?: "Invalid request"))
+            }
+        }
+
+        delete("/{elementId}") {
+            val projectId = call.parameters["projectId"]!!
+            val elementId = call.parameters["elementId"]!!
+            if (store.getProject(projectId) == null) {
+                call.respond(HttpStatusCode.NotFound, errorResponse("Project not found: $projectId"))
+                return@delete
+            }
+            try {
+                val result = store.deleteElement(projectId, elementId)
+                if (result == null) {
+                    call.respond(HttpStatusCode.NotFound, errorResponse("Project not found: $projectId"))
+                    return@delete
+                }
+
+                call.respond(mapOf(
+                    "commit" to result.commit.toApiResponse(),
+                    "deletedElementIds" to result.elementIds
+                ))
+            } catch (e: NoSuchElementException) {
+                call.respond(HttpStatusCode.NotFound, errorResponse(e.message ?: "Element not found"))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, errorResponse(e.message ?: "Delete failed"))
+            }
         }
     }
 

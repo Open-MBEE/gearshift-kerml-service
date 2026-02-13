@@ -34,6 +34,13 @@ fun createFlowEndMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "computeFlowEndFeaturingFlow",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.flowEnd->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this FlowEnd as an end."
+        ),
+        MetaConstraint(
             name = "validateFlowEndIsEnd",
             type = ConstraintType.VERIFICATION,
             expression = "isEnd",

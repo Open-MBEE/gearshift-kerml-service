@@ -19,6 +19,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.gearshift.generated.interfaces.Element
+import org.openmbee.gearshift.generated.interfaces.Membership
 import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import kotlin.reflect.KMutableProperty1
@@ -154,10 +155,19 @@ class ReferenceResolver(private val engine: MDMEngine) {
      */
     fun resolveAll(collector: ReferenceCollector): Int {
         val references = collector.getReferences()
-        var resolved = 0
+        if (references.isEmpty()) {
+            collector.clear()
+            return 0
+        }
 
+        // Build name indexes once — avoids O(refs × elements) linear scans and
+        // repeated evaluation of the recursive qualifiedName derivation.
+        val nameIndex = NameIndex.build(engine)
+        logger.debug { "Built name index for ${references.size} pending references" }
+
+        var resolved = 0
         for (ref in references) {
-            if (resolveReference(ref)) {
+            if (resolveReference(ref, nameIndex)) {
                 resolved++
             }
         }
@@ -171,9 +181,10 @@ class ReferenceResolver(private val engine: MDMEngine) {
      * Resolve a single pending reference.
      *
      * @param ref The pending reference to resolve
+     * @param nameIndex Pre-built name index for O(1) lookups
      * @return true if successfully resolved
      */
-    private fun resolveReference(ref: PendingReference): Boolean {
+    private fun resolveReference(ref: PendingReference, nameIndex: NameIndex): Boolean {
         // Get the source element
         val sourceElement = engine.getInstance(ref.sourceElementId) as? ModelElement
         if (sourceElement == null) {
@@ -182,68 +193,119 @@ class ReferenceResolver(private val engine: MDMEngine) {
         }
 
         // Resolve the qualified name to find the target element
-        val targetElement = resolveQualifiedName(ref.qualifiedName, ref.localNamespaceId)
+        val targetElement = nameIndex.resolve(ref.qualifiedName)
         if (targetElement == null) {
             throw UnresolvedReferenceException(
                 "Could not resolve qualified name '${ref.qualifiedName}' for ${ref.targetProperty} on ${sourceElement::class.simpleName}[${ref.sourceElementId}]"
             )
         }
 
+        // For importedMembership, the resolved name may point to the member element
+        // (e.g., a Class) rather than the Membership that makes it visible. Navigate
+        // to the element's owningMembership so we get the correct Membership type.
+        val resolvedTarget = if (ref.targetProperty == "importedMembership" && targetElement !is Membership) {
+            val owning = (targetElement as? Element)?.owningMembership
+            if (owning != null) {
+                logger.debug { "importedMembership: navigated from ${(targetElement as? Element)?.declaredName} to its owningMembership" }
+                owning as ModelElement
+            } else {
+                targetElement
+            }
+        } else {
+            targetElement
+        }
+
         // Set the property using reflection
-        return setProperty(sourceElement, ref.targetProperty, targetElement)
+        return setProperty(sourceElement, ref.targetProperty, resolvedTarget)
     }
 
     /**
-     * Resolve a qualified name to an element.
+     * Ephemeral name index built once per [resolveAll] call.
      *
-     * @param qualifiedName The qualified name (e.g., "Base::Anything" or just "Anything")
-     * @param localNamespaceId The namespace context for resolution (for relative names)
-     * @return The resolved element or null
+     * Uses only the stored [Element.declaredName] property (no derived property
+     * evaluation) to avoid triggering the recursive `qualifiedName` OCL derivation
+     * which can cause stack overflows with large mounted libraries.
+     *
+     * For qualified names like `ScalarValues::Integer`, the index looks up candidates
+     * by the last segment and then verifies the ownership chain matches.
      */
-    private fun resolveQualifiedName(qualifiedName: String, localNamespaceId: String): ModelElement? {
-        val parts = qualifiedName.split("::")
-        val simpleName = parts.last()
+    private class NameIndex(
+        private val byName: Map<String, List<ModelElement>>,
+        private val engine: MDMEngine
+    ) {
+        fun resolve(qualifiedName: String): ModelElement? {
+            val parts = qualifiedName.split("::")
+            val simpleName = parts.last()
+            val candidates = byName[simpleName] ?: return null
 
-        // First, try to find by declared name or effective name
-        val allElements = engine.getAllElements()
+            if (parts.size == 1) {
+                // Simple name — return first match
+                return candidates.firstOrNull()
+            }
 
-        // Try exact qualified name match first
-        if (parts.size > 1) {
-            // For qualified names like "Base::Anything", try to match the full path
-            for (element in allElements) {
-                if (element is Element) {
-                    val elementQualifiedName = element.qualifiedName
-                    if (elementQualifiedName == qualifiedName) {
-                        return element as? ModelElement
-                    }
+            // Qualified name — verify ownership chain matches all segments
+            for (candidate in candidates) {
+                if (matchesQualifiedPath(candidate, parts)) {
+                    return candidate
                 }
             }
+
+            // Fall back to first candidate if no qualified match
+            return candidates.firstOrNull()
         }
 
-        // Fall back to simple name match
-        for (element in allElements) {
-            if (element is Element) {
-                if (element.declaredName == simpleName || element.name == simpleName) {
-                    return element as? ModelElement
+        private fun matchesQualifiedPath(element: ModelElement, parts: List<String>): Boolean {
+            var current: Element? = element as? Element
+            // Walk from last segment backward through ownership chain
+            for (i in parts.lastIndex downTo 0) {
+                if (current == null) return false
+                if (current.declaredName != parts[i]) return false
+                if (i > 0) {
+                    current = getOwningNamespace(current)
                 }
             }
+            return true
         }
 
-        // If localNamespaceId is provided, try to resolve relative to that namespace
-        if (localNamespaceId.isNotEmpty()) {
-            val localNamespace = engine.getInstance(localNamespaceId) as? Element
-            if (localNamespace != null) {
-                // Try to find within the local namespace's owned members
-                // This is a simplified implementation - full KerML name resolution is more complex
-                for (element in allElements) {
-                    if (element is Element && element.declaredName == simpleName) {
-                        return element as? ModelElement
-                    }
+        private fun getOwningNamespace(element: Element): Element? {
+            // Walk the structural link graph to find the owning namespace
+            // WITHOUT triggering derived property evaluation (which causes
+            // stack overflow via inheritedMemberships → supertypes cascade).
+            //
+            // Path: Element ←(ownedMemberElement)← OwningMembership
+            //                                       ←(ownedMembership)← Namespace
+            val obj = element as? MDMObject ?: return null
+            val elementId = obj.id ?: return null
+
+            // Hop 1: Element → its OwningMembership
+            val memberships = engine.getLinkedSources(
+                "owningMembershipOwnedMemberElementAssociation", elementId
+            )
+            val membership = memberships.firstOrNull() ?: return null
+            val membershipId = membership.id ?: return null
+
+            // Hop 2: OwningMembership → its owning Namespace
+            val namespaces = engine.getLinkedSources(
+                "membershipOwningNamespaceOwnedMembershipAssociation", membershipId
+            )
+            return namespaces.firstOrNull() as? Element
+        }
+
+        companion object {
+            fun build(engine: MDMEngine): NameIndex {
+                val allElements = engine.getAllElements()
+                val nameMap = HashMap<String, MutableList<ModelElement>>(allElements.size / 2)
+
+                for (obj in allElements) {
+                    if (obj !is Element) continue
+                    val element = obj as? ModelElement ?: continue
+                    val dn = (obj as Element).declaredName ?: continue
+                    nameMap.getOrPut(dn) { mutableListOf() }.add(element)
                 }
+
+                return NameIndex(nameMap, engine)
             }
         }
-
-        return null
     }
 
     /**

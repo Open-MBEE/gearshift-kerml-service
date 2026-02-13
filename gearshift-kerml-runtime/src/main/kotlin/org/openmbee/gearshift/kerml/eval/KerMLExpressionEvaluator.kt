@@ -185,8 +185,8 @@ class KerMLExpressionEvaluator(
 
         val funcResult = functionLibrary.apply(operator, evaluatedArgs)
         return when (funcResult) {
-            is KernelFunctionLibrary.FunctionResult.LiteralElement -> listOf(funcResult.element)
-            is KernelFunctionLibrary.FunctionResult.Value -> {
+            is FunctionResult.LiteralElement -> listOf(funcResult.element)
+            is FunctionResult.Value -> {
                 when (val v = funcResult.value) {
                     null -> emptyList()
                     is MDMObject -> listOf(v)
@@ -202,9 +202,41 @@ class KerMLExpressionEvaluator(
     }
 
     private fun evaluateInvocation(expression: MDMObject, target: MDMObject): List<MDMObject> {
+        // Check for arrow-operation function name (set by parser for source->funcName(...))
+        val functionName = expression.getProperty("_functionName") as? String
+
+        // If the function library has a native implementation, dispatch directly
+        if (functionName != null && functionLibrary.hasOperator(functionName)) {
+            val arguments = getArguments(expression)
+            val evaluatedArgs = arguments.map { arg ->
+                if (arg is Expression) {
+                    val result = evaluate(arg, target)
+                    if (result.size == 1) result.first() else result
+                } else {
+                    arg
+                }
+            }
+            val funcResult = functionLibrary.apply(functionName, evaluatedArgs)
+            return when (funcResult) {
+                is FunctionResult.LiteralElement -> listOf(funcResult.element)
+                is FunctionResult.Value -> {
+                    when (val v = funcResult.value) {
+                        null -> emptyList()
+                        is MDMObject -> listOf(v)
+                        is List<*> -> v.filterIsInstance<MDMObject>()
+                        else -> emptyList()
+                    }
+                }
+                null -> {
+                    logger.warn { "Function library returned null for: $functionName" }
+                    emptyList()
+                }
+            }
+        }
+
         val function = (expression as? Expression)?.function as? MDMObject
         if (function == null) {
-            logger.warn { "InvocationExpression has no function" }
+            logger.warn { "InvocationExpression has no function${if (functionName != null) " (name=$functionName)" else ""}" }
             return emptyList()
         }
 
@@ -262,8 +294,8 @@ class KerMLExpressionEvaluator(
 
     private fun evaluateFeatureChain(expression: MDMObject, target: MDMObject): List<MDMObject> {
         val arguments = getArguments(expression)
-        if (arguments.size < 2) {
-            logger.warn { "FeatureChainExpression requires at least 2 arguments" }
+        if (arguments.isEmpty()) {
+            logger.warn { "FeatureChainExpression requires at least 1 argument (source)" }
             return emptyList()
         }
 
@@ -274,15 +306,17 @@ class KerMLExpressionEvaluator(
             listOf(sourceArg)
         }
 
-        val targetFeature = (expression as? FeatureChainExpression)?.targetFeature as? MDMObject
-        if (targetFeature == null) {
-            logger.warn { "FeatureChainExpression has no target feature" }
-            return emptyList()
+        // Resolve target feature name: try typed interface, then raw property fallback
+        val featureName = run {
+            val targetFeature = (expression as? FeatureChainExpression)?.targetFeature as? MDMObject
+            if (targetFeature != null) {
+                (targetFeature as? Element)?.declaredName ?: (targetFeature as? Element)?.name
+            } else {
+                expression.getProperty("_targetFeatureName") as? String
+            }
         }
-
-        val featureName = (targetFeature as? Element)?.declaredName ?: (targetFeature as? Element)?.name
         if (featureName == null) {
-            logger.warn { "Target feature has no name" }
+            logger.warn { "FeatureChainExpression has no target feature name" }
             return emptyList()
         }
 

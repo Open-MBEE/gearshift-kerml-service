@@ -137,6 +137,7 @@ class DemoApi(
 ) {
     private val model: KerMLModel
     private val projectStore: ProjectStore
+    private val simulationSessionManager = SimulationSessionManager()
 
     init {
         model = if (enableMounts) {
@@ -148,7 +149,18 @@ class DemoApi(
             // Simple model without library support
             KerMLModel(settings = settings)
         }
-        projectStore = ProjectStore(enableMounts)
+
+        // Set up file-based persistence if dataDir is configured
+        val backend = settings.dataDir?.let { dir ->
+            FileProjectBackend(java.nio.file.Path.of(dir))
+        }
+        projectStore = ProjectStore(enableMounts, backend)
+
+        // Restore persisted projects on startup
+        if (backend != null) {
+            val restored = backend.loadAll(projectStore)
+            logger.info { "Startup: restored $restored project(s) from ${settings.dataDir}" }
+        }
     }
 
     private val engine get() = model.engine
@@ -441,6 +453,9 @@ class DemoApi(
 
                 // Parametric analysis routes
                 parametricAnalysisRoutes(projectStore)
+
+                // Simulation streaming routes
+                simulationRoutes(simulationSessionManager)
 
                 get("/") {
                     // Serve the static HTML demo page
@@ -745,23 +760,36 @@ class DemoApi(
 /**
  * Main entry point for the Demo API server.
  *
- * Usage: DemoApi [port] [--with-library]
+ * Usage: DemoApi [port] [--no-library] [--data-dir=<path>]
  *   port: Server port (default: 8080)
- *   --with-library: Enable kernel library mounting for library type resolution
+ *   --no-library: Disable kernel library mounting (library is enabled by default)
+ *   --data-dir=<path>: Enable file-based persistence at the given directory
+ *   -Dgearshift.dataDir=<path>: Alternative via system property
  */
 fun main(args: Array<String>) {
     val port = args.firstOrNull { it.toIntOrNull() != null }?.toInt() ?: 8080
-    val enableMounts = args.contains("--with-library")
+    val enableMounts = !args.contains("--no-library")
+    val dataDir = args.firstOrNull { it.startsWith("--data-dir=") }
+        ?.substringAfter("--data-dir=")
+        ?: System.getProperty("gearshift.dataDir")
 
     val settings = GearshiftSettings(
         serverPort = port,
-        corsAllowedOrigins = listOf("http://localhost:4200")
+        corsAllowedOrigins = listOf("http://localhost:4200"),
+        dataDir = dataDir
     )
 
     logger.info { "Starting Gearshift KerML Demo API on port $port" }
     logger.info { "CORS allowed origins: ${settings.corsAllowedOrigins}" }
     if (enableMounts) {
         logger.info { "Library mounting enabled - loading kernel library..." }
+    } else {
+        logger.info { "Library mounting disabled (--no-library)" }
+    }
+    if (dataDir != null) {
+        logger.info { "Persistence enabled at $dataDir" }
+    } else {
+        logger.info { "Persistence disabled (use --data-dir=<path> or -Dgearshift.dataDir=<path> to enable)" }
     }
     DemoApi(port, enableMounts, settings).start()
 }

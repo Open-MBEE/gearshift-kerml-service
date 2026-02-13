@@ -90,6 +90,24 @@ open class AssociationStructureImpl(
             engine.setProperty(id!!, "ownedRelatedElement", value)
         }
 
+    override val ownedRendering: List<RenderingFeature>
+        get() {
+            val rawValue = engine.getProperty(id!!, "ownedRendering")
+            return (rawValue as? List<*>)?.filterIsInstance<RenderingFeature>() ?: emptyList()
+        }
+
+    override val ownedView: SubView?
+        get() {
+            val rawValue = engine.getProperty(id!!, "ownedView")
+            return rawValue as? SubView
+        }
+
+    override val ownedViewpoint: List<ViewpointPredicate>
+        get() {
+            val rawValue = engine.getProperty(id!!, "ownedViewpoint")
+            return (rawValue as? List<*>)?.filterIsInstance<ViewpointPredicate>() ?: emptyList()
+        }
+
     override var owningRelatedElement: Element?
         get() {
             val rawValue = engine.getProperty(id!!, "owningRelatedElement")

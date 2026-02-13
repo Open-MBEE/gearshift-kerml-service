@@ -26,13 +26,6 @@ fun createParameterMembershipMetaClass() = MetaClass(
     superclasses = listOf("FeatureMembership"),
     constraints = listOf(
         MetaConstraint(
-            name = "computeFeatureOwningParameterMembership",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "if owningFeatureMembership.oclIsKindOf(ParameterMembership) then owningFeatureMembership.oclAsType(ParameterMembership) else null endif",
-            isNormative = false,
-            description = "The ParameterMembership that owns this Feature, if owningFeatureMembership is a ParameterMembership."
-        ),
-        MetaConstraint(
             name = "deriveParameterMembershipOwnedMemberParameter",
             type = ConstraintType.REDEFINES_DERIVATION,
             expression = "ownedMemberFeature",

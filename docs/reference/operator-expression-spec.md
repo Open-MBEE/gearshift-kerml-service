@@ -200,4 +200,4 @@ These operators are used in primary expressions for indexing, sequences, and fea
 - KerML Specification v1.0, Section 8.4.4.9: Operator Expressions
 - KerML Specification v1.0, Clause 9: Kernel Model Library
 - [KerML.g4](../src/resource/third-party/grammars/KerML.g4) - ANTLR4 Grammar
-- [NAME_RESOLUTION_SPEC.md](NAME_RESOLUTION_SPEC.md) - Name Resolution Specification
+- [Name Resolution Spec](name-resolution-spec.md) - Name Resolution Specification

@@ -31,6 +31,13 @@ fun createClassifierMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
+            name = "computeClassifierFlowForPayloadType",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.payloadType->includes(self))",
+            isNormative = false,
+            description = "The Flows that have this Classifier as a payloadType."
+        ),
+        MetaConstraint(
             name = "deriveClassifierOwnedSubclassification",
             type = ConstraintType.DERIVATION,
             expression = "ownedSpecialization->selectByKind(Subclassification)",

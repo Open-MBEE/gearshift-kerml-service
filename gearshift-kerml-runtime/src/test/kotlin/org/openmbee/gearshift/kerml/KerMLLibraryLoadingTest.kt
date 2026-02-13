@@ -59,8 +59,8 @@ class KerMLLibraryLoadingTest : KerMLTestSpec({
                 val model = KerMLModel(projectName = "LibraryLoadTest")
                 val results = KerMLSemanticLibraryLoader.loadLibrary(model)
 
-                // Should have 37 library files total (16 + 3 + 17 + 1 Views)
-                results shouldHaveSize 37
+                // Should have 38 library files total (16 + 3 + 17 + 1 Views + 1 DocGen)
+                results shouldHaveSize 38
 
                 // All should succeed
                 val failures = results.filter { !it.success }

@@ -55,6 +55,9 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.3")
     implementation("ch.qos.logback:logback-classic:1.4.14")
 
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
     // Ktor (web server)
     val ktorVersion = "2.3.7"
     implementation("io.ktor:ktor-server-core:$ktorVersion")
@@ -69,6 +72,7 @@ dependencies {
     testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
     testImplementation("io.kotest:kotest-assertions-core:5.8.0")
     testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }
 
 // ── GearshiftSettings defaults ────────────────────────────────────────
@@ -87,6 +91,9 @@ dependencies {
 // gearshift.emitImpliedRelationships    false
 // gearshift.writerIndent                "    " (4 spaces)
 // gearshift.deterministicElementIds     false
+// gearshift.dataDir                     null   (path to persistence directory)
+// gearshift.log.level                   INFO   (ERROR | WARN | INFO | DEBUG | TRACE)
+// root.log.level                        WARN   (ERROR | WARN | INFO | DEBUG | TRACE)
 // ──────────────────────────────────────────────────────────────────────
 
 val gearshiftProperties = listOf(
@@ -99,7 +106,10 @@ val gearshiftProperties = listOf(
     "gearshift.preferSymbolicSyntax",
     "gearshift.emitImpliedRelationships",
     "gearshift.writerIndent",
-    "gearshift.deterministicElementIds"
+    "gearshift.deterministicElementIds",
+    "gearshift.dataDir",
+    "gearshift.log.level",
+    "root.log.level"
 )
 
 fun JavaForkOptions.forwardGearshiftProperties() {
@@ -122,7 +132,7 @@ kotlin {
 }
 
 application {
-    mainClass.set("org.openmbee.gearshift.ApplicationKt")
+    mainClass.set("org.openmbee.gearshift.api.DemoApiKt")
 }
 
 // Task to run the Demo API server

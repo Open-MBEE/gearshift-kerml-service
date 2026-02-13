@@ -230,7 +230,7 @@ in [OperationInvocationTest.kt](../src/test/kotlin/org/openmbee/gearshift/engine
 - Error handling
 - Query operations
 
-See [TESTING.md](TESTING.md) for details.
+See [Testing Guide](../reference/testing.md) for details.
 
 ## Error Handling
 

@@ -72,10 +72,10 @@ open class RenderingImpl(
     }
 
 
-    override val subrendering: Set<Rendering>
+    override val renderingFeature: RenderingFeature?
         get() {
-            val rawValue = engine.getProperty(id!!, "subrendering")
-            return (rawValue as? List<*>)?.filterIsInstance<Rendering>()?.toSet() ?: emptySet()
+            val rawValue = engine.getProperty(id!!, "renderingFeature")
+            return rawValue as? RenderingFeature
         }
 }
 

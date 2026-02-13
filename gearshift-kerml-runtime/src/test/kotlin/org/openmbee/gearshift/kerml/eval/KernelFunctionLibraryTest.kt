@@ -42,8 +42,8 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should add two integers") {
             val result = library.apply("+", listOf(3L, 5L))
             result.shouldNotBeNull()
-            result.shouldBeInstanceOf<KernelFunctionLibrary.FunctionResult.LiteralElement>()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            result.shouldBeInstanceOf<FunctionResult.LiteralElement>()
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralInteger"
             engine.getPropertyValue(literal, "value") shouldBe 8L
         }
@@ -51,7 +51,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should add integer and rational") {
             val result = library.apply("+", listOf(3L, 2.5))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralRational"
             engine.getPropertyValue(literal, "value") shouldBe 5.5
         }
@@ -59,7 +59,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should subtract two integers") {
             val result = library.apply("-", listOf(10L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralInteger"
             engine.getPropertyValue(literal, "value") shouldBe 7L
         }
@@ -67,21 +67,21 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should handle unary minus") {
             val result = library.apply("-", listOf(5L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe -5L
         }
 
         it("should multiply two integers") {
             val result = library.apply("*", listOf(4L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe 12L
         }
 
         it("should divide evenly") {
             val result = library.apply("/", listOf(10L, 2L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralInteger"
             engine.getPropertyValue(literal, "value") shouldBe 5L
         }
@@ -89,7 +89,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should divide with remainder producing rational") {
             val result = library.apply("/", listOf(7L, 2L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralRational"
             engine.getPropertyValue(literal, "value") shouldBe 3.5
         }
@@ -97,20 +97,20 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should return null for division by zero") {
             val result = library.apply("/", listOf(5L, 0L))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value.shouldBeNull()
+            (result as FunctionResult.Value).value.shouldBeNull()
         }
 
         it("should compute modulo") {
             val result = library.apply("%", listOf(10L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe 1L
         }
 
         it("should compute power") {
             val result = library.apply("**", listOf(2L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralInteger"
             engine.getPropertyValue(literal, "value") shouldBe 8L
         }
@@ -121,7 +121,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should compare less than") {
             val result = library.apply("<", listOf(3L, 5L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralBoolean"
             engine.getPropertyValue(literal, "value") shouldBe true
         }
@@ -129,21 +129,21 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should compare greater than") {
             val result = library.apply(">", listOf(5L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compare less equal") {
             val result = library.apply("<=", listOf(5L, 5L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compare greater equal") {
             val result = library.apply(">=", listOf(3L, 5L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
     }
@@ -153,35 +153,35 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should test equal integers") {
             val result = library.apply("=", listOf(5L, 5L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should test unequal integers") {
             val result = library.apply("=", listOf(5L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
 
         it("should test not-equal") {
             val result = library.apply("<>", listOf(5L, 3L))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compare across numeric types") {
             val result = library.apply("=", listOf(5L, 5.0))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compare strings") {
             val result = library.apply("=", listOf("hello", "hello"))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
     }
@@ -191,56 +191,56 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should compute and") {
             val result = library.apply("and", listOf(true, false))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
 
         it("should short-circuit and on false") {
             val result = library.apply("and", listOf(false, null))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
 
         it("should compute or") {
             val result = library.apply("or", listOf(false, true))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should short-circuit or on true") {
             val result = library.apply("or", listOf(true, null))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compute not") {
             val result = library.apply("not", listOf(true))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
 
         it("should compute xor") {
             val result = library.apply("xor", listOf(true, false))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
 
         it("should compute implies") {
             val result = library.apply("implies", listOf(true, false))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe false
         }
 
         it("should short-circuit implies on false antecedent") {
             val result = library.apply("implies", listOf(false, null))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe true
         }
     }
@@ -250,7 +250,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should concatenate strings with +") {
             val result = library.apply("+", listOf("hello", " world"))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralString"
             engine.getPropertyValue(literal, "value") shouldBe "hello world"
         }
@@ -258,7 +258,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should compute string size") {
             val result = library.apply("Size", listOf("hello"))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             engine.getPropertyValue(literal, "value") shouldBe 5L
         }
     }
@@ -268,37 +268,37 @@ class KernelFunctionLibraryTest : DescribeSpec({
         it("should return then value for if with true condition") {
             val result = library.apply("if", listOf(true, "yes", "no"))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value shouldBe "yes"
+            (result as FunctionResult.Value).value shouldBe "yes"
         }
 
         it("should return else value for if with false condition") {
             val result = library.apply("if", listOf(false, "yes", "no"))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value shouldBe "no"
+            (result as FunctionResult.Value).value shouldBe "no"
         }
 
         it("should coalesce null with ??") {
             val result = library.apply("??", listOf(null, "default"))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value shouldBe "default"
+            (result as FunctionResult.Value).value shouldBe "default"
         }
 
         it("should return value when not null with ??") {
             val result = library.apply("??", listOf("present", "default"))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value shouldBe "present"
+            (result as FunctionResult.Value).value shouldBe "present"
         }
 
         it("should index into a list with #") {
             val result = library.apply("#", listOf(listOf("a", "b", "c"), 2L))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value shouldBe "b"
+            (result as FunctionResult.Value).value shouldBe "b"
         }
 
         it("should return null for out-of-bounds index") {
             val result = library.apply("#", listOf(listOf("a", "b"), 5L))
             result.shouldNotBeNull()
-            (result as KernelFunctionLibrary.FunctionResult.Value).value.shouldBeNull()
+            (result as FunctionResult.Value).value.shouldBeNull()
         }
     }
 
@@ -324,7 +324,7 @@ class KernelFunctionLibraryTest : DescribeSpec({
             val b = library.createLiteralInteger(3)
             val result = library.apply("+", listOf(a, b))
             result.shouldNotBeNull()
-            val literal = (result as KernelFunctionLibrary.FunctionResult.LiteralElement).element
+            val literal = (result as FunctionResult.LiteralElement).element
             literal.className shouldBe "LiteralInteger"
             engine.getPropertyValue(literal, "value") shouldBe 13L
         }

@@ -16,9 +16,12 @@
 package org.openmbee.gearshift.kerml
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import org.openmbee.mdm.framework.runtime.MetamodelRegistry
+import org.openmbee.gearshift.kerml.metamodel.associations.createRenderingAssociations
+import org.openmbee.gearshift.kerml.metamodel.associations.createViewRenderingMembershipAssociations
+import org.openmbee.gearshift.kerml.metamodel.associations.createViewpointAssociations
 import org.openmbee.gearshift.kerml.metamodel.associations.createViewsAssociations
 import org.openmbee.gearshift.kerml.metamodel.classes.views.*
+import org.openmbee.mdm.framework.runtime.MetamodelRegistry
 
 private val viewsLogger = KotlinLogging.logger {}
 
@@ -58,7 +61,9 @@ object ViewsExtensionLoader {
 
         // View and Rendering (depend on Structure from kernel package)
         registry.registerClass(createRenderingMetaClass())
+        registry.registerClass(createRenderingFeatureMetaClass())
         registry.registerClass(createViewMetaClass())
+        registry.registerClass(createSubViewMetaClass())
         registry.registerClass(createViewRenderingMembershipMetaClass())
 
         // Viewpoint and ViewpointPredicate (depend on Predicate, BooleanExpression)
@@ -68,11 +73,14 @@ object ViewsExtensionLoader {
 
     private fun registerAssociations(registry: MetamodelRegistry) {
         createViewsAssociations().forEach { registry.registerAssociation(it) }
+        createViewpointAssociations().forEach { registry.registerAssociation(it) }
+        createRenderingAssociations().forEach { registry.registerAssociation(it) }
+        createViewRenderingMembershipAssociations().forEach { registry.registerAssociation(it) }
     }
 
     fun getViewsClasses() = setOf(
         "Expose", "MembershipExpose", "NamespaceExpose",
-        "Rendering", "View", "ViewRenderingMembership",
+        "Rendering", "RenderingFeature", "View", "SubView", "ViewRenderingMembership",
         "Viewpoint", "ViewpointPredicate"
     )
 }

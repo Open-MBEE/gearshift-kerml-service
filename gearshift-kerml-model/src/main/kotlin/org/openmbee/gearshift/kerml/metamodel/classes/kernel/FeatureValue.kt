@@ -74,20 +74,6 @@ fun createFeatureValueMetaClass() = MetaClass(
             expression = "featureWithValue.redefinition.redefinedFeature->closure(redefinition.redefinedFeature).valuation->forAll(isDefault)",
             description = "All Features directly or indirectly redefined by the featureWithValue of a FeatureValue must have only default FeatureValues."
         ),
-        MetaConstraint(
-            name = "computeFeatureValuation",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "FeatureValue.allInstances()->select(fv | fv.featureWithValue = self)->any(true)",
-            isNormative = false,
-            description = "The FeatureValue that provides the value for this Feature."
-        ),
-        MetaConstraint(
-            name = "computeExpressionExpressedValuation",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "FeatureValue.allInstances()->select(fv | fv.value = self)->any(true)",
-            isNormative = false,
-            description = "The FeatureValue that has this Expression as its value."
-        )
     ),
     description = "A FeatureValue is a Membership that identifies a particular memberExpression that provides the value of the Feature that owns the FeatureValue."
 )

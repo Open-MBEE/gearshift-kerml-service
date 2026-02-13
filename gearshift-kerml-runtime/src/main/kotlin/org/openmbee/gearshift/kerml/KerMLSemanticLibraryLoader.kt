@@ -110,7 +110,10 @@ object KerMLSemanticLibraryLoader {
         LibraryFile("OccurrenceFunctions.kerml", "Kernel Function Library"),
 
         // === Views Library (non-normative extension) ===
-        LibraryFile("Views.kerml", "Views Library")
+        LibraryFile("Views.kerml", "Views Library"),
+
+        // === DocGen Library (non-normative extension) ===
+        LibraryFile("DocGen.kerml", "DocGen Library")
     )
 
     /**

@@ -162,6 +162,20 @@ fun createElementMetaClass() = MetaClass(
             description = "Derivation for Element::textualRepresentation association end"
         ),
         MetaConstraint(
+            name = "computeElementAccessExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "MetadataAccessExpression.allInstances()->select(mae | mae.referencedElement = self)",
+            isNormative = false,
+            description = "The MetadataAccessExpressions that have this Element as their referencedElement."
+        ),
+        MetaConstraint(
+            name = "computeElementAnnotatingElement",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "AnnotatingElement.allInstances()->select(ae | ae.annotatedElement->includes(self))",
+            isNormative = false,
+            description = "The AnnotatingElements that have this Element as their annotatedElement."
+        ),
+        MetaConstraint(
             name = "computeElementMembershipImport",
             type = ConstraintType.NON_NAVIGABLE_END,
             expression = "Import.allInstances()->select(i | i.importedElement = self)",
@@ -188,14 +202,14 @@ fun createElementMetaClass() = MetaClass(
             name = "effectiveName",
             returnType = "String",
             description = "Return an effective name for this Element. By default this is the same as its declaredName.",
-            body = MetaOperation.ocl("declaredName"),
+            body = MetaOperation.native { element, _, _ -> element.getProperty("declaredName") },
             isQuery = true
         ),
         MetaOperation(
             name = "effectiveShortName",
             returnType = "String",
             description = "Return an effective short name for this Element. By default this is the same as its declaredShortName.",
-            body = MetaOperation.ocl("declaredShortName"),
+            body = MetaOperation.native { element, _, _ -> element.getProperty("declaredShortName") },
             isQuery = true
         ),
         MetaOperation(

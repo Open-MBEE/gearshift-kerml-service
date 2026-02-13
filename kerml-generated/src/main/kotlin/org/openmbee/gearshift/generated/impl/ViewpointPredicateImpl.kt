@@ -72,10 +72,16 @@ open class ViewpointPredicateImpl(
     }
 
 
-    override val viewpointDefinition: Set<Viewpoint>
+    override val viewpoint: Viewpoint?
         get() {
-            val rawValue = engine.getProperty(id!!, "viewpointDefinition")
-            return (rawValue as? List<*>)?.filterIsInstance<Viewpoint>()?.toSet() ?: emptySet()
+            val rawValue = engine.getProperty(id!!, "viewpoint")
+            return rawValue as? Viewpoint
+        }
+
+    override val viewpointStakeholder: List<Feature>
+        get() {
+            val rawValue = engine.getProperty(id!!, "viewpointStakeholder")
+            return (rawValue as? List<*>)?.filterIsInstance<Feature>() ?: emptyList()
         }
 }
 

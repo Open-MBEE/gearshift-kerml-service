@@ -131,6 +131,70 @@ data class KermlParseContext(
     }
 
     /**
+     * Create a new Relationship/Membership instance WITHOUT triggering OwnershipResolver.
+     *
+     * Unlike [create], this method does NOT pass `parent` to the generated constructor,
+     * so OwnershipResolver will not create an intermediate wrapping membership. Use this
+     * for elements that ARE relationships themselves (Import, Expose, ViewRenderingMembership)
+     * where the caller will manually set the ownership association (e.g., `importOwningNamespace`
+     * or `membershipOwningNamespace`).
+     *
+     * @param declaredName Optional name for the element
+     * @param declaredShortName Optional short name for the element
+     */
+    inline fun <reified T : ModelElement> createRelationship(
+        declaredName: String? = null,
+        declaredShortName: String? = null
+    ): T {
+        val typeName = T::class.simpleName ?: throw IllegalArgumentException("Cannot get simpleName for type")
+        val implClassName = "org.openmbee.gearshift.generated.impl.${typeName}Impl"
+
+        val metaClass = engine.schema.getClass(typeName)
+            ?: throw IllegalStateException("MetaClass '$typeName' not found in schema.")
+
+        @Suppress("UNCHECKED_CAST")
+        val implClass = Class.forName(implClassName).kotlin as KClass<T>
+
+        val constructor = implClass.constructors.find { ctor ->
+            val params = ctor.parameters
+            params.isNotEmpty() && params[0].type.classifier == MDMEngine::class
+        } ?: throw IllegalArgumentException("No suitable constructor found for $typeName")
+
+        val elementId = if (deterministicElementIds && parentQualifiedName.isNotEmpty()) {
+            val qualifiedName = if (declaredName != null) "$parentQualifiedName::$declaredName" else parentQualifiedName
+            org.openmbee.gearshift.kerml.LibraryElementIdAssigner.generateUuidV5(
+                UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8"),
+                qualifiedName
+            ).toString()
+        } else {
+            UUID.randomUUID().toString()
+        }
+
+        // Build argument map — intentionally omit "parent" to skip OwnershipResolver
+        val args = mutableMapOf<KParameter, Any?>()
+        for (param in constructor.parameters) {
+            when (param.name) {
+                "engine" -> args[param] = engine
+                "declaredName" -> if (declaredName != null) args[param] = declaredName
+                "declaredShortName" -> if (declaredShortName != null) args[param] = declaredShortName
+                "elementId" -> args[param] = elementId
+                // Deliberately skip "parent" — the default (null) means no OwnershipResolver
+            }
+        }
+
+        try {
+            val element = constructor.callBy(args) as MDMObject
+            engine.registerElement(element)
+
+            @Suppress("UNCHECKED_CAST")
+            return element as T
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            val cause = e.cause
+            throw IllegalStateException("Failed to construct $typeName: ${cause?.message}", cause)
+        }
+    }
+
+    /**
      * Get the parent element ID for reference resolution context.
      */
     fun getParentElementId(): String? {

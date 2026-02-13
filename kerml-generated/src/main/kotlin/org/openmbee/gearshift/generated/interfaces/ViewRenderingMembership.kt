@@ -21,6 +21,8 @@ package org.openmbee.gearshift.generated.interfaces
  */
 interface ViewRenderingMembership : FeatureMembership {
 
-    val ownedRendering: Rendering
+    val ownedRendering: RenderingFeature
+
+    val referencedRendering: RenderingFeature
 }
 

@@ -42,13 +42,6 @@ fun createResultExpressionMembershipMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "owningType.oclIsKindOf(Function) or owningType.oclIsKindOf(Expression)",
             description = "The owningType of a ResultExpressionMembership must be a Function or Expression."
-        ),
-        MetaConstraint(
-            name = "computeExpressionOwningResultExpressionMembership",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "if owningFeatureMembership.oclIsKindOf(ResultExpressionMembership) then owningFeatureMembership.oclAsType(ResultExpressionMembership) else null endif",
-            isNormative = false,
-            description = "The ResultExpressionMembership that owns this Expression, if owningFeatureMembership is a ResultExpressionMembership."
         )
     ),
     description = "A ResultExpressionMembership is a FeatureMembership that indicates that the ownedResultExpression provides the result values for the Function or Expression that owns it."

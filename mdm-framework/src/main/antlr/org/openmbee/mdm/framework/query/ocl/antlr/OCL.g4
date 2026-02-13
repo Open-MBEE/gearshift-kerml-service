@@ -344,6 +344,7 @@ oneSuffix
 
 anySuffix
     : ARROW_ANY_OP '(' iteratorVar=ID (':' iteratorType=type)? '|' body=expression ')'
+    | ARROW_ANY_OP '(' body=expression ')'
     ;
 
 closureSuffix

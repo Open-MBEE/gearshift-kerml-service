@@ -57,7 +57,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
             parseNamespaceImport(importDecl.namespaceImport(), kermlParseContext)
         } else {
             // Default to base import if no declaration
-            kermlParseContext.create<MembershipImport>()
+            kermlParseContext.createRelationship<MembershipImport>()
         }
 
         // Parse visibility
@@ -70,10 +70,21 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
             import.isImportAll = true
         }
 
-        // Set import owning namespace
+        // Link Import to its owning namespace via associations.
+        // Using engine.link() (not property setters) to create bidirectional links
+        // so the Import appears in the parent's ownedRelationship/ownedImport.
         kermlParseContext.parent?.let { parent ->
             if (parent is Namespace) {
-                import.importOwningNamespace = parent
+                kermlParseContext.engine.link(
+                    sourceId = parent.id!!,
+                    targetId = import.id!!,
+                    associationName = "importOwningNamespaceOwnedImportAssociation"
+                )
+                kermlParseContext.engine.link(
+                    sourceId = parent.id!!,
+                    targetId = import.id!!,
+                    associationName = "owningRelatedElementOwnedRelationshipAssociation"
+                )
             }
         }
 
@@ -95,7 +106,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
         ctx: KerMLParser.MembershipImportContext,
         kermlParseContext: KermlParseContext
     ): MembershipImport {
-        val membershipImport = kermlParseContext.create<MembershipImport>()
+        val membershipImport = kermlParseContext.createRelationship<MembershipImport>()
 
         // Parse imported membership reference
         ctx.importedMembership?.let { qn ->
@@ -120,7 +131,7 @@ class ImportVisitor : BaseRelationshipVisitor<KerMLParser.Import_Context, Import
         ctx: KerMLParser.NamespaceImportContext,
         kermlParseContext: KermlParseContext
     ): NamespaceImport {
-        val namespaceImport = kermlParseContext.create<NamespaceImport>()
+        val namespaceImport = kermlParseContext.createRelationship<NamespaceImport>()
 
         // Parse imported namespace reference
         ctx.qualifiedName()?.let { qn ->

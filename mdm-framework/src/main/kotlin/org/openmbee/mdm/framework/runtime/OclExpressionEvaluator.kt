@@ -76,4 +76,7 @@ private class MDMEngineAccessor(private val engine: MDMEngine) : EngineAccessor 
 
     override fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any? =
         engine.getPropertyAs(instanceId, propertyName, viewAsClass)
+
+    override fun getOperationParameterNames(className: String, operationName: String): List<String> =
+        engine.getOperationParameterNames(className, operationName)
 }

@@ -78,20 +78,6 @@ fun createFunctionMetaClass() = MetaClass(
             description = "The Expressions that are steps in the calculation of the result of this Function."
         ),
         MetaConstraint(
-            name = "computeFeatureComputingExpression",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "Expression.allInstances()->select(e | e.result = self)",
-            isNormative = false,
-            description = "The Expressions that have this Feature as their result."
-        ),
-        MetaConstraint(
-            name = "computeFeatureComputingFunction",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "Function.allInstances()->select(f | f.result = self)",
-            isNormative = false,
-            description = "The Functions that have this Feature as their result."
-        ),
-        MetaConstraint(
             name = "computeFunctionTypedExpression",
             type = ConstraintType.NON_NAVIGABLE_END,
             expression = "Expression.allInstances()->select(e | e.function->includes(self))",

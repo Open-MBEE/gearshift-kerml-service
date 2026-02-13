@@ -1398,11 +1398,19 @@ ownedExpressionMember
 //     | MetaclassificationExpression
 //     | ExtentExpression
 //     | PrimaryExpression
-// Refactored to use direct left recursion to eliminate mutual recursion
+// Refactored to use direct left recursion to eliminate mutual recursion.
+// Binary operators split into precedence groups. In ANTLR 4 left-recursive rules,
+// the FIRST listed alternative has the HIGHEST precedence (tightest binding).
 ownedExpression
     : IF ownedExpression QUESTION ownedExpression ELSE ownedExpression emptyResultMember
+    | ownedExpression exponentialOperator ownedExpression
+    | ownedExpression multiplicativeOperator ownedExpression
+    | ownedExpression additiveOperator ownedExpression
+    | ownedExpression rangeOperator ownedExpression
+    | ownedExpression relationalOperator ownedExpression
+    | ownedExpression equalityOperator ownedExpression
+    | ownedExpression bitwiseOperator ownedExpression
     | ownedExpression conditionalBinaryOperator ownedExpression
-    | ownedExpression binaryOperator ownedExpression
     | unaryOperator ownedExpression emptyResultMember
     | classificationTestOperator typeReferenceMember emptyResultMember
     | ownedExpression classificationTestOperator typeReferenceMember emptyResultMember
@@ -1435,32 +1443,57 @@ binaryOperatorExpression
       emptyResultMember
     ;
 
-// BinaryOperator =
-//     '|' | '&' | 'xor' | '..'
-//     | '==' | '!=' | '===' | '!=='
-//     | '<' | '>' | '<=' | '>='
-//     | '+' | '-' | '*' | '/'
-//     | '%' | '^' | '**'
+// BinaryOperator — composite rule kept for binaryOperatorExpression backward compat
 binaryOperator
-    : PIPE
-    | AMPERSAND
-    | XOR
-    | DOUBLE_DOT
-    | DOUBLE_EQUALS
+    : equalityOperator
+    | relationalOperator
+    | additiveOperator
+    | multiplicativeOperator
+    | exponentialOperator
+    | bitwiseOperator
+    | rangeOperator
+    ;
+
+// Precedence-grouped operator sub-rules (used by ownedExpression for correct precedence)
+
+equalityOperator
+    : DOUBLE_EQUALS
     | EXCLAIM_EQUALS
     | TRIPLE_EQUALS
     | EXCLAIM_EQUALS_EQUALS
-    | LESS
+    ;
+
+relationalOperator
+    : LESS
     | GREATER
     | LESS_EQUALS
     | GREATER_EQUALS
-    | PLUS
+    ;
+
+additiveOperator
+    : PLUS
     | MINUS
-    | STAR
+    ;
+
+multiplicativeOperator
+    : STAR
     | SLASH
     | PERCENT
-    | CARET
+    ;
+
+exponentialOperator
+    : CARET
     | DOUBLE_STAR
+    ;
+
+bitwiseOperator
+    : PIPE
+    | AMPERSAND
+    | XOR
+    ;
+
+rangeOperator
+    : DOUBLE_DOT
     ;
 
 // UnaryOperatorExpression : OperatorExpression =

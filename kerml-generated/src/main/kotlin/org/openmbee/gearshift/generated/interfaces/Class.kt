@@ -20,5 +20,11 @@ package org.openmbee.gearshift.generated.interfaces
  * A classifier that represents a class
  */
 interface Class : Classifier {
+
+    val ownedRendering: List<RenderingFeature>
+
+    val ownedView: SubView?
+
+    val ownedViewpoint: List<ViewpointPredicate>
 }
 

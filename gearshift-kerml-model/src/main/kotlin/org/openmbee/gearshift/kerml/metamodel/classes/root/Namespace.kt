@@ -88,7 +88,46 @@ fun createNamespaceMetaClass() = MetaClass(
             parameters = listOf(
                 MetaParameter(name = "excluded", type = "Namespace", lowerBound = 0, upperBound = -1)
             ),
-            body = MetaOperation.ocl("ownedImport.importedMemberships(excluded->including(self))"),
+            // Native implementation replaces OCL: ownedImport.importedMemberships(excluded->including(self))
+            // Short-circuits when there are no imports (the common case for Features/Types),
+            // avoiding expensive OCL evaluation cascade through membership derivations.
+            body = MetaOperation.native { element, args, engine ->
+                // Get ownedRelationships via stored association links (cheap)
+                val ownedRels = engine.getProperty(element, "ownedRelationship")
+                val relList = when (ownedRels) {
+                    is List<*> -> ownedRels.filterIsInstance<MDMObject>()
+                    is MDMObject -> listOf(ownedRels)
+                    else -> emptyList()
+                }
+
+                // Filter for Import instances
+                val imports = relList.filter { engine.isInstanceOf(it, "Import") }
+
+                // Short-circuit: no imports → empty result
+                if (imports.isEmpty()) return@native emptyList<Any>()
+
+                // Build excluded set including self
+                @Suppress("UNCHECKED_CAST")
+                val excluded = when (val ex = args["excluded"]) {
+                    is Set<*> -> ex.toMutableSet()
+                    is Collection<*> -> ex.toMutableSet()
+                    else -> mutableSetOf<Any?>()
+                }
+                excluded.add(element)
+
+                // Call importedMemberships on each Import
+                val result = mutableListOf<Any>()
+                for (imp in imports) {
+                    val imported = engine.invokeOperation(
+                        imp.id!!, "importedMemberships", mapOf("excluded" to excluded)
+                    )
+                    when (imported) {
+                        is Collection<*> -> result.addAll(imported.filterNotNull())
+                        is MDMObject -> result.add(imported)
+                    }
+                }
+                result
+            },
             description = """
                 Derive the importedMemberships of this Namespace as the importedMembership of all
                 ownedImports, excluding those Imports whose importOwningNamespace is in the excluded

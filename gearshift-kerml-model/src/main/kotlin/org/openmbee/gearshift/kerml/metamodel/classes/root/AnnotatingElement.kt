@@ -53,13 +53,6 @@ fun createAnnotatingElementMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "ownedRelationship->selectByKind(Annotation)->select(a | a.annotatedElement <> self)",
             description = "Derivation for AnnotatingElement::ownedAnnotatingRelationship"
-        ),
-        MetaConstraint(
-            name = "computeElementAnnotatingElement",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "AnnotatingElement.allInstances()->select(ae | ae.annotatedElement->includes(self))",
-            isNormative = false,
-            description = "The AnnotatingElements that have this Element as their annotatedElement."
         )
     ),
     description = "An element that annotates other elements"

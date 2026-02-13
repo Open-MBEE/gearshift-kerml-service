@@ -25,6 +25,7 @@ import org.openmbee.mdm.framework.meta.MetaOperation
 import org.openmbee.mdm.framework.meta.MetaParameter
 import org.openmbee.mdm.framework.meta.MetaProperty
 import org.openmbee.mdm.framework.meta.SemanticBinding
+import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Feature metaclass.
@@ -147,18 +148,34 @@ fun createFeatureMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             redefines = "effectiveName",
-            body = MetaOperation.ocl("""
-                if declaredShortName <> null or declaredName <> null then
+            // Native implementation replaces OCL to avoid expensive derivation cascade.
+            // The OCL version calls namingFeature() which navigates ownedRedefinition→redefinedFeature,
+            // triggering inheritedMemberships. For the common case (declaredName is set), this
+            // short-circuits immediately without any OCL evaluation.
+            body = MetaOperation.native { element, _, engine ->
+                val declaredName = element.getProperty("declaredName") as? String
+                val declaredShortName = element.getProperty("declaredShortName") as? String
+                if (declaredShortName != null || declaredName != null) {
                     declaredName
-                else
-                    let namingFeature: Feature = namingFeature() in
-                    if namingFeature = null then
+                } else {
+                    // namingFeature = ownedRedefinition->at(1).redefinedFeature
+                    val namingFeature = run {
+                        val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
+                        val specList = when (ownedSpecs) {
+                            is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
+                            is MDMObject -> listOf(ownedSpecs)
+                            else -> emptyList()
+                        }
+                        val firstRedef = specList.firstOrNull { engine.isInstanceOf(it, "Redefinition") }
+                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? MDMObject }
+                    }
+                    if (namingFeature != null) {
+                        engine.invokeOperation(namingFeature.id!!, "effectiveName", emptyMap())
+                    } else {
                         null
-                    else
-                        namingFeature.effectiveName()
-                    endif
-                endif
-            """.trimIndent()),
+                    }
+                }
+            },
             description = "If a Feature has no declaredName or declaredShortName, then its effective name is given by the effective name of the Feature returned by the namingFeature() operation, if any."
         ),
         MetaOperation(
@@ -167,18 +184,30 @@ fun createFeatureMetaClass() = MetaClass(
             returnLowerBound = 0,
             returnUpperBound = 1,
             redefines = "effectiveShortName",
-            body = MetaOperation.ocl("""
-                if declaredShortName <> null or declaredName <> null then
+            // Native implementation — same pattern as effectiveName above.
+            body = MetaOperation.native { element, _, engine ->
+                val declaredShortName = element.getProperty("declaredShortName") as? String
+                val declaredName = element.getProperty("declaredName") as? String
+                if (declaredShortName != null || declaredName != null) {
                     declaredShortName
-                else
-                    let namingFeature: Feature = namingFeature() in
-                    if namingFeature = null then
+                } else {
+                    val namingFeature = run {
+                        val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
+                        val specList = when (ownedSpecs) {
+                            is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
+                            is MDMObject -> listOf(ownedSpecs)
+                            else -> emptyList()
+                        }
+                        val firstRedef = specList.firstOrNull { engine.isInstanceOf(it, "Redefinition") }
+                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? MDMObject }
+                    }
+                    if (namingFeature != null) {
+                        engine.invokeOperation(namingFeature.id!!, "effectiveShortName", emptyMap())
+                    } else {
                         null
-                    else
-                        namingFeature.effectiveShortName()
-                    endif
-                endif
-            """.trimIndent()),
+                    }
+                }
+            },
             description = "If a Feature has no declaredShortName or declaredName, then its effective shortName is given by the effective shortName of the Feature returned by the namingFeature() operation, if any."
         ),
         MetaOperation(
@@ -343,12 +372,32 @@ fun createFeatureMetaClass() = MetaClass(
                 MetaParameter(name = "excludeImplied", type = "Boolean")
             ),
             redefines = "supertypes",
-            body = MetaOperation.ocl("""
-                let supertypes: OrderedSet(Type) = self.oclAsType(Type).supertypes(excludeImplied) in
-                if featureTarget = self then supertypes
-                else supertypes->append(featureTarget)
-                endif
-            """.trimIndent()),
+            body = MetaOperation.native { element, args, engine ->
+                val excludeImplied = args["excludeImplied"] as? Boolean ?: false
+                // Replicate Type.supertypes logic (can't call super via oclAsType)
+                val conjugator = engine.getProperty(element, "ownedConjugator") as? MDMObject
+                val baseSupertypes = if (conjugator != null) {
+                    val originalType = engine.getProperty(conjugator, "originalType") as? MDMObject
+                    if (originalType != null) mutableListOf<MDMObject>(originalType) else mutableListOf()
+                } else {
+                    val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
+                    val specList = when (ownedSpecs) {
+                        is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
+                        is MDMObject -> listOf(ownedSpecs)
+                        else -> emptyList()
+                    }
+                    val filtered = if (excludeImplied) {
+                        specList.filter { (engine.getProperty(it, "isImplied") as? Boolean) != true }
+                    } else specList
+                    filtered.mapNotNull { engine.getProperty(it, "general") as? MDMObject }.toMutableList()
+                }
+                // Append featureTarget if different from self
+                val featureTarget = engine.getProperty(element, "featureTarget") as? MDMObject
+                if (featureTarget != null && featureTarget.id != element.id) {
+                    baseSupertypes.add(featureTarget)
+                }
+                baseSupertypes
+            },
             description = "Return the supertypes of this Feature, including the featureTarget if different from self."
         ),
         MetaOperation(
@@ -803,10 +852,59 @@ fun createFeatureMetaClass() = MetaClass(
             description = "A Feature with isPortion = true must not have isVariable = true."
         ),
         MetaConstraint(
+            name = "computeFeatureBaseFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureChaining.allInstances()->select(fc | fc.featureTarget = self)",
+            isNormative = false,
+            description = "The FeatureChaininings that have this Feature as their featureTarget."
+        ),
+        MetaConstraint(
+            name = "computeFeatureChainedFeature",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureChaining.allInstances()->select(fc | fc.chainingFeature = self)",
+            isNormative = false,
+            description = "The Features that have this Feature in their chainingFeatures."
+        ),
+        MetaConstraint(
+            name = "computeFeatureChainExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureChainExpression.allInstances()->select(fce | fce.targetFeature = self)",
+            isNormative = false,
+            description = "The FeatureChainExpressions that have this Feature as their targetFeature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureComputingExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Expression.allInstances()->select(e | e.result = self)",
+            isNormative = false,
+            description = "The Expressions that have this Feature as their result."
+        ),
+        MetaConstraint(
+            name = "computeFeatureComputingFunction",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Function.allInstances()->select(f | f.result = self)",
+            isNormative = false,
+            description = "The Functions that have this Feature as their result."
+        ),
+        MetaConstraint(
             name = "computeFeatureEndOwningType",
             type = ConstraintType.NON_NAVIGABLE_END,
             expression = "EndFeatureMembership.allInstances()->select(efm | efm.ownedMemberFeature = self).owningType->any(true)",
             description = "The Type that is related to this Feature by an EndFeatureMembership in which the Feature is an ownedMemberFeature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureFlowFromOutput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.sourceOutputFeature = self)",
+            isNormative = false,
+            description = "The Flows that have this Feature as their sourceOutputFeature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureFlowToInput",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "Flow.allInstances()->select(f | f.targetInputFeature = self)",
+            isNormative = false,
+            description = "The Flows that have this Feature as their targetInputFeature."
         ),
         MetaConstraint(
             name = "computeFeatureInheritingType",
@@ -814,6 +912,27 @@ fun createFeatureMetaClass() = MetaClass(
             expression = "Type.allInstances()->select(t | t.inheritedFeature->includes(self))",
             isNormative = false,
             description = "The Types that have this Feature as an inherited feature."
+        ),
+        MetaConstraint(
+            name = "computeFeatureOwningEndFeatureMembership",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningFeatureMembership.oclIsKindOf(EndFeatureMembership) then owningFeatureMembership.oclAsType(EndFeatureMembership) else null endif",
+            isNormative = false,
+            description = "The EndFeatureMembership that owns this Feature, if owningFeatureMembership is an EndFeatureMembership."
+        ),
+        MetaConstraint(
+            name = "computeFeatureOwningParameterMembership",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "if owningFeatureMembership.oclIsKindOf(ParameterMembership) then owningFeatureMembership.oclAsType(ParameterMembership) else null endif",
+            isNormative = false,
+            description = "The ParameterMembership that owns this Feature, if owningFeatureMembership is a ParameterMembership."
+        ),
+        MetaConstraint(
+            name = "computeFeatureReferenceExpression",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureReferenceExpression.allInstances()->select(fre | fre.referent = self)",
+            isNormative = false,
+            description = "The FeatureReferenceExpressions that have this Feature as their referent."
         ),
         MetaConstraint(
             name = "computeFeatureTypeWithDirectedFeature",
@@ -849,6 +968,13 @@ fun createFeatureMetaClass() = MetaClass(
             expression = "Type.allInstances()->select(t | t.output->includes(self))",
             isNormative = false,
             description = "The Types that have this Feature as an output."
+        ),
+        MetaConstraint(
+            name = "computeFeatureValuation",
+            type = ConstraintType.NON_NAVIGABLE_END,
+            expression = "FeatureValue.allInstances()->select(fv | fv.featureWithValue = self)->any(true)",
+            isNormative = false,
+            description = "The FeatureValue that provides the value for this Feature."
         )
     ),
     semanticBindings = listOf(

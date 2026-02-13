@@ -849,16 +849,15 @@ Interface abstracting graph-native storage:
 
 ## Related Documentation
 
-- **[STORAGE_ARCHITECTURE.md](STORAGE_ARCHITECTURE.md)** - Graph storage design
-- **[KERML_GENERATOR_ARCHITECTURE.md](KERML_GENERATOR_ARCHITECTURE.md)** - KerML code generation architecture
-- **[NAME_RESOLUTION.md](NAME_RESOLUTION.md)** - KerML 8.2.3.5 name resolution
-- **[OPERATION_INVOCATION.md](OPERATION_INVOCATION.md)** - Operation handling
-- **[OPERATOR_EXPRESSION_SPEC.md](OPERATOR_EXPRESSION_SPEC.md)** - Operator semantics
-- **[SEMANTICS_VALIDATION_PLAN.md](SEMANTICS_VALIDATION_PLAN.md)** - Validation strategy
-- **[API_IMPLEMENTATION_PLAN.md](API_IMPLEMENTATION_PLAN.md)** - REST API roadmap
-- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Tutorial guide
-- **[TESTING.md](TESTING.md)** - Test strategy
-- **[../CLAUDE.md](../CLAUDE.md)** - Development guidelines and conventions
+- **[Storage Architecture](storage.md)** - Graph storage design
+- **[KerML Generator](kerml-generator.md)** - KerML code generation architecture
+- **[Name Resolution](name-resolution.md)** - KerML 8.2.3.5 name resolution
+- **[Operation Invocation](operation-invocation.md)** - Operation handling
+- **[Operator Expression Spec](../reference/operator-expression-spec.md)** - Operator semantics
+- **[Roadmap](../roadmap/README.md)** - Planned work and status
+- **[Getting Started](../getting-started/README.md)** - Tutorial guide
+- **[Testing Guide](../reference/testing.md)** - Test strategy
+- **[../CLAUDE.md](../../CLAUDE.md)** - Development guidelines and conventions
 
 ## KerML Compliance
 

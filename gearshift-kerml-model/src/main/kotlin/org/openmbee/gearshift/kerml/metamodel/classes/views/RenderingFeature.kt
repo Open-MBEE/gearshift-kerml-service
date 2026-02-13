@@ -18,7 +18,7 @@ package org.openmbee.gearshift.kerml.metamodel.classes.views
 
 import org.openmbee.mdm.framework.meta.MetaClass
 
-fun createSubViewMetaClass() = MetaClass(
-    name = "SubView",
+fun createRenderingFeatureMetaClass() = MetaClass(
+    name = "RenderingFeature",
     superclasses = listOf("Feature")
 )

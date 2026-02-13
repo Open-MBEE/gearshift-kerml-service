@@ -276,7 +276,7 @@ class ParametricAnalysisService(
      * Infers the Z3 sort from the Feature's typing.
      */
     internal fun featureToVariable(feature: Feature): Z3Variable? {
-        val name = feature.declaredName ?: feature.name ?: return null
+        val name = solverVariableName(feature) ?: return null
 
         val sort = inferSort(feature)
 
@@ -290,10 +290,14 @@ class ParametricAnalysisService(
      * Infer the Z3Sort from a Feature's type.
      */
     private fun inferSort(feature: Feature): Z3Sort {
-        // Try typed access first (navigates association graph)
-        for (type in feature.type) {
-            val typeName = type.declaredName ?: type.name ?: (type as MDMObject).className
-            return sortFromTypeName(typeName)
+        // Use ownedTyping → FeatureTyping.type (stored forward links) instead of
+        // the derived Feature.type which triggers expensive OCL evaluation.
+        for (typing in feature.ownedTyping) {
+            val type = typing.type
+            val typeName = (type as? Element)?.declaredName
+                ?: (type as? Element)?.name
+                ?: (type as? MDMObject)?.className
+            if (typeName != null) return sortFromTypeName(typeName)
         }
 
         // Fallback: raw property access (for hand-built tests where type is set via setProperty)
@@ -432,7 +436,7 @@ class ParametricAnalysisService(
         // Strategy 1: Typed property access (set by ReferenceResolver via reflection)
         try {
             val ref = expression.referent
-            val name = ref.declaredName ?: ref.name
+            val name = solverVariableName(ref) ?: ref.declaredName ?: ref.name
             if (name != null) return name
         } catch (_: Exception) { /* referent may be uninitialized */
         }
@@ -443,7 +447,7 @@ class ParametricAnalysisService(
         try {
             val referent = engine.getPropertyValue(expression as MDMObject, "referent") as? Feature
             if (referent != null) {
-                return referent.declaredName ?: referent.name
+                return solverVariableName(referent) ?: referent.declaredName ?: referent.name
             }
         } catch (e: Exception) {
             logger.debug { "Derived referent navigation failed: ${e.message}" }
@@ -619,6 +623,69 @@ class ParametricAnalysisService(
                 }
             }
         }
+    }
+
+    // === Naming Helpers ===
+
+    /**
+     * Compute a unique solver variable name for a Feature.
+     *
+     * When the feature is owned by a named Type (Class, Behavior, etc. — but NOT a Package),
+     * the name is qualified as `OwnerName__featureName` to disambiguate features with the
+     * same declaredName across different classes (e.g., `Propulsion::mass` vs `Power::mass`).
+     *
+     * For features owned by Packages (the common case in existing tests), the plain
+     * declaredName is returned to maintain backward compatibility.
+     */
+    internal fun solverVariableName(feature: Feature): String? {
+        val featureName = feature.declaredName ?: feature.name ?: return null
+        val owner = findOwningNamespace(feature)
+        // Qualify with owner name when the owner is a Type (Class, Behavior, DataType, etc.)
+        // but NOT when it's merely a Package (which is a Namespace, not a Type).
+        if (owner is Type) {
+            val ownerName = (owner as? Element)?.let { it.declaredName ?: it.name }
+            if (ownerName != null) {
+                return "${ownerName}__${featureName}"
+            }
+        }
+        return featureName
+    }
+
+    /**
+     * Find the owning namespace of a Feature by navigating the containment hierarchy.
+     *
+     * Tries multiple strategies since derived properties like `owner` may not resolve
+     * at runtime depending on the OCL engine state.
+     */
+    private fun findOwningNamespace(feature: Feature): Element? {
+        // Strategy 1: Typed owningNamespace (derived property on Element)
+        try {
+            val ns = (feature as Element).owningNamespace
+            if (ns != null) return ns
+        } catch (_: Exception) { }
+
+        // Strategy 2: Engine property access (triggers derivation through MDMEngine)
+        try {
+            val ns = engine.getPropertyValue(feature as MDMObject, "owningNamespace")
+            if (ns is Element) return ns
+        } catch (_: Exception) { }
+
+        // Strategy 3: Navigate through owningRelationship → owningRelatedElement
+        try {
+            val owningRel = engine.getPropertyValue(feature as MDMObject, "owningRelationship") as? MDMObject
+            if (owningRel != null) {
+                val ownerEl = engine.getPropertyValue(owningRel, "owningRelatedElement") as? Element
+                if (ownerEl != null) return ownerEl
+            }
+        } catch (_: Exception) { }
+
+        // Strategy 4: Typed owner property
+        try {
+            val o = (feature as Element).owner
+            if (o != null) return o
+        } catch (_: Exception) { }
+
+        return null
     }
 
     // === Navigation Helpers ===

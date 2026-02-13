@@ -352,8 +352,12 @@ object OclParser {
         }
 
         private fun applyAny(source: OclExpression, ctx: OCLParser.AnySuffixContext): OclExpression {
-            val iterVar = ctx.iteratorVar.text
-            val body = visit(ctx.body)
+            val isShorthand = ctx.iteratorVar == null
+            val iterVar = ctx.iteratorVar?.text ?: "_it"
+            var body = visit(ctx.body)
+            if (isShorthand && body is VariableExp) {
+                body = PropertyCallExp(VariableExp(iterVar), body.name)
+            }
             return IteratorExp(source, "any", iterVar, body)
         }
 

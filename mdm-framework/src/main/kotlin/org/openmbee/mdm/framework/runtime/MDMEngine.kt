@@ -604,7 +604,7 @@ open class MDMEngine(
                             logger.warn { "No evaluator registered for language: ${body.language}" }
                             null
                         } else {
-                            //logger.debug { "Invoking operation $operationName on ${element.className} using ${body.language}" }
+                            logger.trace { "Invoking operation $operationName on ${element.className} - ${element.id} using ${body.language}" }
                             evaluator.evaluate(body.code, element, this, args)
                         }
                     }
@@ -651,7 +651,7 @@ open class MDMEngine(
             }
 
             is OperationBody.Native -> {
-                logger.debug { "Invoking native operation $operationName as $dispatchClass" }
+                logger.debug { "Invoking native operation $operationName as $dispatchClass on ${element.id}" }
                 body.impl(element, args, this)
             }
 
@@ -664,7 +664,7 @@ open class MDMEngine(
                             logger.warn { "No evaluator registered for language: ${body.language}" }
                             null
                         } else {
-                            //logger.debug { "Invoking operation $operationName as $dispatchClass using ${body.language}" }
+                            logger.trace { "Invoking operation $operationName as $dispatchClass on ${element.id} using ${body.language}" }
                             evaluator.evaluate(body.code, element, this, args)
                         }
                     }
@@ -789,6 +789,8 @@ open class MDMEngine(
      */
     private fun findConstraintOnClass(metaClass: MetaClass, constraintName: String): MetaConstraint? {
         metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
+        // Check for constraints that redefine the searched name
+        metaClass.constraints.firstOrNull { it.redefines == constraintName }?.let { return it }
         for (superclassName in metaClass.superclasses) {
             schema.getClass(superclassName)?.let { superclass ->
                 findConstraintOnClass(superclass, constraintName)?.let { return it }
@@ -1078,8 +1080,16 @@ open class MDMEngine(
         return null
     }
 
+    fun getOperationParameterNames(className: String, operationName: String): List<String> {
+        val metaClass = schema.getClass(className) ?: return emptyList()
+        val operation = findOperation(metaClass, operationName) ?: return emptyList()
+        return operation.parameters.map { it.name }
+    }
+
     private fun findConstraint(metaClass: MetaClass, constraintName: String): MetaConstraint? {
         metaClass.constraints.firstOrNull { it.name == constraintName }?.let { return it }
+        // Check for constraints that redefine the searched name
+        metaClass.constraints.firstOrNull { it.redefines == constraintName }?.let { return it }
         for (superclassName in metaClass.superclasses) {
             schema.getClass(superclassName)?.let { superclass ->
                 findConstraint(superclass, constraintName)?.let { return it }

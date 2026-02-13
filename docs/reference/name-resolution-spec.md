@@ -422,4 +422,4 @@ fun resolveInGlobalNamespace(name: String): ResolutionResult? {
 - KerML Specification v1.0, Section 8.2.3.5: Name Resolution
 - [NameResolver.kt](../src/main/kotlin/org/openmbee/gearshift/engine/NameResolver.kt) - Implementation
 - [KerMLMetamodel.kt](../src/main/kotlin/org/openmbee/gearshift/kerml/KerMLMetamodel.kt) - Metamodel
-- [NAME_RESOLUTION.md](NAME_RESOLUTION.md) - User guide
+- [Name Resolution](../architecture/name-resolution.md) - User guide

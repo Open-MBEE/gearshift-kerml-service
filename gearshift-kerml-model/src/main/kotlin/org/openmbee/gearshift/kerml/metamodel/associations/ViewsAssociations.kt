@@ -24,183 +24,212 @@ import org.openmbee.mdm.framework.meta.MetaAssociationEnd
  */
 fun createViewsAssociations(): List<MetaAssociation> {
 
-    // Rendering has subrendering : Rendering [0..*] {derived}
-    val renderingSubrenderingAssociation = MetaAssociation(
-        name = "renderingSubrenderingAssociation",
+    val viewOwningClassOwnedViewAssociation = MetaAssociation(
+        name = "viewOwningClassOwnedViewAssociation",
         sourceEnd = MetaAssociationEnd(
-            name = "owningRendering",
-            type = "Rendering",
+            name = "viewOwningClass",
+            type = "Class",
+            isDerived = true,
+            isNavigable = false,
             lowerBound = 0,
             upperBound = 1,
-            isDerived = true,
-            isNavigable = false
+            isOrdered = true,
+            subsets = listOf("typeWithFeature", "owningType"),
         ),
         targetEnd = MetaAssociationEnd(
-            name = "subrendering",
-            type = "Rendering",
-            lowerBound = 0,
-            upperBound = -1,
+            name = "ownedView",
+            type = "SubView",
             isDerived = true,
-            derivationConstraint = "deriveRenderingSubrendering"
+            lowerBound = 0,
+            upperBound = 1,
+            subsets = listOf("ownedFeature", "feature"),
         )
     )
 
-    // View has expose : Expose [0..*] {derived, subsets ownedRelationship}
-    val viewExposeAssociation = MetaAssociation(
-        name = "viewExposeAssociation",
+    val typedSubViewViewAssociation = MetaAssociation(
+        name = "typingViewViewAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "typedSubView",
+            type = "SubView",
+            subsets = listOf("typedFeature"),
+            lowerBound = 0,
+            upperBound = -1,
+            isDerived = true,
+            isNavigable = false,
+            derivationConstraint = "computeSubViewTypedView"
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "view",
+            type = "View",
+            isDerived = true,
+            isOrdered = true,
+            lowerBound = 0,
+            upperBound = 1,
+            redefines = listOf("type"),
+            derivationConstraint = "computeViewView"
+        )
+    )
+
+    val featuringViewSubViewAssociation = MetaAssociation(
+        name = "featuringViewViewAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "featuringView",
+            type = "View",
+            isDerived = true,
+            isNavigable = false,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("typeWithFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "subview",
+            type = "SubView",
+            isDerived = true,
+            isOrdered = true,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("feature"),
+        )
+    )
+
+    val owningViewViewConditionAssociation = MetaAssociation(
+        name = "owningViewViewConditionAssociation",
         sourceEnd = MetaAssociationEnd(
             name = "owningView",
             type = "View",
-            lowerBound = 0,
-            upperBound = 1,
             isDerived = true,
-            isNavigable = false
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "expose",
-            type = "Expose",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            subsets = listOf("ownedRelationship"),
-            derivationConstraint = "deriveViewExpose"
-        )
-    )
-
-    // View has exposedElement : Element [0..*] {derived}
-    val viewExposedElementAssociation = MetaAssociation(
-        name = "viewExposedElementAssociation",
-        sourceEnd = MetaAssociationEnd(
-            name = "viewForExposedElement",
-            type = "View",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            isNavigable = false
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "exposedElement",
-            type = "Element",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            derivationConstraint = "deriveViewExposedElement"
-        )
-    )
-
-    // View has rendering : Rendering [0..1] {derived}
-    val viewRenderingAssociation = MetaAssociation(
-        name = "viewRenderingAssociation",
-        sourceEnd = MetaAssociationEnd(
-            name = "renderedView",
-            type = "View",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            isNavigable = false
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "rendering",
-            type = "Rendering",
-            lowerBound = 0,
-            upperBound = 1,
-            isDerived = true,
-            derivationConstraint = "deriveViewRendering"
-        )
-    )
-
-    // ViewRenderingMembership has ownedRendering : Rendering [1..1] {derived}
-    val viewRenderingMembershipOwnedRenderingAssociation = MetaAssociation(
-        name = "viewRenderingMembershipOwnedRenderingAssociation",
-        sourceEnd = MetaAssociationEnd(
-            name = "renderingMembership",
-            type = "ViewRenderingMembership",
-            lowerBound = 0,
-            upperBound = 1,
-            isDerived = true,
-            isNavigable = false
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "ownedRendering",
-            type = "Rendering",
+            isNavigable = false,
+            upperBound = 0,
             lowerBound = 1,
-            upperBound = 1,
+            subsets = listOf("owningType"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "viewCondition",
+            type = "Expression",
             isDerived = true,
-            derivationConstraint = "deriveViewRenderingMembershipOwnedRendering"
+            isOrdered = true,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("ownedMember"),
         )
     )
 
-    // View has satisfiedViewpoint : ViewpointPredicate [0..*] {derived}
-    val viewSatisfiedViewpointAssociation = MetaAssociation(
-        name = "viewSatisfiedViewpointAssociation",
+    val owningSubViewViewConditionAssociation = MetaAssociation(
+        name = "owningSubViewViewConditionAssociation",
         sourceEnd = MetaAssociationEnd(
-            name = "satisfyingView",
-            type = "View",
+            name = "owningSubView",
+            type = "SubView",
+            isDerived = true,
+            isNavigable = false,
+            upperBound = 0,
+            lowerBound = 1,
+            subsets = listOf("owningType"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "viewCondition",
+            type = "Expression",
+            isDerived = true,
+            isOrdered = true,
             lowerBound = 0,
             upperBound = -1,
+            subsets = listOf("ownedMember"),
+        )
+    )
+
+    val viewpointSatisfyingViewSatisfiedViewpointAssociation = MetaAssociation(
+        name = "viewpointSatisfyingViewSatisfiedViewpointAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "viewpointSatisfyingView",
+            type = "View",
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            upperBound = 0,
+            lowerBound = 1,
+            subsets = listOf("typeWithFeature", "owningType"),
         ),
         targetEnd = MetaAssociationEnd(
             name = "satisfiedViewpoint",
             type = "ViewpointPredicate",
+            isDerived = true,
+            isOrdered = true,
             lowerBound = 0,
             upperBound = -1,
-            isDerived = true,
-            derivationConstraint = "deriveViewSatisfiedViewpoint"
+            subsets = listOf("ownedFeature", "feature"),
         )
     )
 
-    // View has subview : View [0..*] {derived}
-    val viewSubviewAssociation = MetaAssociation(
-        name = "viewSubviewAssociation",
+    val viewpointSatisfyingSubViewSatisfiedViewpointAssociation = MetaAssociation(
+        name = "viewpointSatisfyingSubViewSatisfiedViewpointAssociation",
         sourceEnd = MetaAssociationEnd(
-            name = "owningView",
+            name = "viewpointSatisfyingSubView",
+            type = "SubView",
+            isDerived = true,
+            isNavigable = false,
+            upperBound = 0,
+            lowerBound = 1,
+            subsets = listOf("typeWithFeature"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "satisfiedViewpoint",
+            type = "ViewpointPredicate",
+            isDerived = true,
+            isOrdered = true,
+            lowerBound = 0,
+            upperBound = -1,
+            subsets = listOf("ownedFeature", "feature"),
+        )
+    )
+
+    val renderingOwningViewViewRenderingAssociation = MetaAssociation(
+        name = "renderingOwningViewViewRenderingAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "renderingOwningView",
             type = "View",
+            isDerived = true,
+            isNavigable = false,
+            upperBound = 0,
+            lowerBound = 1,
+            subsets = listOf("typeWithFeature", "owningType"),
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "viewRendering",
+            type = "RenderingFeature",
+            isDerived = true,
+            derivationConstraint = "deriveViewRendering",
             lowerBound = 0,
             upperBound = 1,
-            isDerived = true,
-            isNavigable = false
-        ),
-        targetEnd = MetaAssociationEnd(
-            name = "subview",
-            type = "View",
-            lowerBound = 0,
-            upperBound = -1,
-            isDerived = true,
-            derivationConstraint = "deriveViewSubview"
         )
     )
 
-    // ViewpointPredicate has viewpointDefinition : Viewpoint [0..*] {derived}
-    val viewpointPredicateViewpointDefinitionAssociation = MetaAssociation(
-        name = "viewpointPredicateViewpointDefinitionAssociation",
+    val renderingOwningSubViewViewRenderingAssociation = MetaAssociation(
+        name = "renderingOwningSubViewViewRenderingAssociation",
         sourceEnd = MetaAssociationEnd(
-            name = "typedViewpointPredicate",
-            type = "ViewpointPredicate",
-            lowerBound = 0,
-            upperBound = -1,
+            name = "renderingOwningSubView",
+            type = "SubView",
             isDerived = true,
-            isNavigable = false
+            isNavigable = false,
+            upperBound = 0,
+            lowerBound = 1,
+            subsets = listOf("typeWithFeature"),
         ),
         targetEnd = MetaAssociationEnd(
-            name = "viewpointDefinition",
-            type = "Viewpoint",
-            lowerBound = 0,
-            upperBound = -1,
+            name = "viewRendering",
+            type = "RenderingFeature",
             isDerived = true,
-            derivationConstraint = "deriveViewpointPredicateViewpointDefinition"
+            lowerBound = 0,
+            upperBound = 1,
         )
     )
 
     return listOf(
-        renderingSubrenderingAssociation,
-        viewExposeAssociation,
-        viewExposedElementAssociation,
-        viewRenderingAssociation,
-        viewRenderingMembershipOwnedRenderingAssociation,
-        viewSatisfiedViewpointAssociation,
-        viewSubviewAssociation,
-        viewpointPredicateViewpointDefinitionAssociation,
+        viewOwningClassOwnedViewAssociation,
+        typedSubViewViewAssociation,
+        featuringViewSubViewAssociation,
+        owningViewViewConditionAssociation,
+        owningSubViewViewConditionAssociation,
+        viewpointSatisfyingViewSatisfiedViewpointAssociation,
+        viewpointSatisfyingSubViewSatisfiedViewpointAssociation,
+        renderingOwningViewViewRenderingAssociation,
+        renderingOwningSubViewViewRenderingAssociation
     )
 }

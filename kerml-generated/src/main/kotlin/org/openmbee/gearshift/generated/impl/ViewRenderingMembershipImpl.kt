@@ -72,10 +72,16 @@ open class ViewRenderingMembershipImpl(
     }
 
 
-    override val ownedRendering: Rendering
+    override val ownedRendering: RenderingFeature
         get() {
             val rawValue = engine.getProperty(id!!, "ownedRendering")
-            return rawValue as Rendering
+            return rawValue as RenderingFeature
+        }
+
+    override val referencedRendering: RenderingFeature
+        get() {
+            val rawValue = engine.getProperty(id!!, "referencedRendering")
+            return rawValue as RenderingFeature
         }
 }
 

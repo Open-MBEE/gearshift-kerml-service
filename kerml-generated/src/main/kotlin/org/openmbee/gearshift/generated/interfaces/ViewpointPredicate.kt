@@ -21,6 +21,8 @@ package org.openmbee.gearshift.generated.interfaces
  */
 interface ViewpointPredicate : BooleanExpression {
 
-    val viewpointDefinition: Set<Viewpoint>
+    val viewpoint: Viewpoint?
+
+    val viewpointStakeholder: List<Feature>
 }
 

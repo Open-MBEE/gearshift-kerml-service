@@ -105,6 +105,12 @@ interface EngineAccessor {
      * @param viewAsClass The class to look up the property definition on
      */
     fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any?
+
+    /**
+     * Get the parameter names for an operation defined on a class.
+     * Used by the OCL executor to map positional arguments to named parameters.
+     */
+    fun getOperationParameterNames(className: String, operationName: String): List<String>
 }
 
 /**

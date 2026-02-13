@@ -47,13 +47,6 @@ fun createMetadataAccessExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = "referencedElement <> null",
             description = "A MetadataAccessExpression must have a non-null referencedElement."
-        ),
-        MetaConstraint(
-            name = "computeElementAccessExpression",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "MetadataAccessExpression.allInstances()->select(mae | mae.referencedElement = self)",
-            isNormative = false,
-            description = "The MetadataAccessExpressions that have this Element as their referencedElement."
         )
     ),
     semanticBindings = listOf(

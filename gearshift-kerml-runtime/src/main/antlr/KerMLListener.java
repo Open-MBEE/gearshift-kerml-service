@@ -1,4 +1,5 @@
-// Generated from /Users/chasgaley/git/gearshift-kerml-service/gearshift-kerml-runtime/src/main/antlr/KerML.g4 by ANTLR 4.13.1
+// Generated from KerML.g4 by ANTLR 4.13.1
+package org.openmbee.gearshift.kerml.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -1446,6 +1447,76 @@ public interface KerMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitBinaryOperator(KerMLParser.BinaryOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#equalityOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterEqualityOperator(KerMLParser.EqualityOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#equalityOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitEqualityOperator(KerMLParser.EqualityOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#relationalOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterRelationalOperator(KerMLParser.RelationalOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#relationalOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitRelationalOperator(KerMLParser.RelationalOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#additiveOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterAdditiveOperator(KerMLParser.AdditiveOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#additiveOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitAdditiveOperator(KerMLParser.AdditiveOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#multiplicativeOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterMultiplicativeOperator(KerMLParser.MultiplicativeOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#multiplicativeOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitMultiplicativeOperator(KerMLParser.MultiplicativeOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#exponentialOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterExponentialOperator(KerMLParser.ExponentialOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#exponentialOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitExponentialOperator(KerMLParser.ExponentialOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#bitwiseOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterBitwiseOperator(KerMLParser.BitwiseOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#bitwiseOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitBitwiseOperator(KerMLParser.BitwiseOperatorContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link KerMLParser#rangeOperator}.
+	 * @param ctx the parse tree
+	 */
+	void enterRangeOperator(KerMLParser.RangeOperatorContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link KerMLParser#rangeOperator}.
+	 * @param ctx the parse tree
+	 */
+	void exitRangeOperator(KerMLParser.RangeOperatorContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link KerMLParser#unaryOperatorExpression}.
 	 * @param ctx the parse tree

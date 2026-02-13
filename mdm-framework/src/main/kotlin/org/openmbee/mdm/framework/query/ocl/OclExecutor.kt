@@ -704,6 +704,17 @@ class OclExecutor(
                 engineAccessor.isSubclassOf(obj.className, typeName)
     }
 
+    private fun buildNamedArgs(className: String, opName: String, args: List<Any?>): Map<String, Any?> {
+        if (args.isEmpty()) return emptyMap()
+        val paramNames = engineAccessor.getOperationParameterNames(className, opName)
+        return if (paramNames.size >= args.size) {
+            paramNames.zip(args).toMap()
+        } else {
+            // Fallback for operations without metadata: use positional naming
+            args.mapIndexed { i, v -> "arg$i" to v }.toMap()
+        }
+    }
+
     private fun evaluateOperation(source: Any?, opName: String, args: List<Any?>): Any? {
         // Object operations
         when (opName) {
@@ -744,7 +755,7 @@ class OclExecutor(
         if (source is OclAsTypeView) {
             val targetId = findObjectId(source.obj)
             if (targetId != null) {
-                val namedArgs = if (args.isEmpty()) emptyMap() else mapOf("arg" to args.first())
+                val namedArgs = buildNamedArgs(source.viewType, opName, args)
                 try {
                     return engineAccessor.invokeOperationAs(targetId, opName, source.viewType, namedArgs)
                 } catch (e: Exception) {
@@ -834,6 +845,18 @@ class OclExecutor(
             }
         }
 
+        // OCL implicit collect: collection.operation(args) means collection->collect(e | e.operation(args))
+        if (source is Collection<*>) {
+            return source.flatMap { element ->
+                val result = evaluateOperation(element, opName, args)
+                when (result) {
+                    is Collection<*> -> result.toList()
+                    null -> emptyList()
+                    else -> listOf(result)
+                }
+            }
+        }
+
         // Try invoking user-defined operation on MDMObject
         val targetObject = when (source) {
             null -> contextObject  // Operation on self
@@ -844,7 +867,7 @@ class OclExecutor(
         if (targetObject != null) {
             val targetId = findObjectId(targetObject)
             if (targetId != null) {
-                val namedArgs = if (args.isEmpty()) emptyMap() else mapOf("arg" to args.first())
+                val namedArgs = buildNamedArgs(targetObject.className, opName, args)
                 try {
                     return engineAccessor.invokeOperation(targetId, opName, namedArgs)
                 } catch (e: Exception) {

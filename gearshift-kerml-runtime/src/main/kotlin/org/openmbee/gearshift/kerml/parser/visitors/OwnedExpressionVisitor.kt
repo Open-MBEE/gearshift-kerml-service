@@ -15,11 +15,11 @@
  */
 package org.openmbee.gearshift.kerml.parser.visitors
 
-import org.openmbee.gearshift.generated.interfaces.Expression
-import org.openmbee.gearshift.generated.interfaces.OperatorExpression
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.base.BaseFeatureVisitor
+import org.openmbee.gearshift.kerml.parser.visitors.base.registerReference
 import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
@@ -32,17 +32,8 @@ import org.openmbee.mdm.framework.runtime.MDMObject
  * - Conditional (ternary): `if cond ? then : else`
  * - Primary expressions (delegates to [BaseExpressionDispatcher])
  *
- * Grammar (refactored with direct left recursion):
- * ```
- * ownedExpression
- *     : IF ownedExpression QUESTION ownedExpression ELSE ownedExpression emptyResultMember
- *     | ownedExpression conditionalBinaryOperator ownedExpression emptyResultMember
- *     | ownedExpression binaryOperator ownedExpression emptyResultMember
- *     | unaryOperator ownedExpression emptyResultMember
- *     | ...
- *     | primaryExpression
- *     ;
- * ```
+ * Binary operators are split into precedence groups in the grammar so ANTLR
+ * builds correct parse trees (e.g., `a == b + c` → `a == (b + c)`).
  */
 class OwnedExpressionVisitor : BaseFeatureVisitor<KerMLParser.OwnedExpressionContext, Expression>() {
 
@@ -55,11 +46,18 @@ class OwnedExpressionVisitor : BaseFeatureVisitor<KerMLParser.OwnedExpressionCon
             }
         }
 
-        // Binary operator: ownedExpression binaryOperator ownedExpression
-        ctx.binaryOperator()?.let { opCtx ->
+        // Binary operators — check each precedence-grouped sub-rule
+        val binaryOp = ctx.equalityOperator()
+            ?: ctx.relationalOperator()
+            ?: ctx.additiveOperator()
+            ?: ctx.multiplicativeOperator()
+            ?: ctx.exponentialOperator()
+            ?: ctx.bitwiseOperator()
+            ?: ctx.rangeOperator()
+        if (binaryOp != null) {
             val subExprs = ctx.ownedExpression()
             if (subExprs.size >= 2) {
-                return visitOperator(opCtx.text, subExprs, kermlParseContext)
+                return visitOperator(binaryOp.text, subExprs, kermlParseContext)
             }
         }
 
@@ -125,8 +123,11 @@ class OwnedExpressionVisitor : BaseFeatureVisitor<KerMLParser.OwnedExpressionCon
      * ```
      * primaryExpression
      *     : primaryExpression '[' sequenceExpressionListMember ']'
+     *     | primaryExpression HASH '(' sequenceExpressionListMember ')'
      *     | primaryExpression '.' featureChainMember
-     *     | ...
+     *     | primaryExpression '.' bodyArgumentMember
+     *     | primaryExpression '.?' bodyArgumentMember
+     *     | primaryExpression '->' invocationTypeMember (body|funcRef|argList) emptyResultMember
      *     | '(' sequenceExpressionList ')'
      *     | baseExpression
      *     ;
@@ -148,7 +149,134 @@ class OwnedExpressionVisitor : BaseFeatureVisitor<KerMLParser.OwnedExpressionCon
             }
         }
 
-        // Fallback for unhandled primary expression forms
+        // Left-recursive cases — all have a source primaryExpression
+        val sourcePrimCtx = ctx.primaryExpression() ?: return kermlParseContext.create<Expression>()
+
+        // Dot navigation: primaryExpression '.' featureChainMember
+        ctx.featureChainMember()?.let { chainMember ->
+            return visitFeatureChainExpression(sourcePrimCtx, chainMember, kermlParseContext)
+        }
+
+        // Collect/Select with body: primaryExpression ('.' | '.?') bodyArgumentMember
+        ctx.bodyArgumentMember()?.let { bodyMember ->
+            val isSelect = ctx.DOT_QUESTION() != null
+            return visitCollectOrSelectExpression(sourcePrimCtx, bodyMember, isSelect, kermlParseContext)
+        }
+
+        // Arrow operation: primaryExpression '->' invocationTypeMember (body|funcRef|argList)
+        if (ctx.ARROW() != null) {
+            ctx.invocationTypeMember()?.let { typeMember ->
+                return visitFunctionOperationExpression(sourcePrimCtx, typeMember, ctx, kermlParseContext)
+            }
+        }
+
+        // Fallback for unhandled primary expression forms (bracket, index, etc.)
         return kermlParseContext.create<Expression>()
+    }
+
+    /**
+     * Handle dot-navigation: `source.featureName`
+     *
+     * Creates a FeatureChainExpression with operator='.', the source as first argument,
+     * and the target feature name stored for the evaluator.
+     */
+    private fun visitFeatureChainExpression(
+        sourcePrimCtx: KerMLParser.PrimaryExpressionContext,
+        chainMember: KerMLParser.FeatureChainMemberContext,
+        kermlParseContext: KermlParseContext
+    ): Expression {
+        val chainExpr = kermlParseContext.create<FeatureChainExpression>()
+        chainExpr.operator = "."
+
+        val childContext = kermlParseContext.withParent(chainExpr, "")
+
+        // Visit source expression as the first argument
+        val sourceExpr = visitPrimaryExpression(sourcePrimCtx, childContext)
+        (chainExpr as MDMObject).setProperty("_arguments", listOf(sourceExpr))
+
+        // Extract target feature name from featureChainMember
+        val featureName = chainMember.featureReferenceMember()
+            ?.featureReference()?.qualifiedName()?.let { extractQualifiedName(it) }
+        if (featureName != null) {
+            (chainExpr as MDMObject).setProperty("_targetFeatureName", featureName)
+            // Also create a Membership so the derived targetFeature property can work
+            val membership = kermlParseContext.create<Membership>()
+            membership.membershipOwningNamespace = chainExpr
+            kermlParseContext.registerReference(membership, "memberElement", featureName)
+        }
+
+        createFeatureMembership(chainExpr, kermlParseContext)
+        return chainExpr
+    }
+
+    /**
+     * Handle collect/select with body: `source.{body}` or `source.?{predicate}`
+     */
+    private fun visitCollectOrSelectExpression(
+        sourcePrimCtx: KerMLParser.PrimaryExpressionContext,
+        bodyMember: KerMLParser.BodyArgumentMemberContext,
+        isSelect: Boolean,
+        kermlParseContext: KermlParseContext
+    ): Expression {
+        val expr = if (isSelect) {
+            kermlParseContext.create<SelectExpression>().also { it.operator = "select" }
+        } else {
+            kermlParseContext.create<CollectExpression>().also { it.operator = "collect" }
+        }
+
+        val childContext = kermlParseContext.withParent(expr, "")
+
+        // Visit source expression
+        val sourceExpr = visitPrimaryExpression(sourcePrimCtx, childContext)
+
+        // Visit body expression
+        val bodyExpr = bodyMember.bodyArgument()?.bodyArgumentValue()?.bodyExpression()?.let { bodyCtx ->
+            BodyExpressionVisitor().visit(bodyCtx, childContext)
+        } ?: kermlParseContext.create<Expression>()
+
+        (expr as MDMObject).setProperty("_arguments", listOf(sourceExpr, bodyExpr))
+        createFeatureMembership(expr, kermlParseContext)
+        return expr
+    }
+
+    /**
+     * Handle arrow operation: `source->funcName(args)` or `source->funcName{body}`
+     *
+     * Creates an InvocationExpression for the function, with the source as the first
+     * (implicit) argument.
+     */
+    private fun visitFunctionOperationExpression(
+        sourcePrimCtx: KerMLParser.PrimaryExpressionContext,
+        typeMember: KerMLParser.InvocationTypeMemberContext,
+        ctx: KerMLParser.PrimaryExpressionContext,
+        kermlParseContext: KermlParseContext
+    ): Expression {
+        val invExpr = kermlParseContext.create<InvocationExpression>()
+
+        val childContext = kermlParseContext.withParent(invExpr, "")
+
+        // Visit source expression (becomes first implicit argument)
+        val sourceExpr = visitPrimaryExpression(sourcePrimCtx, childContext)
+
+        // Resolve the function type: invocationTypeMember -> invocationType -> ownedFeatureTyping -> generalType -> qualifiedName
+        val funcName = typeMember.invocationType()?.ownedFeatureTyping()
+            ?.generalType()?.qualifiedName()?.let { extractQualifiedName(it) }
+        if (funcName != null) {
+            (invExpr as MDMObject).setProperty("_functionName", funcName)
+            val typing = kermlParseContext.create<FeatureTyping>()
+            typing.typedFeature = invExpr
+            kermlParseContext.registerReference(typing, "type", funcName)
+        }
+
+        // Collect additional arguments from body or argument list
+        val additionalArgs = mutableListOf<Expression>()
+        ctx.bodyArgumentMember()?.bodyArgument()?.bodyArgumentValue()?.bodyExpression()?.let { bodyCtx ->
+            additionalArgs.add(BodyExpressionVisitor().visit(bodyCtx, childContext))
+        }
+        // TODO: handle argumentList and functionReferenceArgumentMember if needed
+
+        (invExpr as MDMObject).setProperty("_arguments", listOf(sourceExpr) + additionalArgs)
+        createFeatureMembership(invExpr, kermlParseContext)
+        return invExpr
     }
 }

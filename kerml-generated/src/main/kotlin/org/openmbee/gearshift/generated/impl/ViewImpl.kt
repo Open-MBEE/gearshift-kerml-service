@@ -72,34 +72,28 @@ open class ViewImpl(
     }
 
 
-    override val expose: Set<Expose>
-        get() {
-            val rawValue = engine.getProperty(id!!, "expose")
-            return (rawValue as? List<*>)?.filterIsInstance<Expose>()?.toSet() ?: emptySet()
-        }
-
-    override val exposedElement: Set<Element>
-        get() {
-            val rawValue = engine.getProperty(id!!, "exposedElement")
-            return (rawValue as? List<*>)?.filterIsInstance<Element>()?.toSet() ?: emptySet()
-        }
-
-    override val rendering: Rendering?
-        get() {
-            val rawValue = engine.getProperty(id!!, "rendering")
-            return rawValue as? Rendering
-        }
-
-    override val satisfiedViewpoint: Set<ViewpointPredicate>
+    override val satisfiedViewpoint: List<ViewpointPredicate>
         get() {
             val rawValue = engine.getProperty(id!!, "satisfiedViewpoint")
-            return (rawValue as? List<*>)?.filterIsInstance<ViewpointPredicate>()?.toSet() ?: emptySet()
+            return (rawValue as? List<*>)?.filterIsInstance<ViewpointPredicate>() ?: emptyList()
         }
 
-    override val subview: Set<View>
+    override val subview: List<SubView>
         get() {
             val rawValue = engine.getProperty(id!!, "subview")
-            return (rawValue as? List<*>)?.filterIsInstance<View>()?.toSet() ?: emptySet()
+            return (rawValue as? List<*>)?.filterIsInstance<SubView>() ?: emptyList()
+        }
+
+    override val viewCondition: List<Expression>
+        get() {
+            val rawValue = engine.getProperty(id!!, "viewCondition")
+            return (rawValue as? List<*>)?.filterIsInstance<Expression>() ?: emptyList()
+        }
+
+    override val viewRendering: RenderingFeature?
+        get() {
+            val rawValue = engine.getProperty(id!!, "viewRendering")
+            return rawValue as? RenderingFeature
         }
 }
 

@@ -1,0 +1,34 @@
+{
+  "project" : {
+    "id" : "ef7d9cdd-6ab9-4001-a2ea-ecef84546e44",
+    "name" : "Spacecraft Demo",
+    "description" : null,
+    "created" : "2026-02-13T06:00:22.443108Z"
+  },
+  "branch" : {
+    "id" : "8f977049-c7a4-45a4-8905-292e505e72b0",
+    "name" : "main",
+    "owningProject" : "ef7d9cdd-6ab9-4001-a2ea-ecef84546e44",
+    "headCommitId" : "49ab4a18-955d-4ec2-a0a1-c66361909f48",
+    "created" : "2026-02-13T06:00:22.443271Z"
+  },
+  "commits" : [ {
+    "id" : "40a82e9b-6f55-48f7-84c6-0d08c0166fbe",
+    "description" : "Initial empty commit",
+    "owningProject" : "ef7d9cdd-6ab9-4001-a2ea-ecef84546e44",
+    "previousCommit" : [ ],
+    "created" : "2026-02-13T06:00:22.443248Z"
+  }, {
+    "id" : "cd5306d5-bc01-44d6-9039-cac15e82172f",
+    "description" : null,
+    "owningProject" : "ef7d9cdd-6ab9-4001-a2ea-ecef84546e44",
+    "previousCommit" : [ "40a82e9b-6f55-48f7-84c6-0d08c0166fbe" ],
+    "created" : "2026-02-13T17:18:24.397525Z"
+  }, {
+    "id" : "49ab4a18-955d-4ec2-a0a1-c66361909f48",
+    "description" : null,
+    "owningProject" : "ef7d9cdd-6ab9-4001-a2ea-ecef84546e44",
+    "previousCommit" : [ "cd5306d5-bc01-44d6-9039-cac15e82172f" ],
+    "created" : "2026-02-13T17:19:03.290725Z"
+  } ]
+}

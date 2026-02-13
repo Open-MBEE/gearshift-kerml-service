@@ -31,13 +31,6 @@ fun createIntersectingMetaClass() = MetaClass(
     attributes = emptyList(),
     constraints = listOf(
         MetaConstraint(
-            name = "computeTypeIntersectedType",
-            type = ConstraintType.NON_NAVIGABLE_END,
-            expression = "ownedIntersecting.typeIntersected",
-            isNormative = false,
-            description = "Types that are intersected by this Type's intersectingTypes."
-        ),
-        MetaConstraint(
             name = "deriveIntersectingTypeIntersected",
             type = ConstraintType.DERIVATION,
             expression = "if source = owningRelatedElement then source else null endif",

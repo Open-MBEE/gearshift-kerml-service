@@ -149,7 +149,11 @@ val redefinedResult = engine.resolveName(
 )
 ```
 
-See [docs/NAME_RESOLUTION.md](docs/NAME_RESOLUTION.md) for complete documentation.
+See [Name Resolution](docs/architecture/name-resolution.md) for complete documentation.
+
+## Documentation
+
+See [docs/README.md](docs/README.md) for the full documentation hub — architecture guides, reference material, and roadmap.
 
 ## Building and Running
 

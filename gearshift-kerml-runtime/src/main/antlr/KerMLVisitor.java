@@ -1,4 +1,5 @@
-// Generated from /Users/chasgaley/git/gearshift-kerml-service/gearshift-kerml-runtime/src/main/antlr/KerML.g4 by ANTLR 4.13.1
+// Generated from KerML.g4 by ANTLR 4.13.1
+package org.openmbee.gearshift.kerml.antlr;
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**
@@ -873,6 +874,48 @@ public interface KerMLVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitBinaryOperator(KerMLParser.BinaryOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#equalityOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitEqualityOperator(KerMLParser.EqualityOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#relationalOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitRelationalOperator(KerMLParser.RelationalOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#additiveOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitAdditiveOperator(KerMLParser.AdditiveOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#multiplicativeOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMultiplicativeOperator(KerMLParser.MultiplicativeOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#exponentialOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitExponentialOperator(KerMLParser.ExponentialOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#bitwiseOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitBitwiseOperator(KerMLParser.BitwiseOperatorContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link KerMLParser#rangeOperator}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitRangeOperator(KerMLParser.RangeOperatorContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link KerMLParser#unaryOperatorExpression}.
 	 * @param ctx the parse tree

@@ -101,6 +101,15 @@ data class GearshiftSettings(
      */
     val deterministicElementIds: Boolean = false,
 
+    // ── Persistence ────────────────────────────────────────────────────
+
+    /**
+     * Directory path for file-based project persistence. When set,
+     * projects are saved to disk after each mutation and restored on
+     * startup. When null (default), all state is in-memory only.
+     */
+    val dataDir: String? = null,
+
     // ── Server / CORS ──────────────────────────────────────────────────
 
     /**

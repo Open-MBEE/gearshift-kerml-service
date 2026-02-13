@@ -21,14 +21,12 @@ package org.openmbee.gearshift.generated.interfaces
  */
 interface View : Structure {
 
-    val expose: Set<Expose>
+    val satisfiedViewpoint: List<ViewpointPredicate>
 
-    val exposedElement: Set<Element>
+    val subview: List<SubView>
 
-    val rendering: Rendering?
+    val viewCondition: List<Expression>
 
-    val satisfiedViewpoint: Set<ViewpointPredicate>
-
-    val subview: Set<View>
+    val viewRendering: RenderingFeature?
 }
 

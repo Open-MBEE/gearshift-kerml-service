@@ -404,6 +404,8 @@ class KerMLModel(
      * @return The root Package if successful, null otherwise
      */
     fun parseString(kermlText: String): KerMLPackage? {
+        val totalStart = System.currentTimeMillis()
+
         lastParseResult = parseKerML(CharStreams.fromString(kermlText))
 
         if (!lastParseResult!!.success) {
@@ -412,13 +414,19 @@ class KerMLModel(
 
         // Process any pending implied relationships after parsing
         if (settings.processImpliedRelationships) {
+            val start = System.currentTimeMillis()
             semanticHandler.processAllPending()
+            logger.debug { "Implied relationships: ${System.currentTimeMillis() - start}ms" }
         }
 
         // Apply default names to unnamed features if enabled
         if (settings.autoNameFeatures) {
+            val start = System.currentTimeMillis()
             applyDefaultNames()
+            logger.debug { "Default names: ${System.currentTimeMillis() - start}ms" }
         }
+
+        logger.debug { "Total parseString: ${System.currentTimeMillis() - totalStart}ms" }
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
@@ -435,6 +443,8 @@ class KerMLModel(
      * @return The root Package if successful, null otherwise
      */
     fun parseFile(path: Path): KerMLPackage? {
+        val totalStart = System.currentTimeMillis()
+
         lastParseResult = parseKerML(CharStreams.fromPath(path))
 
         if (!lastParseResult!!.success) {
@@ -443,13 +453,19 @@ class KerMLModel(
 
         // Process any pending implied relationships after parsing
         if (settings.processImpliedRelationships) {
+            val start = System.currentTimeMillis()
             semanticHandler.processAllPending()
+            logger.debug { "Implied relationships: ${System.currentTimeMillis() - start}ms" }
         }
 
         // Apply default names to unnamed features if enabled
         if (settings.autoNameFeatures) {
+            val start = System.currentTimeMillis()
             applyDefaultNames()
+            logger.debug { "Default names: ${System.currentTimeMillis() - start}ms" }
         }
+
+        logger.debug { "Total parseFile(${path.fileName}): ${System.currentTimeMillis() - totalStart}ms" }
 
         // Find the first Package in the parsed model
         return allOfType<KerMLPackage>().firstOrNull()
@@ -459,6 +475,7 @@ class KerMLModel(
      * Parse KerML from a CharStream using the visitor-based architecture.
      */
     private fun parseKerML(input: org.antlr.v4.runtime.CharStream): KerMLParseResult {
+        val totalStart = System.currentTimeMillis()
         val errorListener = KerMLErrorListener()
 
         // Create ANTLR lexer and parser
@@ -472,7 +489,9 @@ class KerMLModel(
         parser.addErrorListener(errorListener)
 
         // Parse the root namespace
+        var start = System.currentTimeMillis()
         val tree = parser.rootNamespace()
+        logger.debug { "ANTLR parse: ${System.currentTimeMillis() - start}ms" }
 
         // Check for syntax errors
         if (errorListener.hasErrors) {
@@ -492,11 +511,17 @@ class KerMLModel(
         )
 
         // Use the typed visitor to parse the tree
+        start = System.currentTimeMillis()
         val rootNamespace = TypedVisitorFactory.Core.rootNamespace.visit(tree, parseContext)
+        logger.debug { "Visitor tree walk: ${System.currentTimeMillis() - start}ms, ${referenceCollector.size()} pending references" }
 
         // Resolve collected references after parsing
+        start = System.currentTimeMillis()
         val resolver = ReferenceResolver(engine)
         resolver.resolveAll(referenceCollector)
+        logger.debug { "Reference resolution: ${System.currentTimeMillis() - start}ms" }
+
+        logger.debug { "Total parseKerML: ${System.currentTimeMillis() - totalStart}ms" }
 
         return KerMLParseResult(
             success = true,
