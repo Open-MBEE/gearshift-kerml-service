@@ -63,29 +63,9 @@ class FeatureGenerator : BaseFeatureGenerator<Feature>() {
     }
 
     /**
-     * Determine if the 'feature' keyword is needed.
-     *
-     * The keyword can be omitted when the feature declaration provides
-     * enough context (has a name, typing, etc.). However, it's required
-     * for anonymous features or when there's no specialization.
+     * The 'feature' keyword is always emitted for plain features.
+     * Specialized feature types (Step, Invariant, Connector, etc.) have their
+     * own keywords and their own generators — they don't go through here.
      */
-    private fun needsFeatureKeyword(feature: Feature): Boolean {
-        // If the feature has no name and no specializations, we need the keyword
-        val hasName = feature.declaredName != null || feature.declaredShortName != null
-        val hasTyping = feature.ownedTyping.isNotEmpty()
-        val hasSubsetting = feature.ownedSubsetting.isNotEmpty()
-        val hasRedefinition = feature.ownedRedefinition.isNotEmpty()
-
-        // If completely anonymous with no specializations, need the keyword
-        if (!hasName && !hasTyping && !hasSubsetting && !hasRedefinition) {
-            return true
-        }
-
-        // If it has modifiers but no name, the keyword helps readability
-        if (!hasName && (feature.isDerived || feature.isComposite || feature.isPortion)) {
-            return true
-        }
-
-        return false
-    }
+    private fun needsFeatureKeyword(@Suppress("UNUSED_PARAMETER") feature: Feature): Boolean = true
 }

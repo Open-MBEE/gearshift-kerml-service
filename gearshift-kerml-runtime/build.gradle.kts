@@ -58,6 +58,9 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
+    // JGit for git-backed version control
+    implementation("org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r")
+
     // Ktor (web server)
     val ktorVersion = "2.3.7"
     implementation("io.ktor:ktor-server-core:$ktorVersion")
@@ -77,7 +80,7 @@ dependencies {
 
 // ── GearshiftSettings defaults ────────────────────────────────────────
 // Override via Gradle project properties (-P) or system properties (-D).
-// Example: ./gradlew runDemoApi -Pgearshift.autoNameFeatures=true
+// Example: ./gradlew run -Pgearshift.autoNameFeatures=true
 //
 // Property                              Default
 // ──────────────────────────────────────────────
@@ -133,16 +136,6 @@ kotlin {
 
 application {
     mainClass.set("org.openmbee.gearshift.api.DemoApiKt")
-}
-
-// Task to run the Demo API server
-tasks.register<JavaExec>("runDemoApi") {
-    description = "Run the Demo API server"
-    group = "application"
-
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("org.openmbee.gearshift.api.DemoApiKt")
-    forwardGearshiftProperties()
 }
 
 tasks.named<JavaExec>("run") {

@@ -15,7 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.generator
 
-import org.openmbee.gearshift.generated.interfaces.Succession
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.gearshift.kerml.generator.base.BaseFeatureGenerator
 
 class SuccessionGenerator : BaseFeatureGenerator<Succession>() {
@@ -26,12 +26,25 @@ class SuccessionGenerator : BaseFeatureGenerator<Succession>() {
         append("succession ")
         append(generateFeatureDeclaration(element, context))
 
-        // Succession ends: first X then Y
-        val ends = element.connectorEnd
+        // Find end features via structural containment (same approach as ConnectorGenerator)
+        val allMembers = getExplicitMembers(element, context)
+        val endEntries = allMembers.mapNotNull { membership ->
+            val el = when (membership) {
+                is OwningMembership -> membership.ownedMemberElement
+                else -> membership.memberElement
+            }
+            (el as? Feature)?.takeIf { it.isEnd }?.let { membership to it }
+        }
+        val ends = endEntries.map { it.second }
+
         if (ends.size == 2) {
             val end1 = ConnectorGenerator.resolveEndName(ends[0], context)
             val end2 = ConnectorGenerator.resolveEndName(ends[1], context)
-            append(" first $end1 then $end2")
+            if (end1.isNotEmpty() && end2.isNotEmpty()) {
+                // Shorthand: succession first X then Y;
+                append("first $end1 then $end2;")
+                return@buildString
+            }
         }
 
         append(generateTypeBody(element, context))

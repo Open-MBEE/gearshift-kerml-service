@@ -17,6 +17,8 @@ package org.openmbee.gearshift.kerml
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.openmbee.gearshift.settings.GearshiftSettings
+import org.openmbee.gearshift.settings.NameStrategy
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 

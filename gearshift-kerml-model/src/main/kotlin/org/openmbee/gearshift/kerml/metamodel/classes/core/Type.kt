@@ -24,8 +24,8 @@ import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaOperation
 import org.openmbee.mdm.framework.meta.MetaParameter
 import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.ModelElement
 import org.openmbee.mdm.framework.meta.SemanticBinding
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Type metaclass.
@@ -118,7 +118,7 @@ fun createTypeMetaClass() = MetaClass(
             expression = """
                 feature->select(f |
                     let direction: FeatureDirectionKind = directionOf(f) in
-                    direction = FeatureDirectionKind::_'in' or
+                    direction = FeatureDirectionKind::_in or
                     direction = FeatureDirectionKind::inout)
             """.trimIndent(),
             description = "The inputs of a Type are those of its features that have a direction of in or inout relative to the Type, taking conjugation into account"
@@ -382,8 +382,8 @@ fun createTypeMetaClass() = MetaClass(
                     else
                         let direction : FeatureDirectionKind = directions->first() in
                         if not isConjugated then direction
-                        else if direction = FeatureDirectionKind::_'in' then FeatureDirectionKind::out
-                        else if direction = FeatureDirectionKind::out then FeatureDirectionKind::_'in'
+                        else if direction = FeatureDirectionKind::_in then FeatureDirectionKind::out
+                        else if direction = FeatureDirectionKind::out then FeatureDirectionKind::_in
                         else direction
                         endif endif endif
                     endif
@@ -406,7 +406,7 @@ fun createTypeMetaClass() = MetaClass(
             body = MetaOperation.native { element, args, engine ->
                 val excludedTypes = when (val v = args["excludedTypes"]) {
                     is Collection<*> -> v.filterNotNull().toMutableSet()
-                    is MDMObject -> mutableSetOf<Any>(v)
+                    is ModelElement -> mutableSetOf<Any>(v)
                     else -> mutableSetOf()
                 }
                 val excludeImplied = args["excludeImplied"] as? Boolean ?: false
@@ -418,8 +418,8 @@ fun createTypeMetaClass() = MetaClass(
                     element.id!!, "supertypes", mapOf("excludeImplied" to excludeImplied)
                 )
                 val supertypeList = when (supertypes) {
-                    is List<*> -> supertypes.filterIsInstance<MDMObject>()
-                    is MDMObject -> listOf(supertypes)
+                    is List<*> -> supertypes.filterIsInstance<ModelElement>()
+                    is ModelElement -> listOf(supertypes)
                     else -> emptyList()
                 }
                 // Filter out excluded types
@@ -438,7 +438,7 @@ fun createTypeMetaClass() = MetaClass(
                     )
                     when (memberships) {
                         is Collection<*> -> result.addAll(memberships.filterNotNull())
-                        is MDMObject -> result.add(memberships)
+                        is ModelElement -> result.add(memberships)
                     }
                 }
                 result
@@ -463,7 +463,7 @@ fun createTypeMetaClass() = MetaClass(
                 val inheritable = engine.invokeOperation(element.id!!, "inheritableMemberships", args)
                 val inheritableList = when (inheritable) {
                     is Collection<*> -> inheritable.filterNotNull().toList()
-                    is MDMObject -> listOf(inheritable)
+                    is ModelElement -> listOf(inheritable)
                     else -> emptyList()
                 }
                 if (inheritableList.isEmpty()) return@native emptyList<Any>()
@@ -528,7 +528,7 @@ fun createTypeMetaClass() = MetaClass(
                 )
                 when (publicMs) {
                     is Collection<*> -> result.addAll(publicMs.filterNotNull())
-                    is MDMObject -> result.add(publicMs)
+                    is ModelElement -> result.add(publicMs)
                 }
                 // Protected memberships
                 val protectedMs = engine.invokeOperation(
@@ -537,13 +537,13 @@ fun createTypeMetaClass() = MetaClass(
                 )
                 when (protectedMs) {
                     is Collection<*> -> result.addAll(protectedMs.filterNotNull())
-                    is MDMObject -> result.add(protectedMs)
+                    is ModelElement -> result.add(protectedMs)
                 }
                 // Inherited memberships
                 val inherited = engine.invokeOperation(element.id!!, "inheritedMemberships", args)
                 when (inherited) {
                     is Collection<*> -> result.addAll(inherited.filterNotNull())
-                    is MDMObject -> result.add(inherited)
+                    is ModelElement -> result.add(inherited)
                 }
                 result
             },
@@ -627,21 +627,21 @@ fun createTypeMetaClass() = MetaClass(
             ),
             body = MetaOperation.native { element, args, engine ->
                 val excludeImplied = args["excludeImplied"] as? Boolean ?: false
-                val conjugator = engine.getProperty(element, "ownedConjugator") as? MDMObject
+                val conjugator = engine.getProperty(element, "ownedConjugator") as? ModelElement
                 if (conjugator != null) {
-                    val originalType = engine.getProperty(conjugator, "originalType") as? MDMObject
+                    val originalType = engine.getProperty(conjugator, "originalType") as? ModelElement
                     return@native if (originalType != null) listOf(originalType) else emptyList<Any>()
                 }
                 val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
                 val specList = when (ownedSpecs) {
-                    is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
-                    is MDMObject -> listOf(ownedSpecs)
+                    is List<*> -> ownedSpecs.filterIsInstance<ModelElement>()
+                    is ModelElement -> listOf(ownedSpecs)
                     else -> emptyList()
                 }
                 val filtered = if (excludeImplied) {
                     specList.filter { (engine.getProperty(it, "isImplied") as? Boolean) != true }
                 } else specList
-                filtered.mapNotNull { engine.getProperty(it, "general") as? MDMObject }
+                filtered.mapNotNull { engine.getProperty(it, "general") as? ModelElement }
             },
             description = """
                 If this Type is conjugated, then return just the originalType of the Conjugation.

@@ -48,6 +48,7 @@ class OclStringOperationsTest : DescribeSpec({
 
         override fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any? = null
         override fun getOperationParameterNames(className: String, operationName: String): List<String> = emptyList()
+        override fun getElementsByClass(className: String): List<MDMObject> = emptyList()
     }
 
     fun createExecutor(): OclExecutor {
@@ -180,6 +181,7 @@ class OclStringOperationsTest : DescribeSpec({
 
             override fun getPropertyAs(instanceId: String, propertyName: String, viewAsClass: String): Any? = null
             override fun getOperationParameterNames(className: String, operationName: String): List<String> = emptyList()
+            override fun getElementsByClass(className: String): List<MDMObject> = emptyList()
         }
 
         it("should return true for exact type match") {

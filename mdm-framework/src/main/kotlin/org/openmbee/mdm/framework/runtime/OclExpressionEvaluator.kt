@@ -79,4 +79,7 @@ private class MDMEngineAccessor(private val engine: MDMEngine) : EngineAccessor 
 
     override fun getOperationParameterNames(className: String, operationName: String): List<String> =
         engine.getOperationParameterNames(className, operationName)
+
+    override fun getElementsByClass(className: String): List<MDMObject> =
+        engine.getElementsByClass(className)
 }

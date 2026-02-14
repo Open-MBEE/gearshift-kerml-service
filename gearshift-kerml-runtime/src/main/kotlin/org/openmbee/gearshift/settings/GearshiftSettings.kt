@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openmbee.gearshift.kerml
+package org.openmbee.gearshift.settings
 
 /**
  * Application-level settings for the Gearshift KerML service.

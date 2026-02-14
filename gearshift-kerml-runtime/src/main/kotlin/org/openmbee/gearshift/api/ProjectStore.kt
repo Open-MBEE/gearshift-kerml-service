@@ -22,7 +22,6 @@ import org.openmbee.mdm.framework.runtime.DataVersionData
 import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.mdm.framework.runtime.MountableEngine
 import org.openmbee.mdm.framework.runtime.ProjectMetadata
-import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.KerMLModel
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -494,21 +493,18 @@ class ProjectStore(
         name: String,
         description: String?
     ): KerMLModel {
-        val settings = GearshiftSettings.DEFAULT.copy(processImpliedRelationships = false)
         return if (enableMounts) {
             KerMLModel.initializeKernelLibrary()
             KerMLModel.createWithMounts(
                 projectId = projectId,
                 projectName = name,
-                projectDescription = description,
-                settings = settings
+                projectDescription = description
             )
         } else {
             KerMLModel(
                 projectId = projectId,
                 projectName = name,
-                projectDescription = description,
-                settings = settings
+                projectDescription = description
             )
         }
     }

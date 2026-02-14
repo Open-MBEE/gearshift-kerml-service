@@ -17,7 +17,7 @@ package org.openmbee.gearshift.kerml.generator
 
 import org.openmbee.gearshift.generated.interfaces.Element
 import org.openmbee.gearshift.generated.interfaces.Namespace
-import org.openmbee.gearshift.kerml.GearshiftSettings
+import org.openmbee.gearshift.settings.GearshiftSettings
 
 /**
  * Options controlling KerML text generation.

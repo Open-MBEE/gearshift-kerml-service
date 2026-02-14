@@ -46,7 +46,7 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
             type = ConstraintType.VERIFICATION,
             expression = """
                 let inputParameters : Sequence(Feature) =
-                    ownedFeatures->select(direction = _'in') in
+                    ownedFeatures->select(direction = FeatureDirectionKind::_in) in
                 let sourceTargetFeature : Feature =
                     owningExpression.sourceTargetFeature() in
                 sourceTargetFeature <> null and
@@ -113,7 +113,7 @@ fun createFeatureChainExpressionMetaClass() = MetaClass(
             returnUpperBound = 1,
             body = MetaOperation.ocl("""
                 let inputParameters : Feature = ownedFeatures->
-                    select(direction = _'in') in
+                    select(direction = FeatureDirectionKind::_in) in
                 if inputParameters->isEmpty() or
                     inputParameters->first().ownedFeature->isEmpty()
                 then null

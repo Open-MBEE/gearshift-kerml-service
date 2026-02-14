@@ -17,17 +17,15 @@ package org.openmbee.mdm.framework.meta
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.openmbee.mdm.framework.runtime.MDMEngine
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * Type alias for native constraint implementation lambdas.
  * Parameters:
- * - element: The MDMObject being validated
- * - engine: The MDMEngine for model access
+ * - element: The ModelElement being validated
+ * - engine: The ModelEngine for model access
  * Returns: ConstraintResult with validation status and optional message
  */
-typealias ConstraintImplementation = (element: MDMObject, engine: MDMEngine) -> ConstraintResult
+typealias ConstraintImplementation = (element: ModelElement, engine: ModelEngine) -> ConstraintResult
 
 /**
  * Result of a native constraint evaluation.

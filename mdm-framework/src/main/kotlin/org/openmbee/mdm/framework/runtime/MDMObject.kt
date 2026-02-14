@@ -16,6 +16,7 @@
 package org.openmbee.mdm.framework.runtime
 
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.ModelElement
 
 /**
  * Runtime instance of a metamodel class - represents a node in the model graph.
@@ -29,14 +30,14 @@ import org.openmbee.mdm.framework.meta.MetaClass
 open class MDMObject(
     val className: String,
     val metaClass: MetaClass
-) {
+) : ModelElement {
     protected val properties = mutableMapOf<String, Any?>()
 
     /**
      * The ID of this object in the repository.
      * Set when the object is stored in a repository.
      */
-    var id: String? = null
+    override var id: String? = null
 
     /**
      * Set a property value.
@@ -48,7 +49,7 @@ open class MDMObject(
     /**
      * Get a property value.
      */
-    fun getProperty(name: String): Any? = properties[name]
+    override fun getProperty(name: String): Any? = properties[name]
 
     /**
      * Check if a property has been set.

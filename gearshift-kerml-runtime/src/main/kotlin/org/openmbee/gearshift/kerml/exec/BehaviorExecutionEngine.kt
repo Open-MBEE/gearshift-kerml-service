@@ -17,8 +17,8 @@ package org.openmbee.gearshift.kerml.exec
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.gearshift.generated.interfaces.*
-import org.openmbee.gearshift.kerml.GearshiftSettings
 import org.openmbee.gearshift.kerml.eval.KerMLExpressionEvaluator
+import org.openmbee.gearshift.settings.GearshiftSettings
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 
@@ -78,10 +78,12 @@ class BehaviorExecutionEngine(
             executeGraph(graph, context, behavior)
         } catch (e: Exception) {
             logger.error(e) { "Error executing behavior ${behavior.className}" }
-            listener.onEvent(ExecutionEvent.ExecutionError(
-                sequenceNumber = nextSeq(),
-                message = e.message ?: "Unknown error"
-            ))
+            listener.onEvent(
+                ExecutionEvent.ExecutionError(
+                    sequenceNumber = nextSeq(),
+                    message = e.message ?: "Unknown error"
+                )
+            )
             ExecutionResult(
                 status = ExecutionStatus.ERROR,
                 errorMessage = e.message
@@ -117,16 +119,17 @@ class BehaviorExecutionEngine(
         var stepCount = 0
 
         // Emit graph structure
-        listener.onEvent(ExecutionEvent.GraphInitialized(
-            sequenceNumber = nextSeq(),
-            steps = graph.steps.map { (id, exec) -> StepInfo(id, exec.step.stepName()) },
-            successions = graph.successions.map { edge ->
-                SuccessionInfo(edge.sourceStepId, edge.targetStepId, edge.guardExpression != null)
-            },
-            flows = graph.flows.map { edge ->
-                FlowInfo(edge.sourceStepId, edge.targetStepId, edge.sourceOutputFeature, edge.targetInputFeature)
-            }
-        ))
+        listener.onEvent(
+            ExecutionEvent.GraphInitialized(
+                sequenceNumber = nextSeq(),
+                steps = graph.steps.map { (id, exec) -> StepInfo(id, exec.step.stepName()) },
+                successions = graph.successions.map { edge ->
+                    SuccessionInfo(edge.sourceStepId, edge.targetStepId, edge.guardExpression != null)
+                },
+                flows = graph.flows.map { edge ->
+                    FlowInfo(edge.sourceStepId, edge.targetStepId, edge.sourceOutputFeature, edge.targetInputFeature)
+                }
+            ))
 
         // Place initial control tokens on steps with no predecessors
         val initialSteps = graph.findInitialSteps()
@@ -135,18 +138,22 @@ class BehaviorExecutionEngine(
             val oldState = step.state
             step.state = StepState.READY
 
-            listener.onEvent(ExecutionEvent.TokenPlaced(
-                sequenceNumber = nextSeq(),
-                stepId = step.step.id!!,
-                stepName = step.step.stepName()
-            ))
-            listener.onEvent(ExecutionEvent.StepStateChanged(
-                sequenceNumber = nextSeq(),
-                stepId = step.step.id!!,
-                stepName = step.step.stepName(),
-                oldState = oldState,
-                newState = StepState.READY
-            ))
+            listener.onEvent(
+                ExecutionEvent.TokenPlaced(
+                    sequenceNumber = nextSeq(),
+                    stepId = step.step.id!!,
+                    stepName = step.step.stepName()
+                )
+            )
+            listener.onEvent(
+                ExecutionEvent.StepStateChanged(
+                    sequenceNumber = nextSeq(),
+                    stepId = step.step.id!!,
+                    stepName = step.step.stepName(),
+                    oldState = oldState,
+                    newState = StepState.READY
+                )
+            )
         }
 
         // Main execution loop
@@ -167,25 +174,29 @@ class BehaviorExecutionEngine(
                     trace = trace,
                     stepsExecuted = stepCount
                 )
-                listener.onEvent(ExecutionEvent.ExecutionCompleted(
-                    sequenceNumber = nextSeq(),
-                    status = result.status,
-                    stepsExecuted = stepCount,
-                    outputs = result.outputs
-                ))
+                listener.onEvent(
+                    ExecutionEvent.ExecutionCompleted(
+                        sequenceNumber = nextSeq(),
+                        status = result.status,
+                        stepsExecuted = stepCount,
+                        outputs = result.outputs
+                    )
+                )
                 return result
             }
 
             // Execute each ready step
             for (stepExec in readySteps) {
                 stepExec.state = StepState.EXECUTING
-                listener.onEvent(ExecutionEvent.StepStateChanged(
-                    sequenceNumber = nextSeq(),
-                    stepId = stepExec.step.id!!,
-                    stepName = stepExec.step.stepName(),
-                    oldState = StepState.READY,
-                    newState = StepState.EXECUTING
-                ))
+                listener.onEvent(
+                    ExecutionEvent.StepStateChanged(
+                        sequenceNumber = nextSeq(),
+                        stepId = stepExec.step.id!!,
+                        stepName = stepExec.step.stepName(),
+                        oldState = StepState.READY,
+                        newState = StepState.EXECUTING
+                    )
+                )
 
                 // Transfer incoming data from Flows
                 transferInputData(graph, stepExec, context)
@@ -200,13 +211,15 @@ class BehaviorExecutionEngine(
                 stepExec.state = StepState.COMPLETED
                 stepCount++
 
-                listener.onEvent(ExecutionEvent.StepStateChanged(
-                    sequenceNumber = nextSeq(),
-                    stepId = stepExec.step.id!!,
-                    stepName = stepExec.step.stepName(),
-                    oldState = StepState.EXECUTING,
-                    newState = StepState.COMPLETED
-                ))
+                listener.onEvent(
+                    ExecutionEvent.StepStateChanged(
+                        sequenceNumber = nextSeq(),
+                        stepId = stepExec.step.id!!,
+                        stepName = stepExec.step.stepName(),
+                        oldState = StepState.EXECUTING,
+                        newState = StepState.COMPLETED
+                    )
+                )
 
                 // Record trace entry
                 trace.add(
@@ -233,12 +246,14 @@ class BehaviorExecutionEngine(
             trace = trace,
             stepsExecuted = stepCount
         )
-        listener.onEvent(ExecutionEvent.ExecutionCompleted(
-            sequenceNumber = nextSeq(),
-            status = result.status,
-            stepsExecuted = stepCount,
-            outputs = result.outputs
-        ))
+        listener.onEvent(
+            ExecutionEvent.ExecutionCompleted(
+                sequenceNumber = nextSeq(),
+                status = result.status,
+                stepsExecuted = stepCount,
+                outputs = result.outputs
+            )
+        )
         return result
     }
 
@@ -312,12 +327,14 @@ class BehaviorExecutionEngine(
             // Evaluate guard condition if present
             if (succession.guardExpression != null) {
                 val guardResult = evaluateGuard(succession.guardExpression, context)
-                listener.onEvent(ExecutionEvent.GuardEvaluated(
-                    sequenceNumber = nextSeq(),
-                    sourceStepId = succession.sourceStepId,
-                    targetStepId = succession.targetStepId,
-                    passed = guardResult
-                ))
+                listener.onEvent(
+                    ExecutionEvent.GuardEvaluated(
+                        sequenceNumber = nextSeq(),
+                        sourceStepId = succession.sourceStepId,
+                        targetStepId = succession.targetStepId,
+                        passed = guardResult
+                    )
+                )
                 if (!guardResult) {
                     logger.debug { "Guard condition failed for succession to ${succession.targetStepId}" }
                     continue
@@ -329,11 +346,13 @@ class BehaviorExecutionEngine(
             if (targetStep != null) {
                 targetStep.inputTokens.add(ControlToken())
 
-                listener.onEvent(ExecutionEvent.TokenPropagated(
-                    sequenceNumber = nextSeq(),
-                    sourceStepId = completedStep.step.id!!,
-                    targetStepId = succession.targetStepId
-                ))
+                listener.onEvent(
+                    ExecutionEvent.TokenPropagated(
+                        sequenceNumber = nextSeq(),
+                        sourceStepId = completedStep.step.id!!,
+                        targetStepId = succession.targetStepId
+                    )
+                )
 
                 // Check if all incoming successions have been satisfied
                 val incomingSuccessions = graph.getIncomingSuccessions(succession.targetStepId)
@@ -344,13 +363,15 @@ class BehaviorExecutionEngine(
 
                 if (allSatisfied) {
                     targetStep.state = StepState.READY
-                    listener.onEvent(ExecutionEvent.StepStateChanged(
-                        sequenceNumber = nextSeq(),
-                        stepId = succession.targetStepId,
-                        stepName = targetStep.step.stepName(),
-                        oldState = StepState.WAITING,
-                        newState = StepState.READY
-                    ))
+                    listener.onEvent(
+                        ExecutionEvent.StepStateChanged(
+                            sequenceNumber = nextSeq(),
+                            stepId = succession.targetStepId,
+                            stepName = targetStep.step.stepName(),
+                            oldState = StepState.WAITING,
+                            newState = StepState.READY
+                        )
+                    )
                 }
             }
         }
@@ -376,13 +397,15 @@ class BehaviorExecutionEngine(
                     context.bind(inputName, value)
                     stepExec.inputTokens.add(ObjectToken(value = value))
 
-                    listener.onEvent(ExecutionEvent.DataTransferred(
-                        sequenceNumber = nextSeq(),
-                        sourceStepId = flow.sourceStepId,
-                        targetStepId = stepExec.step.id!!,
-                        featureName = inputName,
-                        value = value
-                    ))
+                    listener.onEvent(
+                        ExecutionEvent.DataTransferred(
+                            sequenceNumber = nextSeq(),
+                            sourceStepId = flow.sourceStepId,
+                            targetStepId = stepExec.step.id!!,
+                            featureName = inputName,
+                            value = value
+                        )
+                    )
                 }
             }
         }
@@ -404,13 +427,15 @@ class BehaviorExecutionEngine(
                 val inputName = flow.targetInputFeature ?: outputName
                 context.bind(inputName, value)
 
-                listener.onEvent(ExecutionEvent.DataTransferred(
-                    sequenceNumber = nextSeq(),
-                    sourceStepId = completedStep.step.id!!,
-                    targetStepId = flow.targetStepId,
-                    featureName = inputName,
-                    value = value
-                ))
+                listener.onEvent(
+                    ExecutionEvent.DataTransferred(
+                        sequenceNumber = nextSeq(),
+                        sourceStepId = completedStep.step.id!!,
+                        targetStepId = flow.targetStepId,
+                        featureName = inputName,
+                        value = value
+                    )
+                )
             }
         }
     }
@@ -464,7 +489,7 @@ class BehaviorExecutionEngine(
         // Also include outputs from terminal steps
         val terminalSteps = graph.steps.values.filter { exec ->
             exec.state == StepState.COMPLETED &&
-                graph.getOutgoingSuccessions(exec.step.id!!).isEmpty()
+                    graph.getOutgoingSuccessions(exec.step.id!!).isEmpty()
         }
         for (stepExec in terminalSteps) {
             outputs.putAll(stepExec.outputValues)

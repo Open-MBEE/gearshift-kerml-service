@@ -16,7 +16,6 @@
 package org.openmbee.gearshift.kerml.metamodel.classes.root
 
 import org.openmbee.mdm.framework.meta.*
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Namespace metaclass.
@@ -95,8 +94,8 @@ fun createNamespaceMetaClass() = MetaClass(
                 // Get ownedRelationships via stored association links (cheap)
                 val ownedRels = engine.getProperty(element, "ownedRelationship")
                 val relList = when (ownedRels) {
-                    is List<*> -> ownedRels.filterIsInstance<MDMObject>()
-                    is MDMObject -> listOf(ownedRels)
+                    is List<*> -> ownedRels.filterIsInstance<ModelElement>()
+                    is ModelElement -> listOf(ownedRels)
                     else -> emptyList()
                 }
 
@@ -123,7 +122,7 @@ fun createNamespaceMetaClass() = MetaClass(
                     )
                     when (imported) {
                         is Collection<*> -> result.addAll(imported.filterNotNull())
-                        is MDMObject -> result.add(imported)
+                        is ModelElement -> result.add(imported)
                     }
                 }
                 result
@@ -266,16 +265,16 @@ fun createNamespaceMetaClass() = MetaClass(
                 }
 
                 // Helper to find a member by name in a namespace's ownedMembership
-                fun findMemberInNamespace(namespace: MDMObject, targetName: String): Pair<MDMObject, MDMObject>? {
+                fun findMemberInNamespace(namespace: ModelElement, targetName: String): Pair<ModelElement, ModelElement>? {
                     val ownedMemberships = engine.getProperty(namespace.id!!, "ownedMembership")
-                    val memberships: List<MDMObject> = when (ownedMemberships) {
-                        is List<*> -> ownedMemberships.filterIsInstance<MDMObject>()
-                        is MDMObject -> listOf(ownedMemberships)
+                    val memberships: List<ModelElement> = when (ownedMemberships) {
+                        is List<*> -> ownedMemberships.filterIsInstance<ModelElement>()
+                        is ModelElement -> listOf(ownedMemberships)
                         else -> emptyList()
                     }
 
                     for (membership in memberships) {
-                        val memberElement = engine.getProperty(membership.id!!, "memberElement") as? MDMObject ?: continue
+                        val memberElement = engine.getProperty(membership.id!!, "memberElement") as? ModelElement ?: continue
                         val memberName = engine.getProperty(membership.id!!, "memberName") as? String
                             ?: engine.getProperty(memberElement.id!!, "declaredName") as? String
                             ?: engine.getProperty(memberElement.id!!, "name") as? String
@@ -292,8 +291,8 @@ fun createNamespaceMetaClass() = MetaClass(
 
                 // Per KerML 7.2.5.3: Root namespaces are implicit and unnamed.
                 // Search for the first segment among ownedMembers of all root namespaces.
-                var currentMembership: MDMObject? = null
-                var currentElement: MDMObject? = null
+                var currentMembership: ModelElement? = null
+                var currentElement: ModelElement? = null
 
                 for (root in rootNamespaces) {
                     val found = findMemberInNamespace(root, unescapeName(segments[0]))

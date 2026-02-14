@@ -16,6 +16,7 @@
 package org.openmbee.gearshift.kerml.generator
 
 import org.openmbee.gearshift.generated.interfaces.*
+import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * Helper for generating inline expression text (without indentation).
@@ -42,14 +43,28 @@ object InlineExpressionHelper {
             is LiteralInfinity -> "*"
             is NullExpression -> "null"
             is FeatureReferenceExpression -> context.resolveDisplayName(expression.referent)
+            is FeatureChainExpression -> generateFeatureChainExpression(expression, context)
             is OperatorExpression -> generateOperatorExpression(expression, context)
             is InvocationExpression -> generateInvocationExpression(expression, context)
             else -> context.resolveDisplayName(expression)
         }
     }
 
+    /**
+     * Get expression arguments, preferring the parser-stored `_arguments` raw property
+     * over the derived `argument` association end (which requires complex OCL evaluation).
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun getArguments(expr: Expression): List<Expression> {
+        val raw = (expr as? MDMObject)?.getProperty("_arguments") as? List<*>
+        if (raw != null && raw.isNotEmpty()) {
+            return raw.filterIsInstance<Expression>()
+        }
+        return if (expr is InstantiationExpression) expr.argument else emptyList()
+    }
+
     private fun generateOperatorExpression(expr: OperatorExpression, context: GenerationContext): String {
-        val args = expr.argument
+        val args = getArguments(expr)
         val op = expr.operator
 
         return when {
@@ -70,8 +85,8 @@ object InlineExpressionHelper {
             args.size == 2 -> {
                 val left = generateInline(args[0], context)
                 val right = generateInline(args[1], context)
-                val leftParens = args[0] is OperatorExpression
-                val rightParens = args[1] is OperatorExpression
+                val leftParens = needsParentheses(args[0], op, isRight = false)
+                val rightParens = needsParentheses(args[1], op, isRight = true)
                 val leftStr = if (leftParens) "($left)" else left
                 val rightStr = if (rightParens) "($right)" else right
                 "$leftStr $op $rightStr"
@@ -80,9 +95,63 @@ object InlineExpressionHelper {
         }
     }
 
+    private fun generateFeatureChainExpression(expr: FeatureChainExpression, context: GenerationContext): String {
+        val args = getArguments(expr)
+        val targetName = (expr as? MDMObject)?.getProperty("_targetFeatureName") as? String
+
+        return if (args.isNotEmpty() && targetName != null) {
+            val source = generateInline(args[0], context)
+            "$source.$targetName"
+        } else if (targetName != null) {
+            targetName
+        } else {
+            context.resolveDisplayName(expr)
+        }
+    }
+
     private fun generateInvocationExpression(expr: InvocationExpression, context: GenerationContext): String {
-        val funcName = context.resolveDisplayName(expr.instantiatedType)
-        val args = expr.argument.joinToString(", ") { generateInline(it, context) }
-        return "$funcName($args)"
+        val funcName = (expr as? MDMObject)?.getProperty("_functionName") as? String
+            ?: try { context.resolveDisplayName(expr.instantiatedType) } catch (_: Exception) { "?" }
+        val args = getArguments(expr)
+        if (args.isEmpty()) return funcName
+
+        // For arrow operations (collect, select, etc.), first arg is source
+        val sourceArg = args.first()
+        val remainingArgs = args.drop(1)
+        val source = generateInline(sourceArg, context)
+
+        return if (remainingArgs.isNotEmpty()) {
+            val argStr = remainingArgs.joinToString(", ") { generateInline(it, context) }
+            "$source->$funcName($argStr)"
+        } else {
+            "$source->$funcName()"
+        }
+    }
+
+    /**
+     * Determine if parentheses are needed around a sub-expression based on
+     * operator precedence.
+     */
+    private fun needsParentheses(arg: Expression, parentOp: String, isRight: Boolean): Boolean {
+        if (arg !is OperatorExpression) return false
+        val childPrec = precedence(arg.operator)
+        val parentPrec = precedence(parentOp)
+        // Lower precedence needs parens; same precedence on right side needs parens for non-associative ops
+        return childPrec < parentPrec || (childPrec == parentPrec && isRight)
+    }
+
+    private fun precedence(op: String): Int = when (op) {
+        "or", "||" -> 1
+        "xor" -> 2
+        "and", "&&" -> 3
+        "implies" -> 4
+        "==", "!=", "===", "!==" -> 5
+        "<", ">", "<=", ">=" -> 6
+        "..", "..^", "^..^" -> 7
+        "+", "-" -> 8
+        "*", "/", "%" -> 9
+        "**" -> 10
+        "not", "-" -> 11  // unary
+        else -> 0
     }
 }

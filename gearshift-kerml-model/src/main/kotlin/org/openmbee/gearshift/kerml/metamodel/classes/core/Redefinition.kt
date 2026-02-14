@@ -47,7 +47,7 @@ fun createRedefinitionMetaClass() = MetaClass(
                     endif in
                 featuringTypes->forAll(t |
                     let direction: FeatureDirectionKind = t.directionOf(redefinedFeature) in
-                    ((direction = FeatureDirectionKind::_'in' or
+                    ((direction = FeatureDirectionKind::_in or
                       direction = FeatureDirectionKind::out) implies
                         redefiningFeature.direction = direction)
                     and

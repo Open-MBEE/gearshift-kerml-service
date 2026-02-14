@@ -1,0 +1,32 @@
+{
+  "name": "kerml-sysml-textmate",
+  "version": "0.1.0",
+  "contributes": {
+    "languages": [
+      {
+        "id": "kerml",
+        "aliases": ["KerML"],
+        "extensions": [".kerml"],
+        "configuration": "./kerml-language-configuration.json"
+      },
+      {
+        "id": "sysml",
+        "aliases": ["SysML"],
+        "extensions": [".sysml"],
+        "configuration": "./sysml-language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kerml",
+        "scopeName": "source.kerml",
+        "path": "./kerml.tmLanguage.json"
+      },
+      {
+        "language": "sysml",
+        "scopeName": "source.sysml",
+        "path": "./sysml.tmLanguage.json"
+      }
+    ]
+  }
+}

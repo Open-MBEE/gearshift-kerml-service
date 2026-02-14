@@ -9,6 +9,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/gearshift-intellij-plugin" />
             <option value="$PROJECT_DIR$/gearshift-kerml-model" />
             <option value="$PROJECT_DIR$/gearshift-kerml-runtime" />
             <option value="$PROJECT_DIR$/kerml-generated" />

@@ -111,6 +111,12 @@ interface EngineAccessor {
      * Used by the OCL executor to map positional arguments to named parameters.
      */
     fun getOperationParameterNames(className: String, operationName: String): List<String>
+
+    /**
+     * Get all instances of a class (including subclasses) in the model extent.
+     * Used by OCL allInstances() operation.
+     */
+    fun getElementsByClass(className: String): List<MDMObject>
 }
 
 /**

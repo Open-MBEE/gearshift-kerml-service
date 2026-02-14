@@ -215,7 +215,7 @@ fun createExpressionMetaClass() = MetaClass(
             body = MetaOperation.ocl("""
                 ownedSpecialization->forAll(isImplied) and
                 ownedFeature->forAll(f |
-                    (directionOf(f) = FeatureDirectionKind::_'in' or f = result) and
+                    (directionOf(f) = FeatureDirectionKind::_in or f = result) and
                     f.ownedFeature->isEmpty() and f.valuation = null or
                     f.owningFeatureMembership.oclIsKindOf(ResultExpressionMembership) and
                     f.oclAsType(Expression).modelLevelEvaluable(visited)

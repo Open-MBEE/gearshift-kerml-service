@@ -1,0 +1,34 @@
+{
+  "project" : {
+    "id" : "843b35fe-56df-408d-81bd-d915b608fe3f",
+    "name" : "Demo Project",
+    "description" : null,
+    "created" : "2026-02-13T18:00:58.539448Z"
+  },
+  "branch" : {
+    "id" : "85b28321-8fac-42d5-b5d0-ab80cd9c772c",
+    "name" : "main",
+    "owningProject" : "843b35fe-56df-408d-81bd-d915b608fe3f",
+    "headCommitId" : "1f7ebe58-6533-4863-829e-c06dbb7f79d4",
+    "created" : "2026-02-13T18:00:58.539474Z"
+  },
+  "commits" : [ {
+    "id" : "14272149-f9ac-4785-995b-3b381dd50a6e",
+    "description" : "Initial empty commit",
+    "owningProject" : "843b35fe-56df-408d-81bd-d915b608fe3f",
+    "previousCommit" : [ ],
+    "created" : "2026-02-13T18:00:58.539462Z"
+  }, {
+    "id" : "e2872235-205b-4f9e-a5fd-e28360c74410",
+    "description" : null,
+    "owningProject" : "843b35fe-56df-408d-81bd-d915b608fe3f",
+    "previousCommit" : [ "14272149-f9ac-4785-995b-3b381dd50a6e" ],
+    "created" : "2026-02-13T23:08:49.349688Z"
+  }, {
+    "id" : "1f7ebe58-6533-4863-829e-c06dbb7f79d4",
+    "description" : null,
+    "owningProject" : "843b35fe-56df-408d-81bd-d915b608fe3f",
+    "previousCommit" : [ "e2872235-205b-4f9e-a5fd-e28360c74410" ],
+    "created" : "2026-02-13T23:12:20.166571Z"
+  } ]
+}

@@ -21,6 +21,7 @@ import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
 import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.ModelEngine
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 
@@ -38,8 +39,9 @@ fun createMDMBaseClass() = MetaClass(
             name = "validatePropertyLowerBound",
             type = ConstraintType.VERIFICATION,
             description = "Validates that required properties (lowerBound >= 1) have values set"
-        ) { element: MDMObject, engine: MDMEngine ->
-            val metaClass = element.metaClass
+        ) { element, engine ->
+            val obj = element as MDMObject
+            val metaClass = obj.metaClass
             val allProperties = collectAllProperties(metaClass, engine)
 
             for (property in allProperties) {
@@ -62,8 +64,9 @@ fun createMDMBaseClass() = MetaClass(
             name = "validatePropertyMultiplicity",
             type = ConstraintType.VERIFICATION,
             description = "Validates that collection properties satisfy multiplicity bounds"
-        ) { element: MDMObject, engine: MDMEngine ->
-            val metaClass = element.metaClass
+        ) { element, engine ->
+            val obj = element as MDMObject
+            val metaClass = obj.metaClass
             val allProperties = collectAllProperties(metaClass, engine)
 
             for (property in allProperties) {
@@ -94,11 +97,12 @@ fun createMDMBaseClass() = MetaClass(
 /**
  * Collect all properties from a class and its superclasses.
  */
-private fun collectAllProperties(metaClass: MetaClass, engine: MDMEngine): List<MetaProperty> {
+private fun collectAllProperties(metaClass: MetaClass, engine: ModelEngine): List<MetaProperty> {
     val properties = mutableListOf<MetaProperty>()
     properties.addAll(metaClass.attributes)
+    val schema = (engine as MDMEngine).schema
     for (superclassName in metaClass.superclasses) {
-        engine.schema.getClass(superclassName)?.let { superclass ->
+        schema.getClass(superclassName)?.let { superclass ->
             properties.addAll(collectAllProperties(superclass, engine))
         }
     }

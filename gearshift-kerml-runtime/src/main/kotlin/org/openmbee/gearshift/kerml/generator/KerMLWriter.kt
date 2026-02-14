@@ -19,7 +19,7 @@ import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.generated.interfaces.NamespaceImport
 import org.openmbee.gearshift.generated.interfaces.OwningMembership
 import org.openmbee.gearshift.generated.interfaces.Package
-import org.openmbee.gearshift.kerml.GearshiftSettings
+import org.openmbee.gearshift.settings.GearshiftSettings
 import java.io.File
 
 /**

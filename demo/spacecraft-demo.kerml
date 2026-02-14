@@ -1,12 +1,7 @@
-// ============================================================
-// Gearshift Demo: Spacecraft Design Model
-// ============================================================
-// A KerML model of a spacecraft with class-based subsystem
-// hierarchy, specialization, mass budget rollup via solver
-// constraints, and mission behaviors.
-// ============================================================
-
 package SpacecraftDesign {
+    doc /* A KerML model of a spacecraft with class-based subsystem
+         hierarchy, specialization, mass budget rollup via solver
+         constraints, and mission behaviors. */
 
     // ─── Abstract Base Types ───────────────────────────────
 

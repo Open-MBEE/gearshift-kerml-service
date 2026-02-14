@@ -25,19 +25,16 @@ import org.openmbee.gearshift.generated.interfaces.ModelElement
 import org.openmbee.gearshift.generated.interfaces.Namespace
 import org.openmbee.gearshift.kerml.antlr.KerMLLexer
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
+import org.openmbee.gearshift.kerml.index.IndexReconciler
+import org.openmbee.gearshift.kerml.index.ModelIndex
 import org.openmbee.gearshift.kerml.parser.KerMLErrorListener
 import org.openmbee.gearshift.kerml.parser.KerMLParseError
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.TypedVisitorFactory
 import org.openmbee.gearshift.kerml.parser.visitors.base.ReferenceCollector
 import org.openmbee.gearshift.kerml.parser.visitors.base.ReferenceResolver
-import org.openmbee.mdm.framework.runtime.MDMEngine
-import org.openmbee.mdm.framework.runtime.MDMModel
-import org.openmbee.mdm.framework.runtime.MetamodelRegistry
-import org.openmbee.mdm.framework.runtime.Mount
-import org.openmbee.mdm.framework.runtime.MountableEngine
-import org.openmbee.mdm.framework.runtime.MountRegistry
-import org.openmbee.mdm.framework.runtime.StandardMount
+import org.openmbee.gearshift.settings.GearshiftSettings
+import org.openmbee.mdm.framework.runtime.*
 import java.nio.file.Path
 import org.openmbee.gearshift.generated.interfaces.Package as KerMLPackage
 
@@ -94,7 +91,7 @@ class KerMLModel(
     projectDescription: String? = null,
     /**
      * Application settings controlling auto-naming and other behaviors.
-     * Use [GearshiftSettings.EDITOR] for editor-friendly defaults.
+     * Use [org.openmbee.gearshift.settings.GearshiftSettings.EDITOR] for editor-friendly defaults.
      */
     val settings: GearshiftSettings = GearshiftSettings.DEFAULT
 ) : MDMModel(engine, "Namespace", projectId, projectName, projectDescription) {
@@ -370,6 +367,22 @@ class KerMLModel(
         }
     }
 
+    // ===== Index Reconciliation =====
+
+    /**
+     * Reconcile element IDs against a previous [ModelIndex].
+     *
+     * Call this after parsing completes to stabilize element IDs across
+     * reparses. Elements with the same qualified name / path as in the
+     * previous index will be remapped to their original IDs.
+     *
+     * @param previousIndex The index from the prior commit, or null for first commit
+     * @return A new ModelIndex reflecting the current model state
+     */
+    fun reconcileIndex(previousIndex: ModelIndex?): ModelIndex {
+        return IndexReconciler.reconcile(engine, previousIndex)
+    }
+
     // ===== Default Naming =====
 
     /**
@@ -550,7 +563,3 @@ class KerMLModel(
         super.reset()
     }
 }
-
-// Type alias for backwards compatibility
-@Deprecated("Use KerMLModel instead", ReplaceWith("KerMLModel"))
-typealias KerMLModelFactory = KerMLModel

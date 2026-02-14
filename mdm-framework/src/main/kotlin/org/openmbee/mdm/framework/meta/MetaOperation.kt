@@ -17,17 +17,15 @@ package org.openmbee.mdm.framework.meta
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.openmbee.mdm.framework.runtime.MDMEngine
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * Type alias for native operation implementation lambdas.
  * Parameters:
- * - element: The MDMObject on which the operation is invoked
+ * - element: The ModelElement on which the operation is invoked
  * - args: Map of operation arguments
- * - engine: The MDMEngine for model access
+ * - engine: The ModelEngine for model access
  */
-typealias OperationImplementation = (element: MDMObject, args: Map<String, Any?>, engine: MDMEngine) -> Any?
+typealias OperationImplementation = (element: ModelElement, args: Map<String, Any?>, engine: ModelEngine) -> Any?
 
 /**
  * Language used to express operation bodies and constraint expressions.

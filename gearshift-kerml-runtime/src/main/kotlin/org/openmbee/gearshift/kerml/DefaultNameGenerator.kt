@@ -17,13 +17,15 @@ package org.openmbee.gearshift.kerml
 
 import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.Namespace
+import org.openmbee.gearshift.settings.GearshiftSettings
+import org.openmbee.gearshift.settings.NameStrategy
 
 /**
  * Generates default names for newly created elements, similar to
  * Cameo's auto-naming behavior for SysML v1 properties and ports.
  *
  * Naming strategy:
- * - `declaredName`: derived from type name using the configured [NameStrategy]
+ * - `declaredName`: derived from type name using the configured [org.openmbee.gearshift.settings.NameStrategy]
  * - `declaredShortName`: letter prefix + index (e.g., `p1`, `p2`, `e1`)
  *
  * When a name collision occurs in the owning namespace, an index suffix
@@ -34,8 +36,8 @@ object DefaultNameGenerator {
     /**
      * Generate a default declared name from a type name using the given strategy.
      *
-     * - [NameStrategy.CAMEL_CASE]: "Engine" → "engine", "PowerSystem" → "powerSystem"
-     * - [NameStrategy.SNAKE_CASE]: "Engine" → "engine", "PowerSystem" → "power_system"
+     * - [org.openmbee.gearshift.settings.NameStrategy.CAMEL_CASE]: "Engine" → "engine", "PowerSystem" → "powerSystem"
+     * - [org.openmbee.gearshift.settings.NameStrategy.SNAKE_CASE]: "Engine" → "engine", "PowerSystem" → "power_system"
      */
     fun defaultNameFromType(typeName: String, strategy: NameStrategy = NameStrategy.CAMEL_CASE): String {
         if (typeName.isBlank()) return "element"

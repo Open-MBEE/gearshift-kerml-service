@@ -16,21 +16,15 @@
 package org.openmbee.gearshift.kerml
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.gearshift.generated.interfaces.*
 import org.openmbee.mdm.framework.meta.BindingCondition
 import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.MetaClass
 import org.openmbee.mdm.framework.meta.SemanticBinding
 import org.openmbee.mdm.framework.runtime.LifecycleEvent
 import org.openmbee.mdm.framework.runtime.LifecycleHandler
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
-import org.openmbee.gearshift.generated.interfaces.Classifier
-import org.openmbee.gearshift.generated.interfaces.Feature
-import org.openmbee.gearshift.generated.interfaces.Redefinition
-import org.openmbee.gearshift.generated.interfaces.Subclassification
-import org.openmbee.gearshift.generated.interfaces.Subsetting
-import org.openmbee.gearshift.generated.interfaces.Type
-import org.openmbee.gearshift.generated.interfaces.TypeFeaturing
-import org.openmbee.mdm.framework.meta.MetaClass
 
 private val logger = KotlinLogging.logger {}
 
@@ -140,7 +134,7 @@ class KerMLSemanticHandler(
             // Check if binding condition applies
             val conditionResult = evaluateCondition(binding.condition, instance)
             val instanceName = instance.getProperty("declaredName") as? String ?: instance.id
-            logger.debug { "Binding ${binding.name} for $instanceName: condition=${binding.condition}, result=$conditionResult" }
+            logger.trace { "Binding ${binding.name} for $instanceName: condition=${binding.condition}, result=$conditionResult" }
             if (!conditionResult) {
                 continue
             }
@@ -254,7 +248,7 @@ class KerMLSemanticHandler(
                     instance.typing.any { typing ->
                         val typedBy = (typing.type as? MDMObject)?.className
                         typedBy == condition.metaclass ||
-                            engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
+                                engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
                     }
                 } else false
             }
@@ -346,7 +340,7 @@ class KerMLSemanticHandler(
                         owningType.typing.any { typing ->
                             val typedBy = (typing.type as? MDMObject)?.className
                             typedBy == condition.metaclass ||
-                                engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
+                                    engine.schema.getAllSuperclasses(typedBy ?: "").contains(condition.metaclass)
                         }
                     } else {
                         (owningType as? MDMObject)?.className == condition.metaclass

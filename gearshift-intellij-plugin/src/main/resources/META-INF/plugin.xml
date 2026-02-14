@@ -1,0 +1,92 @@
+<idea-plugin>
+    <id>org.openmbee.gearshift.kerml</id>
+    <name>KerML Language Support</name>
+    <vendor>OpenMBEE / Gearshift</vendor>
+    <description><![CDATA[
+        Language support for KerML (Kernel Modeling Language) files.
+        <ul>
+            <li>Syntax highlighting with customizable colors</li>
+            <li>Brace matching and code folding</li>
+            <li>Line and block commenting</li>
+            <li>Parse error highlighting</li>
+            <li>Structure view (outline panel)</li>
+            <li>Go-to-definition and find usages</li>
+            <li>Code completion (keywords + in-scope names)</li>
+            <li>Code formatting via KerMLWriter</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Language + FileType -->
+        <fileType
+                name="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.KerMLFileType"
+                language="KerML"
+                extensions="kerml"/>
+
+        <!-- Parser -->
+        <lang.parserDefinition
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.parser.KerMLParserDefinition"/>
+
+        <!-- Syntax Highlighting -->
+        <lang.syntaxHighlighterFactory
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.highlighting.KerMLSyntaxHighlighterFactory"/>
+
+        <colorSettingsPage
+                implementation="org.openmbee.gearshift.intellij.highlighting.KerMLColorSettingsPage"/>
+
+        <!-- Editor Features -->
+        <lang.braceMatcher
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.editor.KerMLBraceMatcher"/>
+
+        <lang.commenter
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.editor.KerMLCommenter"/>
+
+        <lang.foldingBuilder
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.editor.KerMLFoldingBuilder"/>
+
+        <lang.quoteHandler
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.editor.KerMLQuoteHandler"/>
+
+        <!-- Semantic Layer -->
+        <externalAnnotator
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.annotator.KerMLExternalAnnotator"/>
+
+        <projectService
+                serviceImplementation="org.openmbee.gearshift.intellij.annotator.KerMLModelCache"/>
+
+        <!-- Structure View -->
+        <lang.psiStructureViewFactory
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.structure.KerMLStructureViewFactory"/>
+
+        <!-- Navigation -->
+        <psi.referenceContributor
+                language="KerML"
+                implementation="org.openmbee.gearshift.intellij.navigation.KerMLReferenceContributor"/>
+
+        <lang.findUsagesProvider
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.navigation.KerMLFindUsagesProvider"/>
+
+        <!-- Completion -->
+        <completion.contributor
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.completion.KerMLCompletionContributor"/>
+
+        <!-- Formatting -->
+        <lang.formatter
+                language="KerML"
+                implementationClass="org.openmbee.gearshift.intellij.formatting.KerMLFormattingModelBuilder"/>
+    </extensions>
+</idea-plugin>

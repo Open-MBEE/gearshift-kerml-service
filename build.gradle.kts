@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "2.1.10" apply false
     kotlin("plugin.serialization") version "2.1.10" apply false
     id("com.github.hierynomus.license") version "0.16.1" apply false
+    id("org.jetbrains.intellij.platform") version "2.2.1" apply false
 }
 
 group = "org.openmbee.gearshift"

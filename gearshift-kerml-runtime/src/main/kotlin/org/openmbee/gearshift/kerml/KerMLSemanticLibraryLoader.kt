@@ -24,11 +24,7 @@ import org.openmbee.gearshift.kerml.antlr.KerMLLexer
 import org.openmbee.gearshift.kerml.antlr.KerMLParser
 import org.openmbee.gearshift.kerml.parser.KermlParseContext
 import org.openmbee.gearshift.kerml.parser.visitors.RootNamespaceVisitor
-import org.openmbee.mdm.framework.runtime.MDMEngine
-import org.openmbee.mdm.framework.runtime.MetamodelRegistry
-import org.openmbee.mdm.framework.runtime.Mount
-import org.openmbee.mdm.framework.runtime.MountRegistry
-import org.openmbee.mdm.framework.runtime.StandardMount
+import org.openmbee.mdm.framework.runtime.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -117,7 +113,7 @@ object KerMLSemanticLibraryLoader {
     )
 
     /**
-     * Load the Kernel Semantic Library into the given KerMLModelFactory.
+     * Load the Kernel Semantic Library into the given KerMLModel.
      *
      * Uses the new typed visitor infrastructure for high-level API usage.
      *
@@ -126,7 +122,7 @@ object KerMLSemanticLibraryLoader {
      * @return List of parse results for each library file
      */
     fun loadLibrary(
-        factory: KerMLModelFactory,
+        factory: KerMLModel,
         libraryPath: Path? = null
     ): List<LibraryLoadResult> {
         val results = mutableListOf<LibraryLoadResult>()
@@ -143,7 +139,7 @@ object KerMLSemanticLibraryLoader {
      * Load a single library file, trying classpath first, then file system.
      */
     private fun loadLibraryFile(
-        factory: KerMLModelFactory,
+        factory: KerMLModel,
         libFile: LibraryFile,
         overridePath: Path?
     ): LibraryLoadResult {
@@ -182,7 +178,7 @@ object KerMLSemanticLibraryLoader {
      * @return The parse result for Base.kerml
      */
     fun loadBaseLibrary(
-        factory: KerMLModelFactory,
+        factory: KerMLModel,
         libraryPath: Path = getLibraryPath()
     ): LibraryLoadResult {
         val filePath = libraryPath.resolve("Base.kerml")
@@ -198,7 +194,7 @@ object KerMLSemanticLibraryLoader {
      * This uses high-level APIs which properly set up memberships and relationships.
      */
     private fun parseLibraryFile(
-        factory: KerMLModelFactory,
+        factory: KerMLModel,
         filePath: Path,
         fileName: String
     ): LibraryLoadResult {
@@ -262,7 +258,7 @@ object KerMLSemanticLibraryLoader {
      * Parse library content from a string (for classpath resources).
      */
     private fun parseLibraryContent(
-        factory: KerMLModelFactory,
+        factory: KerMLModel,
         content: String,
         fileName: String
     ): LibraryLoadResult {

@@ -153,8 +153,8 @@ class OclExecutor(
         if (parts.size != 2) {
             throw OclEvaluationException("Invalid enum literal syntax: $literal")
         }
-        // Return the value part in lowercase (matches @JsonValue convention)
-        return parts[1].lowercase()
+        // Strip leading underscore (KerML uses _in to escape reserved words) and lowercase
+        return parts[1].removePrefix("_").lowercase()
     }
 
     override fun visitPropertyCall(exp: PropertyCallExp): Any? {
@@ -237,8 +237,10 @@ class OclExecutor(
                 }
             }
 
+            null -> null
+
             else -> throw OclEvaluationException(
-                "Cannot access property '${exp.propertyName}' on ${source?.javaClass?.simpleName ?: "null"}"
+                "Cannot access property '${exp.propertyName}' on ${source.javaClass.simpleName}"
             )
         }
     }
@@ -302,6 +304,12 @@ class OclExecutor(
     // ===== Operations =====
 
     override fun visitOperationCall(exp: OperationCallExp): Any? {
+        // Handle Type.allInstances() — source is a VariableExp with the type name
+        if (exp.operationName == "allInstances" && exp.source is VariableExp) {
+            val typeName = (exp.source as VariableExp).name
+            return engineAccessor.getElementsByClass(typeName)
+        }
+
         val source = exp.source?.accept(this)
         val args = exp.arguments.map { it.accept(this) }
 

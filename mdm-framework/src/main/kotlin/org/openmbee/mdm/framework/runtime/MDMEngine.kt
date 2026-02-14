@@ -19,7 +19,6 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.meta.*
 import org.openmbee.mdm.framework.query.ocl.OclAsTypeView
 import java.util.UUID
-import kotlin.collections.ArrayDeque
 
 private val logger = KotlinLogging.logger {}
 
@@ -47,7 +46,7 @@ open class MDMEngine(
     val schema: MetamodelRegistry,
     /** The factory used to create element instances (allows typed implementations) */
     elementFactory: ElementFactory = DefaultElementFactory()
-) {
+) : ModelEngine {
     /** Element instances by ID */
     private val elements: MutableMap<String, MDMObject> = mutableMapOf()
 
@@ -154,6 +153,33 @@ open class MDMEngine(
     }
 
     /**
+     * Reassign an element's ID from [oldId] to [newId].
+     *
+     * Updates the element map key, the element's `.id` field, and all
+     * link references in the association graph. This is used by index
+     * reconciliation to stabilize element IDs across reparses.
+     *
+     * @param oldId The current ID of the element
+     * @param newId The desired new ID for the element
+     * @throws IllegalArgumentException if [oldId] is not found or [newId] is already in use
+     */
+    fun reassignElementId(oldId: String, newId: String) {
+        if (oldId == newId) return
+
+        val element = elements.remove(oldId)
+            ?: throw IllegalArgumentException("Element not found: $oldId")
+        if (elements.containsKey(newId)) {
+            // Put the element back before throwing
+            elements[oldId] = element
+            throw IllegalArgumentException("Element ID already in use: $newId")
+        }
+
+        element.id = newId
+        elements[newId] = element
+        graph.reassignElementId(oldId, newId)
+    }
+
+    /**
      * Delete an instance and cascade delete all owned/composite elements.
      * Follows composite associations to find elements that should be deleted.
      *
@@ -194,7 +220,7 @@ open class MDMEngine(
      * Get all root namespaces (elements with no owner).
      * Note: This is a convenience for KerML but implemented generically.
      */
-    open fun getRootNamespaces(): List<MDMObject> =
+    override fun getRootNamespaces(): List<MDMObject> =
         elements.values.filter { element ->
             val owner = getPropertyValue(element, "owner")
             owner == null && schema.isSubclassOf(element.className, "Namespace")
@@ -205,6 +231,9 @@ open class MDMEngine(
      */
     fun isInstanceOf(element: MDMObject, className: String): Boolean =
         element.className == className || schema.isSubclassOf(element.className, className)
+
+    override fun isInstanceOf(element: ModelElement, className: String): Boolean =
+        isInstanceOf(element as MDMObject, className)
 
     /**
      * Clear all elements and links.
@@ -346,6 +375,9 @@ open class MDMEngine(
     fun getPropertyValue(element: MDMObject, propertyName: String): Any? =
         getProperty(element, propertyName)
 
+    override fun getProperty(element: ModelElement, name: String): Any? =
+        getProperty(element as MDMObject, name)
+
     /**
      * Get a property value (handles stored, derived, and association properties).
      * Alias for getPropertyValue for compatibility.
@@ -434,7 +466,7 @@ open class MDMEngine(
      * Get a property by instance ID (for generated code compatibility).
      * Uses getElement() to support mounted elements in MountableEngine.
      */
-    fun getProperty(instanceId: String, propertyName: String): Any? {
+    override fun getProperty(instanceId: String, propertyName: String): Any? {
         val element = getElement(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return getProperty(element, propertyName)
@@ -587,7 +619,7 @@ open class MDMEngine(
             }
 
             is OperationBody.Native -> {
-                logger.debug { "Invoking native operation $operationName on ${element.className}" }
+                logger.trace { "Invoking native operation $operationName on ${element.className}" }
                 body.impl(element, args, this)
             }
 
@@ -617,7 +649,7 @@ open class MDMEngine(
      * Invoke an operation by instance ID (for generated code compatibility).
      * Uses getElement() to support mounted elements in MountableEngine.
      */
-    fun invokeOperation(instanceId: String, operationName: String, args: Map<String, Any?> = emptyMap()): Any? {
+    override fun invokeOperation(instanceId: String, operationName: String, args: Map<String, Any?>): Any? {
         val element = getElement(instanceId)
             ?: throw IllegalArgumentException("Instance not found: $instanceId")
         return invokeOperation(element, operationName, args)
@@ -651,7 +683,7 @@ open class MDMEngine(
             }
 
             is OperationBody.Native -> {
-                logger.debug { "Invoking native operation $operationName as $dispatchClass on ${element.id}" }
+                logger.trace { "Invoking native operation $operationName as $dispatchClass on ${element.id}" }
                 body.impl(element, args, this)
             }
 
@@ -1330,6 +1362,38 @@ class MDMGraph {
 
     fun getLinksForElement(elementId: String): List<MDMLink> =
         (sourceIndex[elementId].orEmpty() + targetIndex[elementId].orEmpty()).distinct()
+
+    /**
+     * Reassign all link references from [oldId] to [newId].
+     * Updates sourceId/targetId in affected links and re-indexes them.
+     */
+    fun reassignElementId(oldId: String, newId: String) {
+        // Collect all links referencing the old ID
+        val asSource = sourceIndex.remove(oldId).orEmpty().toList()
+        val asTarget = targetIndex.remove(oldId).orEmpty().toList()
+
+        // Replace links where oldId is the source
+        for (link in asSource) {
+            edges.remove(link.id)
+            targetIndex[link.targetId]?.remove(link)
+
+            val newLink = MDMLink(link.id, link.association, newId, link.targetId)
+            edges[newLink.id] = newLink
+            sourceIndex.getOrPut(newId) { mutableListOf() }.add(newLink)
+            targetIndex.getOrPut(newLink.targetId) { mutableListOf() }.add(newLink)
+        }
+
+        // Replace links where oldId is the target
+        for (link in asTarget) {
+            edges.remove(link.id)
+            sourceIndex[link.sourceId]?.remove(link)
+
+            val newLink = MDMLink(link.id, link.association, link.sourceId, newId)
+            edges[newLink.id] = newLink
+            sourceIndex.getOrPut(newLink.sourceId) { mutableListOf() }.add(newLink)
+            targetIndex.getOrPut(newId) { mutableListOf() }.add(newLink)
+        }
+    }
 
     fun clear() {
         edges.clear()

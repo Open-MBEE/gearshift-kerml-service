@@ -112,7 +112,7 @@ fun createInvocationExpressionMetaClass() = MetaClass(
             expression = """
                 ownedFeature->forAll(f |
                     f <> result implies
-                    f.direction = FeatureDirectionKind::_'in')
+                    f.direction = FeatureDirectionKind::_in)
             """.trimIndent(),
             description = "Other than its result, all the ownedFeatures of an InvocationExpression must have direction = in."
         ),

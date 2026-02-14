@@ -24,8 +24,8 @@ import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaOperation
 import org.openmbee.mdm.framework.meta.MetaParameter
 import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.ModelElement
 import org.openmbee.mdm.framework.meta.SemanticBinding
-import org.openmbee.mdm.framework.runtime.MDMObject
 
 /**
  * KerML Feature metaclass.
@@ -162,12 +162,12 @@ fun createFeatureMetaClass() = MetaClass(
                     val namingFeature = run {
                         val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
                         val specList = when (ownedSpecs) {
-                            is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
-                            is MDMObject -> listOf(ownedSpecs)
+                            is List<*> -> ownedSpecs.filterIsInstance<ModelElement>()
+                            is ModelElement -> listOf(ownedSpecs)
                             else -> emptyList()
                         }
                         val firstRedef = specList.firstOrNull { engine.isInstanceOf(it, "Redefinition") }
-                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? MDMObject }
+                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? ModelElement }
                     }
                     if (namingFeature != null) {
                         engine.invokeOperation(namingFeature.id!!, "effectiveName", emptyMap())
@@ -194,12 +194,12 @@ fun createFeatureMetaClass() = MetaClass(
                     val namingFeature = run {
                         val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
                         val specList = when (ownedSpecs) {
-                            is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
-                            is MDMObject -> listOf(ownedSpecs)
+                            is List<*> -> ownedSpecs.filterIsInstance<ModelElement>()
+                            is ModelElement -> listOf(ownedSpecs)
                             else -> emptyList()
                         }
                         val firstRedef = specList.firstOrNull { engine.isInstanceOf(it, "Redefinition") }
-                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? MDMObject }
+                        firstRedef?.let { engine.getProperty(it, "redefinedFeature") as? ModelElement }
                     }
                     if (namingFeature != null) {
                         engine.invokeOperation(namingFeature.id!!, "effectiveShortName", emptyMap())
@@ -375,24 +375,24 @@ fun createFeatureMetaClass() = MetaClass(
             body = MetaOperation.native { element, args, engine ->
                 val excludeImplied = args["excludeImplied"] as? Boolean ?: false
                 // Replicate Type.supertypes logic (can't call super via oclAsType)
-                val conjugator = engine.getProperty(element, "ownedConjugator") as? MDMObject
+                val conjugator = engine.getProperty(element, "ownedConjugator") as? ModelElement
                 val baseSupertypes = if (conjugator != null) {
-                    val originalType = engine.getProperty(conjugator, "originalType") as? MDMObject
-                    if (originalType != null) mutableListOf<MDMObject>(originalType) else mutableListOf()
+                    val originalType = engine.getProperty(conjugator, "originalType") as? ModelElement
+                    if (originalType != null) mutableListOf<ModelElement>(originalType) else mutableListOf()
                 } else {
                     val ownedSpecs = engine.getProperty(element, "ownedSpecialization")
                     val specList = when (ownedSpecs) {
-                        is List<*> -> ownedSpecs.filterIsInstance<MDMObject>()
-                        is MDMObject -> listOf(ownedSpecs)
+                        is List<*> -> ownedSpecs.filterIsInstance<ModelElement>()
+                        is ModelElement -> listOf(ownedSpecs)
                         else -> emptyList()
                     }
                     val filtered = if (excludeImplied) {
                         specList.filter { (engine.getProperty(it, "isImplied") as? Boolean) != true }
                     } else specList
-                    filtered.mapNotNull { engine.getProperty(it, "general") as? MDMObject }.toMutableList()
+                    filtered.mapNotNull { engine.getProperty(it, "general") as? ModelElement }.toMutableList()
                 }
                 // Append featureTarget if different from self
-                val featureTarget = engine.getProperty(element, "featureTarget") as? MDMObject
+                val featureTarget = engine.getProperty(element, "featureTarget") as? ModelElement
                 if (featureTarget != null && featureTarget.id != element.id) {
                     baseSupertypes.add(featureTarget)
                 }
