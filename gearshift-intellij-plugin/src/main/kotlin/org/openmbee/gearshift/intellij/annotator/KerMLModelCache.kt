@@ -16,6 +16,7 @@
 
 package org.openmbee.gearshift.intellij.annotator
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiManager
@@ -222,16 +223,12 @@ class KerMLModelCache(private val project: Project) {
     }
 
     private fun readFileContent(filePath: String): String? {
-        // Try cache first
-        val cached = cache[filePath]
-        if (cached != null) {
-            // Read from the model's source — but we don't store raw text in CacheEntry.
-            // Fall through to VFS read.
-        }
         return try {
-            val vfs = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-            val vf = vfs.findFileByPath(filePath) ?: return null
-            String(vf.contentsToByteArray(), vf.charset)
+            ApplicationManager.getApplication().runReadAction<String?> {
+                val vfs = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                val vf = vfs.findFileByPath(filePath) ?: return@runReadAction null
+                String(vf.contentsToByteArray(), vf.charset)
+            }
         } catch (e: Exception) {
             null
         }
@@ -244,33 +241,35 @@ class KerMLModelCache(private val project: Project) {
         val nsToFile = mutableMapOf<String, String>()
 
         try {
-            val scope = GlobalSearchScope.projectScope(project)
-            val kermlFiles = FileTypeIndex.getFiles(KerMLFileType, scope)
-            val psiManager = PsiManager.getInstance(project)
+            ApplicationManager.getApplication().runReadAction {
+                val scope = GlobalSearchScope.projectScope(project)
+                val kermlFiles = FileTypeIndex.getFiles(KerMLFileType, scope)
+                val psiManager = PsiManager.getInstance(project)
 
-            for (vf in kermlFiles) {
-                val psiFile = psiManager.findFile(vf) as? KerMLFile ?: continue
-                val filePath = vf.path
+                for (vf in kermlFiles) {
+                    val psiFile = psiManager.findFile(vf) as? KerMLFile ?: continue
+                    val filePath = vf.path
 
-                // Walk top-level declarations
-                val topDecls = PsiTreeUtil.getChildrenOfType(psiFile, KerMLDeclaration::class.java)
-                    ?: continue
+                    // Walk top-level declarations
+                    val topDecls = PsiTreeUtil.getChildrenOfType(psiFile, KerMLDeclaration::class.java)
+                        ?: continue
 
-                for (decl in topDecls) {
-                    val name = decl.declaredName ?: continue
-                    val kind = decl.declarationKeyword ?: "element"
-                    entries.add(IndexEntry(name, name, kind, filePath))
-                    nsToFile[name] = filePath
+                    for (decl in topDecls) {
+                        val name = decl.declaredName ?: continue
+                        val kind = decl.declarationKeyword ?: "element"
+                        entries.add(IndexEntry(name, name, kind, filePath))
+                        nsToFile[name] = filePath
 
-                    // Index nested declarations (one level deep for qualified imports)
-                    indexNestedDeclarations(decl, name, filePath, entries)
-                }
+                        // Index nested declarations (one level deep for qualified imports)
+                        indexNestedDeclarations(decl, name, filePath, entries)
+                    }
 
-                // Update fileNamespaces as a side effect
-                val topNames = topDecls.mapNotNull { it.declaredName }
-                if (fileNamespaces[filePath] != topNames) {
-                    fileNamespaces[filePath] = topNames
-                    duplicatesDirty = true
+                    // Update fileNamespaces as a side effect
+                    val topNames = topDecls.mapNotNull { it.declaredName }
+                    if (fileNamespaces[filePath] != topNames) {
+                        fileNamespaces[filePath] = topNames
+                        duplicatesDirty = true
+                    }
                 }
             }
         } catch (e: Exception) {

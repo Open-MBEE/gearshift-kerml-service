@@ -8,7 +8,7 @@ kotlin {
 
 dependencies {
     // Framework for MDMEngine, MDMObject, etc.
-    implementation(project(":mdm-framework"))
+    implementation(project(":mdm-runtime"))
 
     // Metamodel definitions
     implementation(project(":gearshift-kerml-model"))

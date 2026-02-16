@@ -24,6 +24,9 @@ group = "org.openmbee.mdm"
 version = "0.1.0-SNAPSHOT"
 
 dependencies {
+    // Schema definitions (exposed transitively)
+    api(project(":mdm-schema"))
+
     // Kotlin
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
@@ -45,7 +48,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.3")
     implementation("ch.qos.logback:logback-classic:1.4.14")
 
-    // ANTLR for OCL grammar
+    // ANTLR for OCL and GQL grammars
     antlr("org.antlr:antlr4:4.13.1")
     implementation("org.antlr:antlr4-runtime:4.13.1")
 

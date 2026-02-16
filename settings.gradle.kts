@@ -23,7 +23,9 @@
 
 rootProject.name = "gearshift-kerml-service"
 
-include("mdm-framework")
+include("mdm-schema")
+include("mdm-runtime")
+include("mdm-codegen")
 include("gearshift-kerml-model")
 include("kerml-generated")
 include("gearshift-kerml-runtime")

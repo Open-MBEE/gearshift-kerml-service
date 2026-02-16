@@ -15,7 +15,7 @@ dependencies {
     implementation(project(":gearshift-kerml-runtime"))
     implementation(project(":gearshift-kerml-model"))
     implementation(project(":kerml-generated"))
-    implementation(project(":mdm-framework"))
+    implementation(project(":mdm-runtime"))
     implementation("org.antlr:antlr4-runtime:4.13.1")
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.3")
 

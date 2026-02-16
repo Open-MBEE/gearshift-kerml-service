@@ -23,7 +23,8 @@ group = "org.openmbee.gearshift"
 version = "0.1.0-SNAPSHOT"
 
 dependencies {
-    implementation(project(":mdm-framework"))
+    implementation(project(":mdm-runtime"))
+    implementation(project(":mdm-codegen"))
 
     // Kotlin
     implementation(kotlin("stdlib"))
