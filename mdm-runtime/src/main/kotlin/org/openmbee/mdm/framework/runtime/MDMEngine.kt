@@ -53,11 +53,21 @@ open class MDMEngine(
     /** The association graph */
     private val graph: MDMGraph = MDMGraph()
 
+    /** Index from class name (including supertypes) to element IDs of that class */
+    private val classIndex: MutableMap<String, MutableSet<String>> = mutableMapOf()
+
+    /** Shared closure cache: "(elementId):(bodyKey)" -> transitive closure result */
+    internal val closureCache: MutableMap<String, Set<Any?>> = mutableMapOf()
+
     /** Registered lifecycle handlers */
     private val lifecycleHandlers: MutableList<LifecycleHandler> = mutableListOf()
 
     /** Registered expression evaluators by language */
     private val evaluators: MutableMap<String, ExpressionEvaluator> = mutableMapOf()
+
+    /** Optional pre-built qualified name index for O(1) QN lookups */
+    var qualifiedNameIndex: QualifiedNameIndex? = null
+        private set
 
     /** The element factory - can be changed at runtime */
     var factory: ElementFactory = elementFactory
@@ -92,9 +102,10 @@ open class MDMEngine(
 
     /**
      * Get all elements of a specific class (including subclasses).
+     * Uses a pre-maintained class index for O(1) lookup.
      */
     open fun getElementsByClass(className: String): List<MDMObject> =
-        elements.values.filter { isInstanceOf(it, className) }
+        classIndex[className]?.mapNotNull { elements[it] } ?: emptyList()
 
     /**
      * Get all element IDs.
@@ -118,6 +129,7 @@ open class MDMEngine(
         val id = UUID.randomUUID().toString()
         element.id = id
         elements[id] = element
+        addToClassIndex(element)
 
         fireEvent(LifecycleEvent.InstanceCreated(element, metaClass))
 
@@ -138,6 +150,7 @@ open class MDMEngine(
             return element
         }
         elements[element.id!!] = element
+        addToClassIndex(element)
         fireEvent(LifecycleEvent.InstanceCreated(element, element.metaClass))
         return element
     }
@@ -147,6 +160,7 @@ open class MDMEngine(
      */
     open fun removeElement(id: String): Boolean {
         val element = elements.remove(id) ?: return false
+        removeFromClassIndex(element)
         fireEvent(LifecycleEvent.InstanceDeleting(element))
         graph.removeEdgesForElement(id)
         return true
@@ -177,6 +191,12 @@ open class MDMEngine(
         element.id = newId
         elements[newId] = element
         graph.reassignElementId(oldId, newId)
+
+        // Update class index: swap oldId for newId in all relevant sets
+        classIndex[element.className]?.let { it.remove(oldId); it.add(newId) }
+        for (superclass in schema.getAllSuperclasses(element.className)) {
+            classIndex[superclass]?.let { it.remove(oldId); it.add(newId) }
+        }
     }
 
     /**
@@ -241,6 +261,25 @@ open class MDMEngine(
     open fun clear() {
         elements.clear()
         graph.clear()
+        classIndex.clear()
+        closureCache.clear()
+        qualifiedNameIndex?.clear()
+    }
+
+    // ===== Public API - Qualified Name Index =====
+
+    /**
+     * Build or rebuild the qualified name index using the given configuration.
+     * Registers the index as a lifecycle handler for incremental maintenance.
+     */
+    open fun buildQualifiedNameIndex(config: QualifiedNameConfig) {
+        // Unregister previous index if any
+        qualifiedNameIndex?.let { unregisterLifecycleHandler(it) }
+
+        val index = QualifiedNameIndex(config)
+        index.build(this)
+        registerLifecycleHandler(index)
+        qualifiedNameIndex = index
     }
 
     // ===== Compatibility API (for generated code and migration) =====
@@ -261,6 +300,7 @@ open class MDMEngine(
         val elementId = id ?: UUID.randomUUID().toString()
         element.id = elementId
         elements[elementId] = element
+        addToClassIndex(element)
 
         fireEvent(LifecycleEvent.InstanceCreated(element, metaClass))
 
@@ -439,6 +479,7 @@ open class MDMEngine(
             val oldValue = element.getProperty(propertyName)
             element.setProperty(propertyName, value)
             element.derivedCache.clear()
+            if (closureCache.isNotEmpty()) closureCache.clear()
             fireEvent(LifecycleEvent.PropertyChanged(element, propertyName, oldValue, value))
             return
         }
@@ -497,6 +538,11 @@ open class MDMEngine(
         // Invalidate derived property caches
         elements[sourceId]?.let { invalidateAssociationDependents(it, association.targetEnd.name) }
         elements[targetId]?.let { invalidateAssociationDependents(it, association.sourceEnd.name) }
+
+        // Check for ownership establishment
+        if (source != null && target != null) {
+            checkOwnershipEstablished(associationName, source, target)
+        }
     }
 
     /**
@@ -505,10 +551,15 @@ open class MDMEngine(
     open fun unlink(sourceId: String, targetId: String, associationName: String) {
         val link = graph.findEdge(sourceId, targetId, associationName)
         if (link != null) {
-            graph.removeEdge(link.id)
-
+            // Check for ownership removal BEFORE removing the link (while we can still navigate)
             val source = elements[sourceId]
             val target = elements[targetId]
+            if (source != null && target != null) {
+                checkOwnershipRemoved(associationName, source, target)
+            }
+
+            graph.removeEdge(link.id)
+
             if (source != null && target != null) {
                 fireEvent(LifecycleEvent.LinkDeleting(link, source, target, link.association))
             }
@@ -517,6 +568,60 @@ open class MDMEngine(
             val association = link.association
             elements[sourceId]?.let { invalidateAssociationDependents(it, association.targetEnd.name) }
             elements[targetId]?.let { invalidateAssociationDependents(it, association.sourceEnd.name) }
+        }
+    }
+
+    /**
+     * Check if a newly created link completes an ownership chain and fire
+     * [LifecycleEvent.OwnershipEstablished] if so.
+     */
+    private fun checkOwnershipEstablished(associationName: String, source: MDMObject, target: MDMObject) {
+        val role = schema.getOwnershipAssociationRole(associationName) ?: return
+
+        when (role.role) {
+            OwnershipLinkRole.OWNER_TO_INTERMEDIATE -> {
+                // source = owner, target = intermediate
+                // Check if intermediate already has a child
+                val children = navigateAssociation(target, role.binding.ownedElementEnd)
+                for (child in children) {
+                    fireEvent(LifecycleEvent.OwnershipEstablished(parent = source, child = child, intermediate = target))
+                }
+            }
+            OwnershipLinkRole.INTERMEDIATE_TO_CHILD -> {
+                // source = intermediate, target = child
+                // Check if intermediate already has an owner
+                val owners = navigateAssociation(source, role.binding.ownerEnd)
+                val owner = owners.firstOrNull()
+                if (owner != null) {
+                    fireEvent(LifecycleEvent.OwnershipEstablished(parent = owner, child = target, intermediate = source))
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a link being removed breaks an ownership chain and fire
+     * [LifecycleEvent.OwnershipRemoved] if so.
+     */
+    private fun checkOwnershipRemoved(associationName: String, source: MDMObject, target: MDMObject) {
+        val role = schema.getOwnershipAssociationRole(associationName) ?: return
+
+        when (role.role) {
+            OwnershipLinkRole.OWNER_TO_INTERMEDIATE -> {
+                // source = owner, target = intermediate — owner is being disconnected
+                val children = navigateAssociation(target, role.binding.ownedElementEnd)
+                for (child in children) {
+                    fireEvent(LifecycleEvent.OwnershipRemoved(parent = source, child = child, intermediate = target))
+                }
+            }
+            OwnershipLinkRole.INTERMEDIATE_TO_CHILD -> {
+                // source = intermediate, target = child — child is being disconnected
+                val owners = navigateAssociation(source, role.binding.ownerEnd)
+                val owner = owners.firstOrNull()
+                if (owner != null) {
+                    fireEvent(LifecycleEvent.OwnershipRemoved(parent = owner, child = target, intermediate = source))
+                }
+            }
         }
     }
 
@@ -941,6 +1046,14 @@ open class MDMEngine(
             return element.derivedCache[cacheKey]
         }
 
+        // Fast path: QN index provides this property
+        val qnIndex = qualifiedNameIndex
+        if (qnIndex != null && property.name == qnIndex.config.derivedPropertyName) {
+            val result = qnIndex.getQualifiedName(element.id ?: "")
+            element.derivedCache[cacheKey] = result
+            return result
+        }
+
         // Check for derivation constraint
         val derivationConstraintName = property.derivationConstraint
         if (derivationConstraintName != null) {
@@ -1346,6 +1459,27 @@ open class MDMEngine(
 
     private fun invalidateAssociationDependents(element: MDMObject, associationEndName: String) {
         element.derivedCache.clear()
+        if (closureCache.isNotEmpty()) closureCache.clear()
+    }
+
+    // ===== Internal - Class Index =====
+
+    /** Add an element to the class index for its class and all superclasses. */
+    private fun addToClassIndex(element: MDMObject) {
+        val id = element.id ?: return
+        classIndex.getOrPut(element.className) { mutableSetOf() }.add(id)
+        for (superclass in schema.getAllSuperclasses(element.className)) {
+            classIndex.getOrPut(superclass) { mutableSetOf() }.add(id)
+        }
+    }
+
+    /** Remove an element from the class index for its class and all superclasses. */
+    private fun removeFromClassIndex(element: MDMObject) {
+        val id = element.id ?: return
+        classIndex[element.className]?.remove(id)
+        for (superclass in schema.getAllSuperclasses(element.className)) {
+            classIndex[superclass]?.remove(id)
+        }
     }
 }
 

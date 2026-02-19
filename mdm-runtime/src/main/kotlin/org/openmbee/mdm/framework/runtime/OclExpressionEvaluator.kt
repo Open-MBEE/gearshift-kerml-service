@@ -82,4 +82,11 @@ private class MDMEngineAccessor(private val engine: MDMEngine) : EngineAccessor 
 
     override fun getElementsByClass(className: String): List<MDMObject> =
         engine.getElementsByClass(className)
+
+    override fun getClosureCache(elementId: String, bodyKey: String): Set<Any?>? =
+        engine.closureCache["$elementId:$bodyKey"]
+
+    override fun putClosureCache(elementId: String, bodyKey: String, result: Set<Any?>) {
+        engine.closureCache["$elementId:$bodyKey"] = result
+    }
 }

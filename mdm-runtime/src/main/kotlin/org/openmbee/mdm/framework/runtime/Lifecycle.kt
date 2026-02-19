@@ -117,6 +117,39 @@ sealed interface LifecycleEvent {
         val oldValue: Any?,
         val newValue: Any?
     ) : LifecycleEvent
+
+    /**
+     * Fired when an ownership relationship is fully established.
+     *
+     * This event is fired after both links of an ownership chain are in place:
+     * parent → intermediate (membership) → child. It provides the resolved
+     * parent and child directly, so handlers don't need to navigate through
+     * the intermediate themselves.
+     *
+     * @property parent The owning element (e.g., a Namespace or Type)
+     * @property child The owned element (e.g., a Feature or Package)
+     * @property intermediate The ownership intermediate (e.g., OwningMembership)
+     */
+    data class OwnershipEstablished(
+        val parent: MDMObject,
+        val child: MDMObject,
+        val intermediate: MDMObject
+    ) : LifecycleEvent
+
+    /**
+     * Fired when an ownership relationship is about to be broken.
+     *
+     * This event is fired before either link in the ownership chain is removed.
+     *
+     * @property parent The owning element
+     * @property child The owned element
+     * @property intermediate The ownership intermediate
+     */
+    data class OwnershipRemoved(
+        val parent: MDMObject,
+        val child: MDMObject,
+        val intermediate: MDMObject
+    ) : LifecycleEvent
 }
 
 /**

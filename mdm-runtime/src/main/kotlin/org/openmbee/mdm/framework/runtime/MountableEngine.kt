@@ -372,6 +372,18 @@ class MountableEngine(
     }
 
     /**
+     * Build QN index for this engine and all mounted engines.
+     */
+    override fun buildQualifiedNameIndex(config: QualifiedNameConfig) {
+        super.buildQualifiedNameIndex(config)
+        for (mount in activeMounts) {
+            if (mount.engine.qualifiedNameIndex == null) {
+                mount.engine.buildQualifiedNameIndex(config)
+            }
+        }
+    }
+
+    /**
      * Clear local content but keep mounts.
      */
     override fun clear() {

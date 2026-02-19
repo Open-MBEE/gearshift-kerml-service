@@ -64,6 +64,10 @@ data class UpdateElementRequest(
     val properties: Map<String, Any?>
 )
 
+data class ResolveQualifiedNamesRequest(
+    val qualifiedNames: List<String>
+)
+
 // === Response serialization helpers ===
 
 private fun ProjectMetadata.toApiResponse(defaultBranch: BranchData?): Map<String, Any?> = linkedMapOf(
@@ -349,6 +353,55 @@ fun Route.sysmlApiRoutes(store: ProjectStore) {
             }.distinctBy { it["@id"] }
 
             call.respond(relationships)
+        }
+
+        // === Qualified Name Resolution ===
+
+        get("/elements/byQualifiedName") {
+            val projectId = call.parameters["projectId"]!!
+            val qualifiedName = call.request.queryParameters["qualifiedName"]
+                ?: return@get call.respond(HttpStatusCode.BadRequest, errorResponse("qualifiedName parameter required"))
+
+            val model = store.getModel(projectId) ?: run {
+                call.respond(HttpStatusCode.NotFound, errorResponse("Model not found"))
+                return@get
+            }
+
+            val index = model.engine.qualifiedNameIndex
+                ?: return@get call.respond(HttpStatusCode.ServiceUnavailable, errorResponse("QN index not built"))
+
+            val elementId = index.resolveQualifiedName(qualifiedName)
+                ?: return@get call.respond(HttpStatusCode.NotFound, errorResponse("No element with qualifiedName: $qualifiedName"))
+
+            val element = model.engine.getElement(elementId)
+                ?: return@get call.respond(HttpStatusCode.NotFound, errorResponse("Element not found: $elementId"))
+
+            val serializer = ElementSerializer(model.engine)
+            call.respond(serializer.serialize(element))
+        }
+
+        post("/elements/resolve") {
+            val projectId = call.parameters["projectId"]!!
+
+            val model = store.getModel(projectId) ?: run {
+                call.respond(HttpStatusCode.NotFound, errorResponse("Model not found"))
+                return@post
+            }
+
+            val index = model.engine.qualifiedNameIndex
+                ?: return@post call.respond(HttpStatusCode.ServiceUnavailable, errorResponse("QN index not built"))
+
+            val request = call.receive<ResolveQualifiedNamesRequest>()
+            val serializer = ElementSerializer(model.engine)
+
+            val results = request.qualifiedNames.mapNotNull { qn ->
+                index.resolveQualifiedName(qn)?.let { id ->
+                    model.engine.getElement(id)?.let { element ->
+                        serializer.serialize(element)
+                    }
+                }
+            }
+            call.respond(results)
         }
     }
 

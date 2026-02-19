@@ -117,6 +117,25 @@ interface EngineAccessor {
      * Used by OCL allInstances() operation.
      */
     fun getElementsByClass(className: String): List<MDMObject>
+
+    /**
+     * Get a cached transitive closure result, if available.
+     * Used by OCL closure() to avoid redundant BFS traversals across elements.
+     *
+     * @param elementId The element whose closure was computed
+     * @param bodyKey A key identifying the closure body expression
+     * @return The cached closure result, or null if not cached
+     */
+    fun getClosureCache(elementId: String, bodyKey: String): Set<Any?>? = null
+
+    /**
+     * Store a transitive closure result for later reuse.
+     *
+     * @param elementId The element whose closure was computed
+     * @param bodyKey A key identifying the closure body expression
+     * @param result The closure result to cache
+     */
+    fun putClosureCache(elementId: String, bodyKey: String, result: Set<Any?>) {}
 }
 
 /**

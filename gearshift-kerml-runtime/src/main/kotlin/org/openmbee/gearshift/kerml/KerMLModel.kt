@@ -147,7 +147,9 @@ class KerMLModel(
             ViewsExtensionLoader.initialize(schema)
             schema.buildIndexes()
             val factory = KerMLElementFactory()
-            return MDMEngine(schema, factory)
+            val engine = MDMEngine(schema, factory)
+            engine.buildQualifiedNameIndex(KerMLQualifiedNameConfig)
+            return engine
         }
 
         /**
@@ -163,7 +165,9 @@ class KerMLModel(
             ViewsExtensionLoader.initialize(schema)
             schema.buildIndexes()
             val factory = KerMLElementFactory()
-            return MountableEngine(schema, factory)
+            val engine = MountableEngine(schema, factory)
+            engine.buildQualifiedNameIndex(KerMLQualifiedNameConfig)
+            return engine
         }
 
         /**
@@ -421,9 +425,13 @@ class KerMLModel(
     fun parseString(kermlText: String): KerMLPackage? {
         val totalStart = System.currentTimeMillis()
 
+        // Suspend QN index during bulk parsing — a full rebuild follows
+        engine.qualifiedNameIndex?.let { it.suspended = true }
+
         lastParseResult = parseKerML(CharStreams.fromString(kermlText))
 
         if (!lastParseResult!!.success) {
+            engine.qualifiedNameIndex?.let { it.suspended = false }
             return null
         }
 
@@ -439,6 +447,14 @@ class KerMLModel(
             val start = System.currentTimeMillis()
             applyDefaultNames()
             logger.debug { "Default names: ${System.currentTimeMillis() - start}ms" }
+        }
+
+        // Rebuild QN index after model changes
+        engine.qualifiedNameIndex?.let { index ->
+            index.suspended = false
+            val start = System.currentTimeMillis()
+            index.build(engine)
+            logger.debug { "QN index rebuild: ${System.currentTimeMillis() - start}ms" }
         }
 
         logger.debug { "Total parseString: ${System.currentTimeMillis() - totalStart}ms" }
@@ -460,9 +476,13 @@ class KerMLModel(
     fun parseFile(path: Path): KerMLPackage? {
         val totalStart = System.currentTimeMillis()
 
+        // Suspend QN index during bulk parsing — a full rebuild follows
+        engine.qualifiedNameIndex?.let { it.suspended = true }
+
         lastParseResult = parseKerML(CharStreams.fromPath(path))
 
         if (!lastParseResult!!.success) {
+            engine.qualifiedNameIndex?.let { it.suspended = false }
             return null
         }
 
@@ -478,6 +498,14 @@ class KerMLModel(
             val start = System.currentTimeMillis()
             applyDefaultNames()
             logger.debug { "Default names: ${System.currentTimeMillis() - start}ms" }
+        }
+
+        // Rebuild QN index after model changes
+        engine.qualifiedNameIndex?.let { index ->
+            index.suspended = false
+            val start = System.currentTimeMillis()
+            index.build(engine)
+            logger.debug { "QN index rebuild: ${System.currentTimeMillis() - start}ms" }
         }
 
         logger.debug { "Total parseFile(${path.fileName}): ${System.currentTimeMillis() - totalStart}ms" }

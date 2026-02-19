@@ -19,8 +19,28 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.openmbee.mdm.framework.meta.MetaAssociation
 import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.OwnershipBinding
 import org.openmbee.mdm.framework.model.createMDMBaseClass
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Describes the role an association plays in the ownership chain.
+ */
+enum class OwnershipLinkRole {
+    /** Link from owner to intermediate (e.g., Namespace → OwningMembership) */
+    OWNER_TO_INTERMEDIATE,
+    /** Link from intermediate to child (e.g., OwningMembership → Element) */
+    INTERMEDIATE_TO_CHILD
+}
+
+/**
+ * Pre-computed info about an association's role in ownership.
+ */
+data class OwnershipAssociationInfo(
+    val intermediateClassName: String,
+    val binding: OwnershipBinding,
+    val role: OwnershipLinkRole
+)
 
 private val logger = KotlinLogging.logger {}
 
@@ -42,6 +62,7 @@ class MetamodelRegistry {
     private var redefinesIndex: Map<String, List<Pair<MetaAssociation, MetaAssociationEnd>>> = emptyMap()
     private var subsetsIndex: Map<String, List<Pair<MetaAssociation, MetaAssociationEnd>>> = emptyMap()
     private var classAssocEndIndex: Map<String, List<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>> = emptyMap()
+    private var ownershipAssocIndex: Map<String, OwnershipAssociationInfo> = emptyMap()
 
     companion object {
         /** The default base class name that all classes inherit from if no superclass is specified */
@@ -172,6 +193,42 @@ class MetamodelRegistry {
         }
         classAssocEndIndex = classAssocIdx
 
+        // 6. Ownership association index — maps association name → ownership role
+        val ownerAssocIdx = mutableMapOf<String, OwnershipAssociationInfo>()
+        for (metaClass in classes.values) {
+            val binding = metaClass.ownershipBinding ?: continue
+            for (assoc in associations.values) {
+                // Skip derived associations — links are not stored under these names
+                if (assoc.sourceEnd.isDerived && assoc.targetEnd.isDerived) continue
+
+                // Check: intermediate is on TARGET side, sourceEnd.name matches ownerEnd
+                // This means: source (owner) → target (intermediate)
+                if (assoc.sourceEnd.name == binding.ownerEnd) {
+                    val isCompatible = subCache[metaClass.name]?.get(assoc.targetEnd.type) ?: false
+                    if (isCompatible) {
+                        ownerAssocIdx[assoc.name] = OwnershipAssociationInfo(
+                            metaClass.name, binding, OwnershipLinkRole.OWNER_TO_INTERMEDIATE
+                        )
+                    }
+                }
+
+                // Check: intermediate is on SOURCE side, targetEnd.name matches ownedElementEnd
+                // This means: source (intermediate) → target (child)
+                if (assoc.targetEnd.name == binding.ownedElementEnd) {
+                    val isCompatible = subCache[metaClass.name]?.get(assoc.sourceEnd.type) ?: false
+                    if (isCompatible) {
+                        ownerAssocIdx[assoc.name] = OwnershipAssociationInfo(
+                            metaClass.name, binding, OwnershipLinkRole.INTERMEDIATE_TO_CHILD
+                        )
+                    }
+                }
+            }
+        }
+        ownershipAssocIndex = ownerAssocIdx
+        if (ownerAssocIdx.isNotEmpty()) {
+            logger.debug { "Ownership association index: ${ownerAssocIdx.entries.joinToString { "${it.key} → ${it.value.role}" }}" }
+        }
+
         logger.info { "Metamodel indexes built: ${classes.size} classes, ${associations.size} associations" }
     }
 
@@ -183,6 +240,13 @@ class MetamodelRegistry {
         if (classAssocEndIndex.isEmpty()) return null
         return classAssocEndIndex[className]
     }
+
+    /**
+     * Check if an association plays a role in the ownership chain.
+     * Returns ownership role info if found, null otherwise.
+     */
+    fun getOwnershipAssociationRole(associationName: String): OwnershipAssociationInfo? =
+        ownershipAssocIndex[associationName]
 
     /**
      * Retrieve a MetaClass by name.
@@ -374,6 +438,7 @@ class MetamodelRegistry {
         redefinesIndex = emptyMap()
         subsetsIndex = emptyMap()
         classAssocEndIndex = emptyMap()
+        ownershipAssocIndex = emptyMap()
         logger.debug { "Registry cleared" }
     }
 

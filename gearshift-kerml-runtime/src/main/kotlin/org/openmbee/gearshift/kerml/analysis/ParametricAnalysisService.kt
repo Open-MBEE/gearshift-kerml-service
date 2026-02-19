@@ -82,6 +82,7 @@ class ParametricAnalysisService(
         for (constraint in constraints) {
             allFeatures.addAll(collectReferencedFeatures(constraint))
         }
+        logger.debug { "Collected features: ${allFeatures.map { "${it.declaredName ?: it.name} (id=${(it as MDMObject).id}, class=${(it as MDMObject).className})" }}" }
         val variables = allFeatures.mapNotNull { featureToVariable(it) }
 
         if (variables.isEmpty()) {
@@ -89,6 +90,8 @@ class ParametricAnalysisService(
         }
 
         logger.info { "Solving constraints: ${variables.size} variables, ${constraintExprs.size} constraints" }
+        logger.debug { "Variables: ${variables.map { "${it.name} (${it.sort})" }}" }
+        logger.debug { "Constraint expressions: $constraintExprs" }
         return solverService.solve(variables, constraintExprs)
     }
 
@@ -383,6 +386,8 @@ class ParametricAnalysisService(
             expression is LiteralString -> "'${expression.value}'"
             expression is LiteralInfinity -> "*"
             expression is NullExpression -> "null"
+            // FeatureChainExpression must be checked before OperatorExpression (it's a subtype)
+            expression is FeatureChainExpression -> featureChainToOcl(expression)
             expression is OperatorExpression -> operatorExpressionToOcl(expression)
             expression is FeatureReferenceExpression -> featureReferenceToOcl(expression)
             expression is InvocationExpression -> invocationExpressionToOcl(expression)
@@ -400,6 +405,94 @@ class ParametricAnalysisService(
 
             else -> null
         }
+    }
+
+    /**
+     * Convert a FeatureChainExpression (dot navigation like propulsion.mass) to a solver variable name.
+     * The targetFeature is the feature being accessed (e.g., mass on Propulsion),
+     * so we resolve it to its solver variable name directly.
+     */
+    private fun featureChainToOcl(expression: FeatureChainExpression): String? {
+        // Strategy 1: Typed targetFeature property (derived via OCL)
+        try {
+            val target = expression.targetFeature
+            return solverVariableName(target) ?: target.declaredName ?: target.name
+        } catch (_: Exception) { }
+
+        // Strategy 2: Engine navigation for derived targetFeature
+        try {
+            val target = engine.getPropertyValue(expression as MDMObject, "targetFeature") as? Feature
+            if (target != null) return solverVariableName(target) ?: target.declaredName ?: target.name
+        } catch (_: Exception) { }
+
+        // Strategy 3: Use _targetFeatureName + source expression's type to build a qualified name.
+        // For `propulsion.mass`, the source `propulsion` is typed as `Propulsion`, and the target
+        // feature name is `mass`, so the solver variable should be `Propulsion__mass`.
+        val rawName = (expression as MDMObject).getProperty("_targetFeatureName") as? String
+        if (rawName != null) {
+            val args = getExpressionArguments(expression)
+            if (args.isNotEmpty()) {
+                val sourceFeature = resolveFeatureFromExpression(args[0])
+                if (sourceFeature != null) {
+                    // Get the source feature's type (e.g., propulsion is typed as Propulsion)
+                    val typeName = getFeatureTypeName(sourceFeature)
+                    if (typeName != null) return "${typeName}__${rawName}"
+                }
+            }
+            return rawName
+        }
+
+        return null
+    }
+
+    /** Resolve a Feature from an expression MDMObject (e.g., FeatureReferenceExpression → its referent). */
+    private fun resolveFeatureFromExpression(expression: MDMObject): Feature? {
+        if (expression is FeatureReferenceExpression) {
+            try { return expression.referent } catch (_: Exception) { }
+            try {
+                return engine.getPropertyValue(expression, "referent") as? Feature
+            } catch (_: Exception) { }
+        }
+        return null
+    }
+
+    /** Get the type name of a Feature from its ownedTyping associations. */
+    private fun getFeatureTypeName(feature: Feature): String? {
+        try {
+            for (typing in feature.ownedTyping) {
+                val type = typing.type
+                val name = (type as? Element)?.declaredName ?: (type as? Element)?.name
+                if (name != null) return name
+            }
+        } catch (_: Exception) { }
+        return null
+    }
+
+    /**
+     * Find a Feature by name within a Type identified by its declaredName.
+     * Navigates the structural ownership tree: Type → ownedFeature → match by name.
+     */
+    private fun findFeatureInNamedType(typeName: String, featureName: String): Feature? {
+        // Find the Type element by declaredName
+        val typeElement = engine.getAllElements().firstOrNull {
+            it is Type && ((it as? Element)?.declaredName == typeName || (it as? Element)?.name == typeName)
+        }
+        if (typeElement == null) {
+            logger.debug { "findFeatureInNamedType: no Type found with name '$typeName'" }
+            return null
+        }
+        logger.debug { "findFeatureInNamedType: found Type '$typeName' (id=${typeElement.id}, class=${typeElement.className})" }
+
+        // Navigate ownedFeature (derived: ownedFeatureMembership.ownedMemberFeature)
+        try {
+            val features = (typeElement as Type).ownedFeature
+            logger.debug { "findFeatureInNamedType: ownedFeature count=${features.size}, names=${features.map { it.declaredName ?: it.name }}" }
+            return features.firstOrNull { it.declaredName == featureName || it.name == featureName }
+        } catch (e: Exception) {
+            logger.debug { "findFeatureInNamedType: ownedFeature navigation failed: ${e.message}" }
+        }
+
+        return null
     }
 
     private fun operatorExpressionToOcl(expression: OperatorExpression): String? {
@@ -599,6 +692,53 @@ class ParametricAnalysisService(
                         if (referent is Feature) result.add(referent)
                     } catch (_: Exception) {
                     }
+                }
+            }
+
+            // FeatureChainExpression (dot navigation): collect the targetFeature and recurse into args
+            expression is FeatureChainExpression -> {
+                var resolved = false
+                try {
+                    val target = expression.targetFeature
+                    logger.debug { "FeatureChainExpression: typed targetFeature resolved to ${target.declaredName}" }
+                    result.add(target)
+                    resolved = true
+                } catch (e: Exception) {
+                    logger.debug { "FeatureChainExpression: typed targetFeature failed: ${e.message}" }
+                    try {
+                        val target = engine.getPropertyValue(expression as MDMObject, "targetFeature") as? Feature
+                        if (target != null) {
+                            logger.debug { "FeatureChainExpression: engine targetFeature resolved to ${target.declaredName}" }
+                            result.add(target); resolved = true
+                        } else {
+                            logger.debug { "FeatureChainExpression: engine targetFeature returned null" }
+                        }
+                    } catch (e2: Exception) {
+                        logger.debug { "FeatureChainExpression: engine targetFeature failed: ${e2.message}" }
+                    }
+                }
+                // Fallback: resolve from source feature's type + _targetFeatureName
+                if (!resolved) {
+                    val rawName = (expression as MDMObject).getProperty("_targetFeatureName") as? String
+                    val args = getExpressionArguments(expression as MDMObject)
+                    logger.debug { "FeatureChainExpression fallback: rawName=$rawName, args.size=${args.size}" }
+                    if (rawName != null && args.isNotEmpty()) {
+                        val sourceFeature = resolveFeatureFromExpression(args[0])
+                        logger.debug { "FeatureChainExpression fallback: sourceFeature=${sourceFeature?.declaredName}" }
+                        if (sourceFeature != null) {
+                            val typeName = getFeatureTypeName(sourceFeature)
+                            logger.debug { "FeatureChainExpression fallback: typeName=$typeName" }
+                            if (typeName != null) {
+                                // Find the Type definition whose declaredName matches, then look for the feature
+                                val target = findFeatureInNamedType(typeName, rawName)
+                                logger.debug { "FeatureChainExpression fallback: findFeatureInNamedType($typeName, $rawName) = ${target?.declaredName}" }
+                                if (target != null) result.add(target)
+                            }
+                        }
+                    }
+                }
+                for (arg in getExpressionArguments(expression as MDMObject)) {
+                    collectReferencedFeaturesFromExpression(arg, result)
                 }
             }
 

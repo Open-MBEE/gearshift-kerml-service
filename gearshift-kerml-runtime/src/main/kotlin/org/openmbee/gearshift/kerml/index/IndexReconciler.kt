@@ -57,7 +57,7 @@ object IndexReconciler {
         }
 
         // Build QN → new ID map for all named elements
-        val currentQnMap = buildQualifiedNameMap(elements)
+        val currentQnMap = buildQualifiedNameMap(engine, elements)
         logger.debug { "Reconciling ${currentQnMap.size} named elements against previous index (${previousIndex?.size() ?: 0} entries)" }
 
         if (previousIndex == null) {
@@ -96,14 +96,18 @@ object IndexReconciler {
      * Build a map of qualified name to element for all elements that have
      * a computable qualified name (i.e., named elements in the containment tree).
      *
-     * Uses [LibraryElementIdAssigner.computePath] for structural identity,
-     * falling back to the element's qualifiedName property.
+     * Uses the pre-built QN index when available for O(1) lookups,
+     * falling back to [LibraryElementIdAssigner.computePath] otherwise.
      */
-    private fun buildQualifiedNameMap(elements: List<MDMObject>): Map<String, MDMObject> {
+    private fun buildQualifiedNameMap(engine: MDMEngine, elements: List<MDMObject>): Map<String, MDMObject> {
+        val qnIndex = engine.qualifiedNameIndex
         val qnMap = mutableMapOf<String, MDMObject>()
         for (element in elements) {
             if (element !is Element) continue
-            val qn = computeStructuralIdentity(element)
+            // Fast path: use pre-built QN index
+            val qn = qnIndex?.getQualifiedName(element.id ?: "")
+                ?.let { it } // QN index returns null for unnamed elements
+                ?: computeStructuralIdentity(element) // Fallback
             if (qn.isNotEmpty()) {
                 qnMap[qn] = element
             }

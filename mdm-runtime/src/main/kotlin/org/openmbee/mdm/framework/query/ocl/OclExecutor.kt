@@ -664,12 +664,18 @@ class OclExecutor(
      *
      * Starting with the initial collection, repeatedly evaluates the body expression
      * for each element to get related elements, continuing until no new elements are found.
+     *
+     * Uses a shared closure cache across evaluations: when expanding an element during BFS,
+     * if its full closure is already cached, the cached result is unioned directly instead
+     * of re-expanding. This avoids redundant traversals when multiple elements share
+     * overlapping transitive graphs (e.g., allSupertypes on types with common ancestors).
      */
     private fun computeClosure(
         initial: List<Any?>,
         iteratorVar: String,
         body: OclExpression
     ): Set<Any?> {
+        val bodyKey = body.toString()
         val result = LinkedHashSet<Any?>()
         val workQueue = ArrayDeque<Any?>()
 
@@ -682,6 +688,21 @@ class OclExecutor(
 
         while (workQueue.isNotEmpty()) {
             val current = workQueue.removeFirst()
+
+            // Check if this element's full closure is already cached
+            val currentId = (current as? MDMObject)?.id
+            if (currentId != null) {
+                val cached = engineAccessor.getClosureCache(currentId, bodyKey)
+                if (cached != null) {
+                    for (cachedElement in cached) {
+                        if (cachedElement != null && cachedElement !in result) {
+                            result.add(cachedElement)
+                        }
+                    }
+                    continue
+                }
+            }
+
             val related = evaluateIteratorBody(iteratorVar, current, body)
             val relatedCollection = asCollection(related)
 
@@ -690,6 +711,14 @@ class OclExecutor(
                     result.add(newElement)
                     workQueue.add(newElement)
                 }
+            }
+        }
+
+        // Cache the result for the initial element(s)
+        if (initial.size == 1) {
+            val initialId = (initial[0] as? MDMObject)?.id
+            if (initialId != null) {
+                engineAccessor.putClosureCache(initialId, bodyKey, result)
             }
         }
 
