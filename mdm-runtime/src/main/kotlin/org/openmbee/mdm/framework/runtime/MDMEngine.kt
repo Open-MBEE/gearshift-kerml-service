@@ -1354,41 +1354,50 @@ open class MDMEngine(
  */
 class MDMGraph {
     private val edges: MutableMap<String, MDMLink> = mutableMapOf()
-    private val sourceIndex: MutableMap<String, MutableList<MDMLink>> = mutableMapOf()
-    private val targetIndex: MutableMap<String, MutableList<MDMLink>> = mutableMapOf()
+
+    /** Two-level index: elementId -> associationName -> links originating from that element */
+    private val sourceIndex: MutableMap<String, MutableMap<String, MutableList<MDMLink>>> = mutableMapOf()
+
+    /** Two-level index: elementId -> associationName -> links targeting that element */
+    private val targetIndex: MutableMap<String, MutableMap<String, MutableList<MDMLink>>> = mutableMapOf()
 
     fun addEdge(link: MDMLink) {
         edges[link.id] = link
-        sourceIndex.getOrPut(link.sourceId) { mutableListOf() }.add(link)
-        targetIndex.getOrPut(link.targetId) { mutableListOf() }.add(link)
+        sourceIndex.getOrPut(link.sourceId) { mutableMapOf() }
+            .getOrPut(link.associationName) { mutableListOf() }.add(link)
+        targetIndex.getOrPut(link.targetId) { mutableMapOf() }
+            .getOrPut(link.associationName) { mutableListOf() }.add(link)
     }
 
     fun removeEdge(linkId: String) {
         val link = edges.remove(linkId) ?: return
-        sourceIndex[link.sourceId]?.remove(link)
-        targetIndex[link.targetId]?.remove(link)
+        sourceIndex[link.sourceId]?.get(link.associationName)?.remove(link)
+        targetIndex[link.targetId]?.get(link.associationName)?.remove(link)
     }
 
     fun removeEdgesForElement(elementId: String) {
-        val linksToRemove = (sourceIndex[elementId].orEmpty() + targetIndex[elementId].orEmpty())
-            .map { it.id }
-            .toSet()
+        val linksToRemove = allLinksForElement(elementId).map { it.id }.toSet()
         for (linkId in linksToRemove) {
             removeEdge(linkId)
         }
     }
 
     fun findEdge(sourceId: String, targetId: String, associationName: String): MDMLink? =
-        sourceIndex[sourceId]?.find { it.targetId == targetId && it.associationName == associationName }
+        sourceIndex[sourceId]?.get(associationName)?.find { it.targetId == targetId }
 
     fun getTargets(sourceId: String, associationName: String): List<String> =
-        sourceIndex[sourceId]?.filter { it.associationName == associationName }?.map { it.targetId } ?: emptyList()
+        sourceIndex[sourceId]?.get(associationName)?.map { it.targetId } ?: emptyList()
 
     fun getSources(targetId: String, associationName: String): List<String> =
-        targetIndex[targetId]?.filter { it.associationName == associationName }?.map { it.sourceId } ?: emptyList()
+        targetIndex[targetId]?.get(associationName)?.map { it.sourceId } ?: emptyList()
 
     fun getLinksForElement(elementId: String): List<MDMLink> =
-        (sourceIndex[elementId].orEmpty() + targetIndex[elementId].orEmpty()).distinct()
+        allLinksForElement(elementId).distinct()
+
+    /** Collect all links where elementId is source or target, across all association names. */
+    private fun allLinksForElement(elementId: String): List<MDMLink> =
+        (sourceIndex[elementId]?.values?.flatten().orEmpty()) +
+            (targetIndex[elementId]?.values?.flatten().orEmpty())
 
     /**
      * Reassign all link references from [oldId] to [newId].
@@ -1396,29 +1405,33 @@ class MDMGraph {
      */
     fun reassignElementId(oldId: String, newId: String) {
         // Collect all links referencing the old ID
-        val asSource = sourceIndex.remove(oldId).orEmpty().toList()
-        val asTarget = targetIndex.remove(oldId).orEmpty().toList()
+        val asSource = sourceIndex.remove(oldId)?.values?.flatten().orEmpty().toList()
+        val asTarget = targetIndex.remove(oldId)?.values?.flatten().orEmpty().toList()
 
         // Replace links where oldId is the source
         for (link in asSource) {
             edges.remove(link.id)
-            targetIndex[link.targetId]?.remove(link)
+            targetIndex[link.targetId]?.get(link.associationName)?.remove(link)
 
             val newLink = MDMLink(link.id, link.association, newId, link.targetId)
             edges[newLink.id] = newLink
-            sourceIndex.getOrPut(newId) { mutableListOf() }.add(newLink)
-            targetIndex.getOrPut(newLink.targetId) { mutableListOf() }.add(newLink)
+            sourceIndex.getOrPut(newId) { mutableMapOf() }
+                .getOrPut(newLink.associationName) { mutableListOf() }.add(newLink)
+            targetIndex.getOrPut(newLink.targetId) { mutableMapOf() }
+                .getOrPut(newLink.associationName) { mutableListOf() }.add(newLink)
         }
 
         // Replace links where oldId is the target
         for (link in asTarget) {
             edges.remove(link.id)
-            sourceIndex[link.sourceId]?.remove(link)
+            sourceIndex[link.sourceId]?.get(link.associationName)?.remove(link)
 
             val newLink = MDMLink(link.id, link.association, link.sourceId, newId)
             edges[newLink.id] = newLink
-            sourceIndex.getOrPut(newLink.sourceId) { mutableListOf() }.add(newLink)
-            targetIndex.getOrPut(newId) { mutableListOf() }.add(newLink)
+            sourceIndex.getOrPut(newLink.sourceId) { mutableMapOf() }
+                .getOrPut(newLink.associationName) { mutableListOf() }.add(newLink)
+            targetIndex.getOrPut(newId) { mutableMapOf() }
+                .getOrPut(newLink.associationName) { mutableListOf() }.add(newLink)
         }
     }
 

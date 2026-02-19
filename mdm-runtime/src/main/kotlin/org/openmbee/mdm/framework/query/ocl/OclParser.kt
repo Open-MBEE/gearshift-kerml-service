@@ -15,11 +15,15 @@
  */
 package org.openmbee.mdm.framework.query.ocl
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.antlr.v4.runtime.*
 import org.antlr.v4.runtime.tree.ParseTree
 import org.openmbee.mdm.framework.query.ocl.antlr.OCLBaseVisitor
 import org.openmbee.mdm.framework.query.ocl.antlr.OCLLexer
 import org.openmbee.mdm.framework.query.ocl.antlr.OCLParser
+import java.util.concurrent.ConcurrentHashMap
+
+private val logger = KotlinLogging.logger {}
 
 /**
  * Adapter that converts ANTLR parse trees to OclExpression AST nodes.
@@ -29,10 +33,16 @@ import org.openmbee.mdm.framework.query.ocl.antlr.OCLParser
  */
 object OclParser {
 
+    /** Cache of parsed OCL ASTs keyed by expression text. ASTs are immutable so this is safe. */
+    private val astCache = ConcurrentHashMap<String, OclExpression>()
+
     /**
      * Parse an OCL expression string and return the AST.
+     * Results are cached since OCL expressions (from metamodel constraints) are static.
      */
     fun parse(input: String): OclExpression {
+        astCache[input]?.let { return it }
+
         // Normalize arrow operators: collapse whitespace between '->' and the method name
         // so that lexer tokens like '->reject' can match even when the OCL expression
         // spans multiple lines (e.g., "ownedMembership->\n    reject(...)")
@@ -46,7 +56,17 @@ object OclParser {
         parser.addErrorListener(OclErrorListener())
 
         val tree = parser.singleExpression()
-        return AstBuilder().visit(tree.expression())
+        val ast = AstBuilder().visit(tree.expression())
+        astCache[input] = ast
+        logger.debug { "Cached OCL AST for: $input (cache size: ${astCache.size})" }
+        return ast
+    }
+
+    /**
+     * Clear the AST cache. Useful for testing or if metamodel expressions change.
+     */
+    fun clearCache() {
+        astCache.clear()
     }
 
     /**

@@ -27,8 +27,20 @@ private val logger = KotlinLogging.logger {}
 enum class SerializationMode {
     /** Include all properties including derived attributes (OCL evaluation). */
     FULL,
-    /** Skip derived attributes to avoid expensive OCL evaluation. Still includes stored properties and association ends. */
-    SUMMARY
+    /**
+     * Skip expensive derived attributes (e.g. qualifiedName) to avoid costly OCL evaluation.
+     * Critical display properties (name, shortName) are still included.
+     * Still includes all stored properties and association ends.
+     */
+    SUMMARY;
+
+    companion object {
+        /**
+         * Derived properties that are always included even in SUMMARY mode,
+         * because they are essential for element display.
+         */
+        val SUMMARY_INCLUDED_DERIVED = setOf("name", "shortName")
+    }
 }
 
 /**
@@ -73,8 +85,9 @@ class ElementSerializer(
             val cls = registry.getClass(className) ?: continue
             for (prop in cls.attributes) {
                 if (result.containsKey(prop.name)) continue
-                // In SUMMARY mode, skip derived attributes to avoid OCL evaluation
-                if (mode == SerializationMode.SUMMARY && prop.isDerived) continue
+                // In SUMMARY mode, skip expensive derived attributes but keep critical display ones
+                if (mode == SerializationMode.SUMMARY && prop.isDerived
+                    && prop.name !in SerializationMode.SUMMARY_INCLUDED_DERIVED) continue
                 try {
                     val value = engine.getProperty(element, prop.name)
                     if (value != null) {
