@@ -16,8 +16,20 @@
 package org.openmbee.mdm.framework.runtime
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Controls which properties are included during serialization.
+ */
+enum class SerializationMode {
+    /** Include all properties including derived attributes (OCL evaluation). */
+    FULL,
+    /** Skip derived attributes to avoid expensive OCL evaluation. Still includes stored properties and association ends. */
+    SUMMARY
+}
 
 /**
  * Serializes MDMObject instances to the @id/@type JSON-LD format
@@ -40,10 +52,13 @@ class ElementSerializer(
 ) {
     private val registry = engine.schema
 
+    // Per-class association end cache — avoids re-scanning all associations for every element of the same type
+    private val assocEndCache = HashMap<String, List<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>>()
+
     /**
      * Serialize an MDMObject to a JSON-LD compatible map.
      */
-    fun serialize(element: MDMObject): Map<String, Any?> {
+    fun serialize(element: MDMObject, mode: SerializationMode = SerializationMode.FULL): Map<String, Any?> {
         val result = linkedMapOf<String, Any?>()
         val elementId = element.id ?: return result
 
@@ -58,6 +73,8 @@ class ElementSerializer(
             val cls = registry.getClass(className) ?: continue
             for (prop in cls.attributes) {
                 if (result.containsKey(prop.name)) continue
+                // In SUMMARY mode, skip derived attributes to avoid OCL evaluation
+                if (mode == SerializationMode.SUMMARY && prop.isDerived) continue
                 try {
                     val value = engine.getProperty(element, prop.name)
                     if (value != null) {
@@ -69,35 +86,22 @@ class ElementSerializer(
             }
         }
 
-        // Serialize association ends as @id references
-        for (association in registry.getAllAssociations()) {
-            // Target end: source type matches our class hierarchy
-            if (allClassNames.contains(association.sourceEnd.type)) {
-                val endName = association.targetEnd.name
-                if (!result.containsKey(endName)) {
-                    try {
-                        val value = engine.getProperty(element, endName)
-                        if (value != null) {
-                            result[endName] = serializeReference(value)
-                        }
-                    } catch (e: Exception) {
-                        logger.debug { "Skipping association end $endName: ${e.message}" }
-                    }
+        // Serialize association ends as @id references — use cached per-class list
+        val applicableEnds = getApplicableAssociationEnds(metaClass.name, allClassNames)
+        for ((association, end, isTargetEnd) in applicableEnds) {
+            val endName = end.name
+            if (result.containsKey(endName)) continue
+            // In SUMMARY mode, skip derived association ends
+            if (mode == SerializationMode.SUMMARY && end.isDerived) continue
+            // Skip non-navigable source ends
+            if (!isTargetEnd && !association.sourceEnd.isNavigable) continue
+            try {
+                val value = engine.getProperty(element, endName)
+                if (value != null) {
+                    result[endName] = serializeReference(value)
                 }
-            }
-            // Source end: navigable and target type matches our class hierarchy
-            if (association.sourceEnd.isNavigable && allClassNames.contains(association.targetEnd.type)) {
-                val endName = association.sourceEnd.name
-                if (!result.containsKey(endName)) {
-                    try {
-                        val value = engine.getProperty(element, endName)
-                        if (value != null) {
-                            result[endName] = serializeReference(value)
-                        }
-                    } catch (e: Exception) {
-                        logger.debug { "Skipping association end $endName: ${e.message}" }
-                    }
-                }
+            } catch (e: Exception) {
+                logger.debug { "Skipping association end $endName: ${e.message}" }
             }
         }
 
@@ -105,10 +109,38 @@ class ElementSerializer(
     }
 
     /**
+     * Get applicable association ends for a class, using pre-computed index or local cache.
+     */
+    private fun getApplicableAssociationEnds(
+        className: String,
+        allClassNames: Set<String>
+    ): List<Triple<MetaAssociation, MetaAssociationEnd, Boolean>> {
+        // Try pre-computed registry index first
+        registry.getAssociationEndsForClass(className)?.let { return it }
+
+        // Fall back to local cache
+        return assocEndCache.getOrPut(className) {
+            val ends = mutableListOf<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>()
+            for (association in registry.getAllAssociations()) {
+                if (allClassNames.contains(association.sourceEnd.type)) {
+                    ends.add(Triple(association, association.targetEnd, true))
+                }
+                if (allClassNames.contains(association.targetEnd.type)) {
+                    ends.add(Triple(association, association.sourceEnd, false))
+                }
+            }
+            ends
+        }
+    }
+
+    /**
      * Serialize multiple elements.
      */
-    fun serializeAll(elements: List<MDMObject>): List<Map<String, Any?>> {
-        return elements.map { serialize(it) }
+    fun serializeAll(
+        elements: List<MDMObject>,
+        mode: SerializationMode = SerializationMode.FULL
+    ): List<Map<String, Any?>> {
+        return elements.map { serialize(it, mode) }
     }
 
     private fun serializePrimitive(value: Any?): Any? {

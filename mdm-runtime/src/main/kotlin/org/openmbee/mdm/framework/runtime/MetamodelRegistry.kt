@@ -36,6 +36,13 @@ class MetamodelRegistry {
     private val associations = ConcurrentHashMap<String, MetaAssociation>()
     private val subclassIndex = ConcurrentHashMap<String, MutableSet<String>>()
 
+    // Pre-computed indexes — populated by buildIndexes(), safe because metamodel is immutable after startup
+    private var superclassCache: Map<String, Set<String>> = emptyMap()
+    private var isSubclassCache: Map<String, Map<String, Boolean>> = emptyMap()
+    private var redefinesIndex: Map<String, List<Pair<MetaAssociation, MetaAssociationEnd>>> = emptyMap()
+    private var subsetsIndex: Map<String, List<Pair<MetaAssociation, MetaAssociationEnd>>> = emptyMap()
+    private var classAssocEndIndex: Map<String, List<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>> = emptyMap()
+
     companion object {
         /** The default base class name that all classes inherit from if no superclass is specified */
         const val DEFAULT_BASE_CLASS = "MDMBaseClass"
@@ -90,6 +97,94 @@ class MetamodelRegistry {
     }
 
     /**
+     * Pre-compute all lookup indexes from the current metamodel state.
+     * Call once after all classes and associations are registered.
+     * Dramatically speeds up isSubclassOf, getAllSuperclasses, findRedefiningEnds,
+     * findSubsettingEnds, and findAssociationEnd lookups.
+     */
+    fun buildIndexes() {
+        logger.info { "Building metamodel indexes..." }
+
+        // 1. Superclass cache — transitive closure for every class
+        val superCache = mutableMapOf<String, Set<String>>()
+        for (className in classes.keys) {
+            val result = mutableSetOf<String>()
+            collectSuperclasses(className, result)
+            superCache[className] = result
+        }
+        superclassCache = superCache
+
+        // 2. isSubclass cache — for every (sub, super) pair
+        val subCache = mutableMapOf<String, MutableMap<String, Boolean>>()
+        for (className in classes.keys) {
+            val supers = superCache[className] ?: emptySet()
+            val innerMap = mutableMapOf<String, Boolean>()
+            for (otherClass in classes.keys) {
+                innerMap[otherClass] = (className == otherClass) || supers.contains(otherClass)
+            }
+            subCache[className] = innerMap
+        }
+        isSubclassCache = subCache
+
+        // 3. Redefines index — propertyName → list of (association, redefining end)
+        val redefIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        for (association in associations.values) {
+            for (propName in association.sourceEnd.redefines) {
+                redefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
+            }
+            for (propName in association.targetEnd.redefines) {
+                redefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+            }
+        }
+        redefinesIndex = redefIdx
+
+        // 4. Subsets index — propertyName → list of (association, subsetting end)
+        val subsetIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        for (association in associations.values) {
+            for (propName in association.sourceEnd.subsets) {
+                subsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
+            }
+            for (propName in association.targetEnd.subsets) {
+                subsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+            }
+        }
+        subsetsIndex = subsetIdx
+
+        // 5. Per-class association end index — className → list of (association, end, isTargetEnd)
+        val classAssocIdx = mutableMapOf<String, MutableList<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>>()
+        for (association in associations.values) {
+            val sourceType = association.sourceEnd.type
+            val targetType = association.targetEnd.type
+
+            // For every class that is sourceType or a subclass of it, the targetEnd is applicable
+            for (className in classes.keys) {
+                val isSubOfSource = subCache[className]?.get(sourceType) ?: false
+                if (isSubOfSource) {
+                    classAssocIdx.getOrPut(className) { mutableListOf() }
+                        .add(Triple(association, association.targetEnd, true))
+                }
+                val isSubOfTarget = subCache[className]?.get(targetType) ?: false
+                if (isSubOfTarget) {
+                    classAssocIdx.getOrPut(className) { mutableListOf() }
+                        .add(Triple(association, association.sourceEnd, false))
+                }
+            }
+        }
+        classAssocEndIndex = classAssocIdx
+
+        logger.info { "Metamodel indexes built: ${classes.size} classes, ${associations.size} associations" }
+    }
+
+    /**
+     * Get the pre-computed association ends for a class.
+     * Returns null if indexes haven't been built yet.
+     */
+    fun getAssociationEndsForClass(className: String): List<Triple<MetaAssociation, MetaAssociationEnd, Boolean>>? {
+        if (classAssocEndIndex.isEmpty()) return null
+        return classAssocEndIndex[className]
+    }
+
+    /**
      * Retrieve a MetaClass by name.
      */
     fun getClass(name: String): MetaClass? = classes[name]
@@ -122,8 +217,11 @@ class MetamodelRegistry {
     fun isSubclassOf(subclass: String, superclass: String): Boolean {
         if (subclass == superclass) return true
 
-        val metaClass = classes[subclass] ?: return false
+        // Use pre-computed cache if available
+        isSubclassCache[subclass]?.let { return it[superclass] ?: false }
 
+        // Fallback to recursive lookup
+        val metaClass = classes[subclass] ?: return false
         return metaClass.superclasses.any { isSubclassOf(it, superclass) }
     }
 
@@ -131,6 +229,10 @@ class MetamodelRegistry {
      * Get all superclasses of a given class (transitively).
      */
     fun getAllSuperclasses(className: String): Set<String> {
+        // Use pre-computed cache if available
+        superclassCache[className]?.let { return it }
+
+        // Fallback to recursive lookup
         val result = mutableSetOf<String>()
         collectSuperclasses(className, result)
         return result
@@ -267,6 +369,11 @@ class MetamodelRegistry {
         classes.clear()
         associations.clear()
         subclassIndex.clear()
+        superclassCache = emptyMap()
+        isSubclassCache = emptyMap()
+        redefinesIndex = emptyMap()
+        subsetsIndex = emptyMap()
+        classAssocEndIndex = emptyMap()
         logger.debug { "Registry cleared" }
     }
 
@@ -276,6 +383,11 @@ class MetamodelRegistry {
      * returns the association end for `subclassifier`.
      */
     fun findRedefiningEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
+        // Use pre-computed index if available
+        redefinesIndex[propertyName]?.let { return it }
+        if (redefinesIndex.isNotEmpty()) return emptyList()
+
+        // Fallback to full scan
         val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
         for (association in associations.values) {
             if (association.sourceEnd.redefines.contains(propertyName)) {
@@ -294,6 +406,11 @@ class MetamodelRegistry {
      * returns the association end for `ownedMembership`.
      */
     fun findSubsettingEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
+        // Use pre-computed index if available
+        subsetsIndex[propertyName]?.let { return it }
+        if (subsetsIndex.isNotEmpty()) return emptyList()
+
+        // Fallback to full scan
         val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
         for (association in associations.values) {
             if (association.sourceEnd.subsets.contains(propertyName)) {

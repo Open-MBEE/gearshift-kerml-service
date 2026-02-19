@@ -33,6 +33,9 @@ open class MDMObject(
 ) : ModelElement {
     protected val properties = mutableMapOf<String, Any?>()
 
+    /** Transient cache for derived property values — not persisted, cleared on mutation */
+    internal val derivedCache = HashMap<String, Any?>()
+
     /**
      * The ID of this object in the repository.
      * Set when the object is stored in a repository.
@@ -44,6 +47,7 @@ open class MDMObject(
      */
     fun setProperty(name: String, value: Any?) {
         properties[name] = value
+        if (derivedCache.isNotEmpty()) derivedCache.clear()
     }
 
     /**

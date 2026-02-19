@@ -438,6 +438,7 @@ open class MDMEngine(
 
             val oldValue = element.getProperty(propertyName)
             element.setProperty(propertyName, value)
+            element.derivedCache.clear()
             fireEvent(LifecycleEvent.PropertyChanged(element, propertyName, oldValue, value))
             return
         }
@@ -590,6 +591,79 @@ open class MDMEngine(
             val element = getElement(id)
             if (element != null) {
                 results.add(element)
+            } else {
+                brokenIds.add(id)
+            }
+        }
+        if (brokenIds.isNotEmpty()) {
+            throw BrokenReferenceException(
+                "Association '$propertyName' on ${metaClass.name}[$elementId] references non-existent element(s): ${brokenIds.joinToString()}"
+            )
+        }
+        return results
+    }
+
+    /**
+     * Navigate an association using an already-resolved association end triple.
+     * Avoids the redundant findAssociationEnd scan that navigateAssociation performs.
+     */
+    private fun navigateAssociationWithEnd(
+        element: MDMElement,
+        propertyName: String,
+        resolvedEnd: Triple<MetaAssociation, MetaAssociationEnd, Boolean>
+    ): List<MDMObject> {
+        val elementId = element.id ?: return emptyList()
+        val metaClass = element.metaClass
+        val (association, _, isTargetEnd) = resolvedEnd
+
+        // Collect target IDs from the primary association
+        val allTargetIds = mutableSetOf<String>()
+        val directResults = if (isTargetEnd) {
+            graph.getTargets(elementId, association.name)
+        } else {
+            graph.getSources(elementId, association.name)
+        }
+        allTargetIds.addAll(directResults)
+
+        // Also collect from redefining associations
+        val redefiningEnds = schema.findRedefiningEnds(propertyName)
+        for ((redefiningAssoc, redefiningEnd) in redefiningEnds) {
+            val redefiningIsTargetEnd = redefiningEnd == redefiningAssoc.targetEnd
+            val applicableType =
+                if (redefiningIsTargetEnd) redefiningAssoc.sourceEnd.type else redefiningAssoc.targetEnd.type
+            if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
+                val redefiningResults = if (redefiningIsTargetEnd) {
+                    graph.getTargets(elementId, redefiningAssoc.name)
+                } else {
+                    graph.getSources(elementId, redefiningAssoc.name)
+                }
+                allTargetIds.addAll(redefiningResults)
+            }
+        }
+
+        // Also collect from subsetting associations
+        val subsettingEnds = schema.findSubsettingEnds(propertyName)
+        for ((subsettingAssoc, subsettingEnd) in subsettingEnds) {
+            val subsettingIsTargetEnd = subsettingEnd == subsettingAssoc.targetEnd
+            val applicableType =
+                if (subsettingIsTargetEnd) subsettingAssoc.sourceEnd.type else subsettingAssoc.targetEnd.type
+            if (schema.isSubclassOf(metaClass.name, applicableType) || metaClass.name == applicableType) {
+                val subsettingResults = if (subsettingIsTargetEnd) {
+                    graph.getTargets(elementId, subsettingAssoc.name)
+                } else {
+                    graph.getSources(elementId, subsettingAssoc.name)
+                }
+                allTargetIds.addAll(subsettingResults)
+            }
+        }
+
+        // Resolve element references
+        val results = mutableListOf<MDMObject>()
+        val brokenIds = mutableListOf<String>()
+        for (id in allTargetIds) {
+            val resolved = getElement(id)
+            if (resolved != null) {
+                results.add(resolved)
             } else {
                 brokenIds.add(id)
             }
@@ -868,12 +942,18 @@ open class MDMEngine(
     }
 
     /**
-     * Compute a derived association end value.
+     * Compute a derived association end value. Uses per-element cache to avoid redundant evaluation.
      */
     private fun computeDerivedAssociationEnd(
         element: MDMObject,
         end: MetaAssociationEnd
     ): Any? {
+        // Check cache first
+        val cacheKey = "assoc:${end.name}"
+        if (element.derivedCache.containsKey(cacheKey)) {
+            return element.derivedCache[cacheKey]
+        }
+
         val derivationConstraintName = end.derivationConstraint
 
         // Try explicit derivation constraint first
@@ -885,7 +965,7 @@ open class MDMEngine(
                     val result = evaluator.evaluate(constraint.expression, element, this)
                     // Unwrap OclAsTypeView to get the underlying MDMObject
                     val unwrappedResult = unwrapOclResult(result)
-                    return normalizeForMultiplicity(
+                    val normalized = normalizeForMultiplicity(
                         when (unwrappedResult) {
                             null -> emptyList()
                             is Collection<*> -> unwrappedResult.map { unwrapOclResult(it) }.filterNotNull()
@@ -895,6 +975,8 @@ open class MDMEngine(
                         element,
                         end.name
                     )
+                    element.derivedCache[cacheKey] = normalized
+                    return normalized
                 } else {
                     logger.warn { "No evaluator for ${constraint.language} to compute ${end.name}" }
                 }
@@ -918,12 +1000,18 @@ open class MDMEngine(
     }
 
     /**
-     * Compute a derived property value.
+     * Compute a derived property value. Uses per-element cache to avoid redundant OCL evaluation.
      */
     fun computeDerivedProperty(element: MDMObject, property: MetaProperty): Any? {
-        // Check if it's a union property (computed from subsetters)
+        // Union properties depend on subsetters — skip caching
         if (property.isUnion) {
             return computeFromSubsetters(element, property)
+        }
+
+        // Check cache first
+        val cacheKey = "prop:${property.name}"
+        if (element.derivedCache.containsKey(cacheKey)) {
+            return element.derivedCache[cacheKey]
         }
 
         // Check for derivation constraint
@@ -934,8 +1022,9 @@ open class MDMEngine(
             if (constraint != null) {
                 val evaluator = evaluators[constraint.language.uppercase()]
                 if (evaluator != null) {
-                    //logger.debug { "Computing derived property ${property.name} via ${constraint.language}" }
-                    return evaluator.evaluate(constraint.expression, element, this)
+                    val result = evaluator.evaluate(constraint.expression, element, this)
+                    element.derivedCache[cacheKey] = result
+                    return result
                 } else {
                     logger.warn { "No evaluator for ${constraint.language} to compute ${property.name}" }
                 }
@@ -1081,7 +1170,18 @@ open class MDMEngine(
     ): Triple<MetaAssociation,
             MetaAssociationEnd,
             Boolean>? {
-        // Check all associations for matching end name
+        // Use pre-computed per-class index if available
+        val cachedEnds = schema.getAssociationEndsForClass(metaClass.name)
+        if (cachedEnds != null) {
+            for (triple in cachedEnds) {
+                if (triple.second.name == propertyName) {
+                    return Triple(triple.first, triple.second, triple.third)
+                }
+            }
+            return null
+        }
+
+        // Fallback: check all associations for matching end name
         for (association in schema.getAllAssociations()) {
             if (association.targetEnd.name == propertyName &&
                 (association.sourceEnd.type == metaClass.name ||
@@ -1318,7 +1418,7 @@ open class MDMEngine(
     // ===== Internal - Cache =====
 
     private fun invalidateAssociationDependents(element: MDMObject, associationEndName: String) {
-        // TODO: Implement cache invalidation for derived properties
+        element.derivedCache.clear()
     }
 }
 

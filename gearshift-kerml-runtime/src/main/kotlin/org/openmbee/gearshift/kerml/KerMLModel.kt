@@ -145,6 +145,7 @@ class KerMLModel(
             val schema = MetamodelRegistry()
             KerMLMetamodelLoader.initialize(schema)
             ViewsExtensionLoader.initialize(schema)
+            schema.buildIndexes()
             val factory = KerMLElementFactory()
             return MDMEngine(schema, factory)
         }
@@ -160,6 +161,7 @@ class KerMLModel(
             val schema = MetamodelRegistry()
             KerMLMetamodelLoader.initialize(schema)
             ViewsExtensionLoader.initialize(schema)
+            schema.buildIndexes()
             val factory = KerMLElementFactory()
             return MountableEngine(schema, factory)
         }

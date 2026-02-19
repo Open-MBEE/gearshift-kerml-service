@@ -54,6 +54,10 @@ object KerMLMetamodelLoader {
         // Register associations after classes are in place
         registerAssociations(registry)
 
+        // Note: Do NOT call buildIndexes() here — extension loaders (ViewsExtensionLoader)
+        // may register additional classes/associations after this method returns.
+        // buildIndexes() should be called by the engine factory after ALL loaders have run.
+
         // Note: Ownership semantics are now declared on individual MetaClass definitions
         // via ownershipBinding (e.g., on OwningMembership, FeatureMembership, etc.)
         // and resolved dynamically by OwnershipResolver.

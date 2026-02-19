@@ -25,6 +25,7 @@ import org.openmbee.mdm.framework.runtime.CommitData
 import org.openmbee.mdm.framework.runtime.DataVersionData
 import org.openmbee.mdm.framework.runtime.ElementSerializer
 import org.openmbee.mdm.framework.runtime.MountableEngine
+import org.openmbee.mdm.framework.runtime.SerializationMode
 import org.openmbee.mdm.framework.runtime.ProjectMetadata
 import java.util.UUID
 
@@ -272,7 +273,7 @@ fun Route.sysmlApiRoutes(store: ProjectStore) {
             // Filter to local elements only (exclude mounted library elements)
             val localElements = filterLocalElements(model, elements)
             val serializer = ElementSerializer(model.engine)
-            call.respond(serializer.serializeAll(localElements))
+            call.respond(serializer.serializeAll(localElements, SerializationMode.SUMMARY))
         }
 
         get("/elements/{elementId}") {
@@ -312,7 +313,7 @@ fun Route.sysmlApiRoutes(store: ProjectStore) {
 
             val rootNamespaces = model.engine.getRootNamespaces()
             val serializer = ElementSerializer(model.engine)
-            call.respond(serializer.serializeAll(rootNamespaces))
+            call.respond(serializer.serializeAll(rootNamespaces, SerializationMode.SUMMARY))
         }
 
         // === Relationship endpoint ===
