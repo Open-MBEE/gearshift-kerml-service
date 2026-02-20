@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.openmbee.gearshift.kerml.analysis
 
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -22,6 +23,27 @@ import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 
 private val logger = KotlinLogging.logger {}
+
+/**
+ * Error thrown when a constraint directly references an inherited feature without
+ * an explicit redefinition in the constraining type. Inherited features are read-only
+ * from a subtype's perspective; to constrain them, the subtype must create a local
+ * redefinition (`:>>`).
+ *
+ * @param featureName The inherited feature being referenced
+ * @param definingTypeName The supertype that owns the feature
+ * @param constraintOwnerName The subtype whose constraint references the feature
+ */
+class InheritedFeatureConstraintError(
+    val featureName: String,
+    val definingTypeName: String,
+    val constraintOwnerName: String
+) : RuntimeException(
+    "Cannot constrain inherited feature '$featureName' (defined in '$definingTypeName') " +
+        "from '$constraintOwnerName' without an explicit redefinition. " +
+        "Add 'feature $featureName :>> $definingTypeName::$featureName;' to '$constraintOwnerName' " +
+        "to create a local redefinition."
+)
 
 /**
  * Result of an impact/dependency analysis for a specific feature.
@@ -72,6 +94,11 @@ class ParametricAnalysisService(
     fun solveConstraints(
         constraints: List<BooleanExpression>
     ): SolverResult {
+        // Validate that no constraint directly references an inherited feature without redefinition
+        for (constraint in constraints) {
+            validateConstraintReferences(constraint)
+        }
+
         val constraintExprs = constraints.mapNotNull { extractConstraintExpression(it) }
 
         if (constraintExprs.isEmpty()) {
@@ -82,7 +109,6 @@ class ParametricAnalysisService(
         for (constraint in constraints) {
             allFeatures.addAll(collectReferencedFeatures(constraint))
         }
-        logger.debug { "Collected features: ${allFeatures.map { "${it.declaredName ?: it.name} (id=${(it as MDMObject).id}, class=${(it as MDMObject).className})" }}" }
         val variables = allFeatures.mapNotNull { featureToVariable(it) }
 
         if (variables.isEmpty()) {
@@ -106,6 +132,11 @@ class ParametricAnalysisService(
      */
     fun checkRequirementConsistency(constraints: List<BooleanExpression>): ConflictResult {
         logger.info { "Checking consistency of ${constraints.size} constraints" }
+
+        // Validate inherited feature access before checking consistency
+        for (constraint in constraints) {
+            validateConstraintReferences(constraint)
+        }
 
         val constraintExprs = constraints.mapNotNull { extractConstraintExpression(it) }
         if (constraintExprs.isEmpty()) {
@@ -272,6 +303,143 @@ class ParametricAnalysisService(
         }
     }
 
+    // === Inherited Feature Validation ===
+
+    /**
+     * Validate that a constraint does not directly reference inherited features
+     * without explicit redefinition. Inherited features are read-only from a
+     * subtype context; FeatureChain navigation (dot access) is allowed.
+     *
+     * @throws InheritedFeatureConstraintError if a direct inherited feature reference is found
+     */
+    private fun validateConstraintReferences(constraint: BooleanExpression) {
+        val obj = constraint as MDMObject
+        val constraintOwner = findConstraintOwningType(obj) ?: return
+
+        val rawResultExpr = obj.getProperty("resultExpression") as? MDMObject
+        if (rawResultExpr != null) {
+            validateExpressionFeatureAccess(rawResultExpr, constraintOwner)
+            return
+        }
+
+        try {
+            val resultExpr = getResultExpression(obj)
+            if (resultExpr != null) {
+                validateExpressionFeatureAccess(resultExpr, constraintOwner)
+            }
+        } catch (_: Exception) { }
+    }
+
+    /**
+     * Walk an expression tree checking for direct FeatureReferenceExpressions that
+     * reference inherited features. FeatureChainExpression arguments are NOT checked
+     * because chain navigation is read-only access.
+     */
+    private fun validateExpressionFeatureAccess(expression: MDMObject, constraintOwner: MDMObject) {
+        when {
+            expression is FeatureReferenceExpression -> {
+                val referent = try {
+                    expression.referent
+                } catch (_: Exception) {
+                    try {
+                        engine.getPropertyValue(expression, "referent") as? Feature
+                    } catch (_: Exception) { null }
+                } ?: return
+
+                val featureOwner = findOwningNamespace(referent) as? MDMObject ?: return
+                if (featureOwner !is Type) return
+
+                val featureOwnerId = featureOwner.id
+                val constraintOwnerId = constraintOwner.id
+                if (featureOwnerId != null && constraintOwnerId != null
+                    && featureOwnerId != constraintOwnerId
+                    && isSubtypeOf(constraintOwner, featureOwner)
+                ) {
+                    val featureName = referent.declaredName ?: referent.name ?: "unknown"
+                    val definingTypeName = (featureOwner as Element).let { it.declaredName ?: it.name } ?: "unknown"
+                    val constraintOwnerName = (constraintOwner as Element).let { it.declaredName ?: it.name } ?: "unknown"
+                    throw InheritedFeatureConstraintError(featureName, definingTypeName, constraintOwnerName)
+                }
+            }
+
+            expression is FeatureChainExpression -> {
+                // FeatureChain navigation is read-only dot access — do NOT validate
+                // the source expression. The chain resolves to a specific feature via
+                // structural navigation, which does not constrain the source.
+            }
+
+            expression is OperatorExpression || expression is InvocationExpression -> {
+                for (arg in getExpressionArguments(expression)) {
+                    validateExpressionFeatureAccess(arg, constraintOwner)
+                }
+            }
+
+            expression is Expression -> {
+                val rawResultExpr = expression.getProperty("resultExpression") as? MDMObject
+                if (rawResultExpr != null) {
+                    validateExpressionFeatureAccess(rawResultExpr, constraintOwner)
+                } else {
+                    try {
+                        val resultExpr = getResultExpression(expression)
+                        if (resultExpr != null) {
+                            validateExpressionFeatureAccess(resultExpr, constraintOwner)
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+        }
+    }
+
+    /**
+     * Find the Type that owns a constraint element (e.g., the Class containing an Invariant).
+     * Returns null if the constraint is at the package level (no type context).
+     */
+    private fun findConstraintOwningType(element: MDMObject): MDMObject? {
+        try {
+            val owner = (element as Element).owner
+            if (owner is Type) return owner as MDMObject
+        } catch (_: Exception) { }
+
+        try {
+            val ownerNs = engine.getPropertyValue(element, "owningNamespace")
+            if (ownerNs is Type && ownerNs is MDMObject) return ownerNs
+        } catch (_: Exception) { }
+
+        return null
+    }
+
+    /**
+     * Check if [candidate] is a subtype of [potentialSupertype] by walking the
+     * Subclassification chain (BFS).
+     */
+    private fun isSubtypeOf(candidate: MDMObject, potentialSupertype: MDMObject): Boolean {
+        val targetId = potentialSupertype.id ?: return false
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<MDMObject>()
+        queue.add(candidate)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val currentId = current.id ?: continue
+            if (!visited.add(currentId)) continue
+
+            try {
+                val ownedRels = engine.navigateAssociation(current, "ownedRelationship")
+                for (rel in ownedRels) {
+                    if (rel is Subclassification) {
+                        val supers = engine.getLinkedTargets("superclassificationSuperclassifierAssociation", rel.id!!)
+                        for (superType in supers) {
+                            if (superType.id == targetId) return true
+                            queue.add(superType)
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        return false
+    }
+
     // === Model Element Extraction ===
 
     /**
@@ -425,18 +593,24 @@ class ParametricAnalysisService(
             if (target != null) return solverVariableName(target) ?: target.declaredName ?: target.name
         } catch (_: Exception) { }
 
-        // Strategy 3: Use _targetFeatureName + source expression's type to build a qualified name.
-        // For `propulsion.mass`, the source `propulsion` is typed as `Propulsion`, and the target
-        // feature name is `mass`, so the solver variable should be `Propulsion__mass`.
+        // Strategy 3: Use _targetFeatureName + source expression's type to resolve the actual Feature,
+        // then use solverVariableName for a consistent variable name.
+        // For `engine.mass` where engine is typed Propulsion and mass is inherited from Component,
+        // this resolves to the Component::mass Feature and names it `Component__mass`.
         val rawName = (expression as MDMObject).getProperty("_targetFeatureName") as? String
         if (rawName != null) {
             val args = getExpressionArguments(expression)
             if (args.isNotEmpty()) {
                 val sourceFeature = resolveFeatureFromExpression(args[0])
                 if (sourceFeature != null) {
-                    // Get the source feature's type (e.g., propulsion is typed as Propulsion)
                     val typeName = getFeatureTypeName(sourceFeature)
-                    if (typeName != null) return "${typeName}__${rawName}"
+                    if (typeName != null) {
+                        val resolvedFeature = findFeatureInNamedType(typeName, rawName)
+                        if (resolvedFeature != null) {
+                            return solverVariableName(resolvedFeature) ?: rawName
+                        }
+                        return "${typeName}__${rawName}"
+                    }
                 }
             }
             return rawName
@@ -476,21 +650,50 @@ class ParametricAnalysisService(
         // Find the Type element by declaredName
         val typeElement = engine.getAllElements().firstOrNull {
             it is Type && ((it as? Element)?.declaredName == typeName || (it as? Element)?.name == typeName)
-        }
-        if (typeElement == null) {
-            logger.debug { "findFeatureInNamedType: no Type found with name '$typeName'" }
-            return null
-        }
-        logger.debug { "findFeatureInNamedType: found Type '$typeName' (id=${typeElement.id}, class=${typeElement.className})" }
+        } as? MDMObject ?: return null
 
-        // Navigate ownedFeature (derived: ownedFeatureMembership.ownedMemberFeature)
+        return findFeatureInType(typeElement, featureName, mutableSetOf())
+    }
+
+    /**
+     * Find a Feature by name in a Type, walking the supertype chain via Subclassification.
+     * Uses a visited set to prevent infinite loops in case of circular inheritance.
+     */
+    private fun findFeatureInType(typeElement: MDMObject, featureName: String, visited: MutableSet<String>): Feature? {
+        val typeId = typeElement.id ?: return null
+        if (!visited.add(typeId)) return null
+
+        // Check directly owned features via graph links
         try {
-            val features = (typeElement as Type).ownedFeature
-            logger.debug { "findFeatureInNamedType: ownedFeature count=${features.size}, names=${features.map { it.declaredName ?: it.name }}" }
-            return features.firstOrNull { it.declaredName == featureName || it.name == featureName }
-        } catch (e: Exception) {
-            logger.debug { "findFeatureInNamedType: ownedFeature navigation failed: ${e.message}" }
-        }
+            val memberships = engine.getLinkedTargets(
+                "owningTypeOwnedFeatureMembershipAssociation", typeId
+            )
+            for (membership in memberships) {
+                val features = engine.getLinkedTargets(
+                    "owningFeatureMembershipOwnedMemberFeatureAssociation", membership.id!!
+                )
+                for (feature in features) {
+                    if (feature is Feature) {
+                        val fname = feature.declaredName ?: feature.name
+                        if (fname == featureName) return feature
+                    }
+                }
+            }
+        } catch (_: Exception) { }
+
+        // Walk supertypes via Subclassification: Type → ownedRelationship (Subclassification) → superclassifier
+        try {
+            val ownedRels = engine.navigateAssociation(typeElement, "ownedRelationship")
+            for (rel in ownedRels) {
+                if (rel is Subclassification) {
+                    val supers = engine.getLinkedTargets("superclassificationSuperclassifierAssociation", rel.id!!)
+                    for (superType in supers) {
+                        val result = findFeatureInType(superType, featureName, visited)
+                        if (result != null) return result
+                    }
+                }
+            }
+        } catch (_: Exception) { }
 
         return null
     }
@@ -699,39 +902,24 @@ class ParametricAnalysisService(
             expression is FeatureChainExpression -> {
                 var resolved = false
                 try {
-                    val target = expression.targetFeature
-                    logger.debug { "FeatureChainExpression: typed targetFeature resolved to ${target.declaredName}" }
-                    result.add(target)
+                    result.add(expression.targetFeature)
                     resolved = true
-                } catch (e: Exception) {
-                    logger.debug { "FeatureChainExpression: typed targetFeature failed: ${e.message}" }
+                } catch (_: Exception) {
                     try {
                         val target = engine.getPropertyValue(expression as MDMObject, "targetFeature") as? Feature
-                        if (target != null) {
-                            logger.debug { "FeatureChainExpression: engine targetFeature resolved to ${target.declaredName}" }
-                            result.add(target); resolved = true
-                        } else {
-                            logger.debug { "FeatureChainExpression: engine targetFeature returned null" }
-                        }
-                    } catch (e2: Exception) {
-                        logger.debug { "FeatureChainExpression: engine targetFeature failed: ${e2.message}" }
-                    }
+                        if (target != null) { result.add(target); resolved = true }
+                    } catch (_: Exception) { }
                 }
                 // Fallback: resolve from source feature's type + _targetFeatureName
                 if (!resolved) {
                     val rawName = (expression as MDMObject).getProperty("_targetFeatureName") as? String
                     val args = getExpressionArguments(expression as MDMObject)
-                    logger.debug { "FeatureChainExpression fallback: rawName=$rawName, args.size=${args.size}" }
                     if (rawName != null && args.isNotEmpty()) {
                         val sourceFeature = resolveFeatureFromExpression(args[0])
-                        logger.debug { "FeatureChainExpression fallback: sourceFeature=${sourceFeature?.declaredName}" }
                         if (sourceFeature != null) {
                             val typeName = getFeatureTypeName(sourceFeature)
-                            logger.debug { "FeatureChainExpression fallback: typeName=$typeName" }
                             if (typeName != null) {
-                                // Find the Type definition whose declaredName matches, then look for the feature
                                 val target = findFeatureInNamedType(typeName, rawName)
-                                logger.debug { "FeatureChainExpression fallback: findFeatureInNamedType($typeName, $rawName) = ${target?.declaredName}" }
                                 if (target != null) result.add(target)
                             }
                         }

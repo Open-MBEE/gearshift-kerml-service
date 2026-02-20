@@ -148,25 +148,71 @@ class MetamodelRegistry {
         isSubclassCache = subCache
 
         // 3. Redefines index — propertyName → list of (association, redefining end)
-        val redefIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        // First pass: direct redefines
+        val directRedefIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
         for (association in associations.values) {
             for (propName in association.sourceEnd.redefines) {
-                redefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
+                directRedefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
             }
             for (propName in association.targetEnd.redefines) {
-                redefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+                directRedefIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+            }
+        }
+        // Second pass: transitive closure — if B redefines A and C redefines B, then C also redefines A
+        val redefIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        for ((propName, _) in directRedefIdx) {
+            val allRedefines = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
+            val visited = mutableSetOf<String>()
+            val queue = ArrayDeque<String>()
+            queue.add(propName)
+            visited.add(propName)
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+                val redefines = directRedefIdx[current] ?: continue
+                for ((assoc, end) in redefines) {
+                    allRedefines.add(assoc to end)
+                    if (visited.add(end.name)) {
+                        queue.add(end.name)
+                    }
+                }
+            }
+            if (allRedefines.isNotEmpty()) {
+                redefIdx[propName] = allRedefines
             }
         }
         redefinesIndex = redefIdx
 
         // 4. Subsets index — propertyName → list of (association, subsetting end)
-        val subsetIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        // First pass: direct subsetters
+        val directSubsetIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
         for (association in associations.values) {
             for (propName in association.sourceEnd.subsets) {
-                subsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
+                directSubsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.sourceEnd)
             }
             for (propName in association.targetEnd.subsets) {
-                subsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+                directSubsetIdx.getOrPut(propName) { mutableListOf() }.add(association to association.targetEnd)
+            }
+        }
+        // Second pass: transitive closure — if B subsets A and C subsets B, then C also subsets A
+        val subsetIdx = mutableMapOf<String, MutableList<Pair<MetaAssociation, MetaAssociationEnd>>>()
+        for ((propName, directSubsetters) in directSubsetIdx) {
+            val allSubsetters = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
+            val visited = mutableSetOf<String>()
+            val queue = ArrayDeque<String>()
+            queue.add(propName)
+            visited.add(propName)
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+                val subsetters = directSubsetIdx[current] ?: continue
+                for ((assoc, end) in subsetters) {
+                    allSubsetters.add(assoc to end)
+                    if (visited.add(end.name)) {
+                        queue.add(end.name)
+                    }
+                }
+            }
+            if (allSubsetters.isNotEmpty()) {
+                subsetIdx[propName] = allSubsetters
             }
         }
         subsetsIndex = subsetIdx
@@ -448,18 +494,31 @@ class MetamodelRegistry {
      * returns the association end for `subclassifier`.
      */
     fun findRedefiningEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
-        // Use pre-computed index if available
+        // Use pre-computed index if available (already transitive)
         redefinesIndex[propertyName]?.let { return it }
         if (redefinesIndex.isNotEmpty()) return emptyList()
 
-        // Fallback to full scan
+        // Fallback to full transitive scan (when buildIndexes hasn't been called)
         val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
-        for (association in associations.values) {
-            if (association.sourceEnd.redefines.contains(propertyName)) {
-                result.add(association to association.sourceEnd)
-            }
-            if (association.targetEnd.redefines.contains(propertyName)) {
-                result.add(association to association.targetEnd)
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<String>()
+        queue.add(propertyName)
+        visited.add(propertyName)
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            for (association in associations.values) {
+                if (association.sourceEnd.redefines.contains(current)) {
+                    result.add(association to association.sourceEnd)
+                    if (visited.add(association.sourceEnd.name)) {
+                        queue.add(association.sourceEnd.name)
+                    }
+                }
+                if (association.targetEnd.redefines.contains(current)) {
+                    result.add(association to association.targetEnd)
+                    if (visited.add(association.targetEnd.name)) {
+                        queue.add(association.targetEnd.name)
+                    }
+                }
             }
         }
         return result
@@ -471,18 +530,31 @@ class MetamodelRegistry {
      * returns the association end for `ownedMembership`.
      */
     fun findSubsettingEnds(propertyName: String): List<Pair<MetaAssociation, MetaAssociationEnd>> {
-        // Use pre-computed index if available
+        // Use pre-computed index if available (already transitive)
         subsetsIndex[propertyName]?.let { return it }
         if (subsetsIndex.isNotEmpty()) return emptyList()
 
-        // Fallback to full scan
+        // Fallback to full transitive scan (when buildIndexes hasn't been called)
         val result = mutableListOf<Pair<MetaAssociation, MetaAssociationEnd>>()
-        for (association in associations.values) {
-            if (association.sourceEnd.subsets.contains(propertyName)) {
-                result.add(association to association.sourceEnd)
-            }
-            if (association.targetEnd.subsets.contains(propertyName)) {
-                result.add(association to association.targetEnd)
+        val visited = mutableSetOf<String>()
+        val queue = ArrayDeque<String>()
+        queue.add(propertyName)
+        visited.add(propertyName)
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            for (association in associations.values) {
+                if (association.sourceEnd.subsets.contains(current)) {
+                    result.add(association to association.sourceEnd)
+                    if (visited.add(association.sourceEnd.name)) {
+                        queue.add(association.sourceEnd.name)
+                    }
+                }
+                if (association.targetEnd.subsets.contains(current)) {
+                    result.add(association to association.targetEnd)
+                    if (visited.add(association.targetEnd.name)) {
+                        queue.add(association.targetEnd.name)
+                    }
+                }
             }
         }
         return result

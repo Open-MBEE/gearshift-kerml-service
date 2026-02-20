@@ -24,32 +24,16 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.openmbee.mdm.framework.query.gql.parser.GqlParseException
 import org.openmbee.mdm.framework.query.gql.query
+import org.openmbee.mdm.framework.runtime.ElementSerializer
 import org.openmbee.mdm.framework.runtime.MDMEngine
 import org.openmbee.mdm.framework.runtime.MDMObject
 import org.openmbee.mdm.framework.runtime.MountableEngine
+import org.openmbee.mdm.framework.runtime.SerializationMode
 import org.openmbee.gearshift.kerml.generator.KerMLWriter
 
 private val logger = KotlinLogging.logger {}
 
 // === Data classes ===
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-data class ElementNode(
-    val id: String,
-    val type: String,
-    val name: String?,
-    val declaredName: String?,
-    val properties: Map<String, Any?> = emptyMap(),
-    val rawProperties: Map<String, Any?> = emptyMap(),
-    val associationEnds: Map<String, Any?> = emptyMap(),
-    val children: List<ElementNode> = emptyList()
-)
-
-data class AssocEndRef(
-    val id: String,
-    val type: String,
-    val display: String
-)
 
 data class QueryRequest(
     val gql: String,
@@ -91,11 +75,11 @@ data class TreeParams(
  * Provides recursive traversal and query operations over an MDMEngine.
  * Stateless — instantiate per request with the target project's engine.
  */
-class ModelQueryService(private val engine: MDMEngine) {
+class ModelQueryService(private val engine: MDMEngine, private val serializer: ElementSerializer) {
 
-    fun buildTreeFromRoot(rootId: String, params: TreeParams = TreeParams()): ElementNode {
+    fun buildTreeFromRoot(rootId: String, params: TreeParams = TreeParams()): Map<String, Any?> {
         val visited = mutableSetOf<String>()
-        val children = mutableListOf<ElementNode>()
+        val children = mutableListOf<Map<String, Any?>>()
 
         for (membership in engine.getLinkedTargets("membershipOwningNamespaceOwnedMembershipAssociation", rootId)) {
             val membershipId = membership.id ?: continue
@@ -106,12 +90,10 @@ class ModelQueryService(private val engine: MDMEngine) {
             }
         }
 
-        return ElementNode(
-            id = rootId,
-            type = "Model",
-            name = "Model",
-            declaredName = null,
-            children = children
+        return linkedMapOf(
+            "@id" to rootId,
+            "@type" to "Model",
+            "children" to children
         )
     }
 
@@ -119,24 +101,21 @@ class ModelQueryService(private val engine: MDMEngine) {
         elementId: String,
         visited: MutableSet<String>,
         params: TreeParams
-    ): ElementNode {
+    ): Map<String, Any?> {
         if (elementId in visited) {
             val obj = engine.getInstance(elementId)
-            return ElementNode(
-                id = elementId,
-                type = obj?.className ?: "Unknown",
-                name = "[circular reference]",
-                declaredName = null
+            return linkedMapOf(
+                "@id" to elementId,
+                "@type" to (obj?.className ?: "Unknown"),
+                "name" to "[circular reference]"
             )
         }
         visited.add(elementId)
 
         val obj = engine.getInstance(elementId)
-            ?: return ElementNode(
-                id = elementId,
-                type = "Unknown",
-                name = null,
-                declaredName = null
+            ?: return linkedMapOf(
+                "@id" to elementId,
+                "@type" to "Unknown"
             )
 
         val children = if (params.depth == 0) {
@@ -149,19 +128,10 @@ class ModelQueryService(private val engine: MDMEngine) {
             }
         }
 
-        val declaredName = obj.getProperty("declaredName") as? String
-
-        return if (params.detail == DetailLevel.FULL) {
-            buildFullNode(obj, elementId, declaredName, children)
-        } else {
-            ElementNode(
-                id = elementId,
-                type = obj.className,
-                name = declaredName,
-                declaredName = declaredName,
-                children = children
-            )
-        }
+        val mode = if (params.detail == DetailLevel.FULL) SerializationMode.FULL else SerializationMode.SUMMARY
+        val serialized = LinkedHashMap(serializer.serialize(obj, mode))
+        serialized["children"] = children
+        return serialized
     }
 
     private fun matchesTypeFilter(obj: MDMObject, typeFilter: Set<String>?): Boolean {
@@ -176,8 +146,8 @@ class ModelQueryService(private val engine: MDMEngine) {
         elementId: String,
         visited: MutableSet<String>,
         params: TreeParams
-    ): List<ElementNode> {
-        val children = mutableListOf<ElementNode>()
+    ): List<Map<String, Any?>> {
+        val children = mutableListOf<Map<String, Any?>>()
         val seen = mutableSetOf<String>()
 
         for (membership in engine.getLinkedTargets("membershipOwningNamespaceOwnedMembershipAssociation", elementId)) {
@@ -215,8 +185,8 @@ class ModelQueryService(private val engine: MDMEngine) {
         elementId: String,
         visited: MutableSet<String>,
         params: TreeParams
-    ): List<ElementNode> {
-        val children = mutableListOf<ElementNode>()
+    ): List<Map<String, Any?>> {
+        val children = mutableListOf<Map<String, Any?>>()
 
         for (featureMembership in engine.getLinkedTargets("owningTypeOwnedFeatureMembershipAssociation", elementId)) {
             val fmId = featureMembership.id ?: continue
@@ -235,7 +205,6 @@ class ModelQueryService(private val engine: MDMEngine) {
                 }
 
                 visited.add(featureId)
-                val featureName = featureObj.getProperty("declaredName") as? String
 
                 val featureType = resolveFeatureType(featureId)
                 val featureChildren = if (featureType?.id != null && params.depth != 0) {
@@ -248,19 +217,10 @@ class ModelQueryService(private val engine: MDMEngine) {
                     emptyList()
                 }
 
-                children.add(
-                    if (params.detail == DetailLevel.FULL) {
-                        buildFullNode(featureObj, featureId, featureName, featureChildren)
-                    } else {
-                        ElementNode(
-                            id = featureId,
-                            type = featureObj.className,
-                            name = featureName,
-                            declaredName = featureName,
-                            children = featureChildren
-                        )
-                    }
-                )
+                val mode = if (params.detail == DetailLevel.FULL) SerializationMode.FULL else SerializationMode.SUMMARY
+                val serialized = LinkedHashMap(serializer.serialize(featureObj, mode))
+                serialized["children"] = featureChildren
+                children.add(serialized)
             }
         }
 
@@ -276,111 +236,11 @@ class ModelQueryService(private val engine: MDMEngine) {
         return null
     }
 
-    private fun buildFullNode(
-        obj: MDMObject,
-        elementId: String,
-        declaredName: String?,
-        children: List<ElementNode>
-    ): ElementNode {
-        val derivedName = try {
-            engine.getProperty(elementId, "name") as? String
-        } catch (e: Exception) {
-            logger.debug(e) { "Failed to compute derived name for $elementId" }
-            null
-        }
-
-        val properties = mutableMapOf<String, Any?>()
-        obj.getAllProperties().forEach { (key, value) ->
-            if (value != null && key !in listOf("name", "declaredName", "declaredShortName", "shortName")) {
-                properties[key] = value
-            }
-        }
-
-        val rawProperties = mutableMapOf<String, Any?>()
-        val associationEnds = mutableMapOf<String, Any?>()
-        val metaClass = obj.metaClass
-        val allClassNames = engine.metamodelRegistry.getAllSuperclasses(metaClass.name) + metaClass.name
-
-        for (className in allClassNames) {
-            val cls = engine.metamodelRegistry.getClass(className) ?: continue
-            for (prop in cls.attributes) {
-                if (!rawProperties.containsKey(prop.name)) {
-                    try {
-                        rawProperties[prop.name] = engine.getProperty(elementId, prop.name)
-                    } catch (e: Exception) {
-                        rawProperties[prop.name] = null
-                    }
-                }
-            }
-        }
-
-        for (association in engine.metamodelRegistry.getAllAssociations()) {
-            if (allClassNames.contains(association.sourceEnd.type)) {
-                val endName = association.targetEnd.name
-                if (!associationEnds.containsKey(endName)) {
-                    try {
-                        associationEnds[endName] = formatAssociationValue(engine.getProperty(elementId, endName))
-                    } catch (e: Exception) {
-                        associationEnds[endName] = null
-                    }
-                }
-            }
-            if (association.sourceEnd.isNavigable && allClassNames.contains(association.targetEnd.type)) {
-                val endName = association.sourceEnd.name
-                if (!associationEnds.containsKey(endName)) {
-                    try {
-                        associationEnds[endName] = formatAssociationValue(engine.getProperty(elementId, endName))
-                    } catch (e: Exception) {
-                        associationEnds[endName] = null
-                    }
-                }
-            }
-        }
-
-        return ElementNode(
-            id = elementId,
-            type = obj.className,
-            name = derivedName,
-            declaredName = declaredName,
-            properties = properties.ifEmpty { emptyMap() },
-            rawProperties = rawProperties,
-            associationEnds = associationEnds,
-            children = children
-        )
-    }
-
     companion object {
-        fun formatAssociationValue(value: Any?): Any? {
-            return when (value) {
-                null -> null
-                is MDMObject -> {
-                    val id = value.id ?: return null
-                    val name = value.getProperty("declaredName") as? String
-                        ?: value.getProperty("name") as? String
-                    val display = if (name != null) {
-                        "${value.className}[$name]"
-                    } else {
-                        "${value.className}[${id.take(8)}...]"
-                    }
-                    AssocEndRef(id = id, type = value.className, display = display)
-                }
-                is List<*> -> {
-                    if (value.isEmpty()) emptyList<AssocEndRef>()
-                    else value.mapNotNull { formatAssociationValue(it) as? AssocEndRef }
-                }
-                else -> value.toString()
-            }
-        }
-
         fun formatQueryValue(value: Any?): Any? {
             return when (value) {
                 null -> null
-                is MDMObject -> {
-                    val name = value.getProperty("declaredName") as? String
-                        ?: value.getProperty("name") as? String
-                    if (name != null) "${value.className}[$name]"
-                    else "${value.className}[${value.id?.take(8)}...]"
-                }
+                is MDMObject -> mapOf("@id" to value.id)
                 is List<*> -> value.map { formatQueryValue(it) }
                 else -> value
             }
@@ -506,7 +366,7 @@ fun Route.projectQueryRoutes(store: ProjectStore) {
                 }
 
                 val params = parseTreeParams(call)
-                val service = ModelQueryService(model.engine)
+                val service = ModelQueryService(model.engine, ElementSerializer(model.engine))
                 val visited = mutableSetOf<String>()
                 call.respond(service.buildTreeNode(elementId, visited, params))
             }

@@ -15,6 +15,7 @@
  */
 package org.openmbee.gearshift.kerml.analysis
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -31,7 +32,6 @@ import org.openmbee.gearshift.generated.interfaces.Feature
 import org.openmbee.gearshift.generated.interfaces.FeatureValue
 import org.openmbee.gearshift.generated.interfaces.Invariant
 import org.openmbee.gearshift.generated.interfaces.LiteralInteger
-import org.openmbee.gearshift.generated.interfaces.LiteralRational
 import org.openmbee.gearshift.kerml.KerMLTestSpec
 import org.openmbee.mdm.framework.constraints.ConstraintSolverService
 import org.openmbee.mdm.framework.constraints.Z3Sort
@@ -585,6 +585,139 @@ class ParametricAnalysisServiceTest : KerMLTestSpec({
 
             val featureValues = freshModel.allOfType<FeatureValue>()
             featureValues.shouldHaveSize(2)
+        }
+    }
+
+    describe("inherited features via dot navigation") {
+
+        it("should resolve inherited feature through supertype chain") {
+            model.reset()
+            model.parseString(
+                """
+                class Component {
+                    feature mass : ScalarValues::Integer;
+                }
+                class Propulsion :> Component {
+                    feature thrust : ScalarValues::Integer;
+                }
+                class Spacecraft {
+                    feature totalMass : ScalarValues::Integer;
+                    feature engine : Propulsion;
+                    inv { totalMass == engine.mass + engine.thrust }
+                }
+            """.trimIndent()
+            )
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+            val invariants = model.allOfType<Invariant>()
+
+            val result = service.solveConstraints(invariants)
+            result.satisfiable shouldBe true
+        }
+    }
+
+    describe("inherited feature constraint validation") {
+
+        it("should reject direct reference to inherited feature without redefinition") {
+            model.reset()
+            model.parseString(
+                """
+                class Component {
+                    feature mass : ScalarValues::Integer;
+                }
+                class Propulsion :> Component {
+                    feature thrust : ScalarValues::Integer;
+                    inv { mass == 42 }
+                }
+            """.trimIndent()
+            )
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+            val invariants = model.allOfType<Invariant>()
+
+            val error = shouldThrow<InheritedFeatureConstraintError> {
+                service.solveConstraints(invariants)
+            }
+            error.featureName shouldBe "mass"
+            error.definingTypeName shouldBe "Component"
+            error.constraintOwnerName shouldBe "Propulsion"
+            error.message.shouldNotBeNull()
+            error.message!! shouldContain "redefinition"
+        }
+
+        it("should allow dot navigation to inherited feature (read-only)") {
+            model.reset()
+            model.parseString(
+                """
+                class Component {
+                    feature mass : ScalarValues::Integer;
+                }
+                class Propulsion :> Component {
+                    feature thrust : ScalarValues::Integer;
+                }
+                class Spacecraft {
+                    feature totalMass : ScalarValues::Integer;
+                    feature engine : Propulsion;
+                    inv { totalMass == engine.mass + engine.thrust }
+                }
+            """.trimIndent()
+            )
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+            val invariants = model.allOfType<Invariant>()
+
+            // Should NOT throw — FeatureChain navigation is read-only
+            val result = service.solveConstraints(invariants)
+            result.satisfiable shouldBe true
+        }
+
+        it("should allow constraining directly owned features") {
+            model.reset()
+            model.parseString(
+                """
+                class Component {
+                    feature mass : ScalarValues::Integer;
+                }
+                class Propulsion :> Component {
+                    feature thrust : ScalarValues::Integer;
+                    inv { thrust > 0 }
+                }
+            """.trimIndent()
+            )
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+            val invariants = model.allOfType<Invariant>()
+
+            // Should NOT throw — thrust is directly owned by Propulsion
+            val result = service.solveConstraints(invariants)
+            result.satisfiable shouldBe true
+        }
+
+        it("should reject inherited feature in multi-level hierarchy") {
+            model.reset()
+            model.parseString(
+                """
+                class Base {
+                    feature weight : ScalarValues::Integer;
+                }
+                class Middle :> Base {
+                    feature height : ScalarValues::Integer;
+                }
+                class Leaf :> Middle {
+                    inv { weight > 0 }
+                }
+            """.trimIndent()
+            )
+
+            val service = ParametricAnalysisService(model.engine, ConstraintSolverService())
+            val invariants = model.allOfType<Invariant>()
+
+            val error = shouldThrow<InheritedFeatureConstraintError> {
+                service.solveConstraints(invariants)
+            }
+            error.featureName shouldBe "weight"
+            error.definingTypeName shouldBe "Base"
+            error.constraintOwnerName shouldBe "Leaf"
         }
     }
 
