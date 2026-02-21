@@ -15,17 +15,38 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML ItemDefinition metaclass.
- * Specializes: OccurrenceDefinition, Structure
- * A definition of an item.
+ * SysML ItemDefinition metaclass.
+ * Specializes: Structure, OccurrenceDefinition
+ * An ItemDefinition is an OccurrenceDefinition of the Structure of things that may themselves be
+ * systems or parts of systems, but may also be things that are acted on by a system or parts of
+ * a system, but which do not necessarily perform actions themselves.
  */
 fun createItemDefinitionMetaClass() = MetaClass(
     name = "ItemDefinition",
     isAbstract = false,
-    superclasses = listOf("OccurrenceDefinition", "Structure"),
+    superclasses = listOf("Structure", "OccurrenceDefinition"),
     attributes = emptyList(),
-    description = "A definition of an item"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkItemDefinitionSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Items::Item')",
+            description = "An ItemDefinition must directly or indirectly specialize the Systems Library Model ItemDefinition Items::Item."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "itemDefinitionItemBinding",
+            baseConcept = "Items::Item",
+            bindingKind = BindingKind.SPECIALIZES
+        )
+    ),
+    description = "An ItemDefinition is an OccurrenceDefinition of the Structure of things that may themselves be systems or parts of systems."
 )

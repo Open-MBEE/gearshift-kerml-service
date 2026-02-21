@@ -59,4 +59,12 @@ data class MetaAssociationEnd(
 
     @JsonProperty
     val derivationConstraint: String? = null,
-)
+) {
+    companion object {
+        /**
+         * Sentinel derivation constraint value for non-navigable ends that should be
+         * computed via inverse association lookup rather than a named OCL constraint.
+         */
+        const val OPPOSITE_END = "#opposite"
+    }
+}

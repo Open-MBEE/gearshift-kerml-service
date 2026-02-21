@@ -15,17 +15,38 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML PartDefinition metaclass.
+ * SysML PartDefinition metaclass.
  * Specializes: ItemDefinition
- * A definition of a part.
+ * A PartDefinition is an ItemDefinition of a Class of systems or parts of systems. Note that all
+ * parts may be considered items for certain purposes, but not all items are parts that can perform
+ * actions within a system.
  */
 fun createPartDefinitionMetaClass() = MetaClass(
     name = "PartDefinition",
     isAbstract = false,
     superclasses = listOf("ItemDefinition"),
     attributes = emptyList(),
-    description = "A definition of a part"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkPartDefinitionSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Parts::Part')",
+            description = "A PartDefinition must directly or indirectly specialize the base PartDefinition Parts::Part from the Systems Model Library."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "partDefinitionPartBinding",
+            baseConcept = "Parts::Part",
+            bindingKind = BindingKind.SPECIALIZES
+        )
+    ),
+    description = "A PartDefinition is an ItemDefinition of a Class of systems or parts of systems."
 )

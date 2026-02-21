@@ -21,5 +21,17 @@ import org.openmbee.mdm.framework.meta.MetaAssociation
  * Figure 42: Case Definition and Usage
  */
 fun createCaseDefinitionAndUsageAssociations(): List<MetaAssociation> {
+
+    val caseOwningDefinitionOwnedCaseAssociation = MetaAssociation()
+    val caseOwningUsageNestedCaseAssociation = MetaAssociation()
+    val definedCaseCaseDefinitionAssociation = MetaAssociation()
+    val objectiveOwningCaseDefinitionObjectiveRequirementAssociation = MetaAssociation()
+    val actorOwningCaseDefinitionActorParameterAssociation = MetaAssociation()
+    val subjectOwningCaseDefinitionSubjectParameterAssociation = MetaAssociation()
+    val subjectOwningCaseSubjectParameterAssociation = MetaAssociation()
+    val actorOwningCaseActorParameterAssociation = MetaAssociation()
+    val objectiveOwningCaseObjectiveRequirementAssociation = MetaAssociation()
+
+
     return emptyList()
 }

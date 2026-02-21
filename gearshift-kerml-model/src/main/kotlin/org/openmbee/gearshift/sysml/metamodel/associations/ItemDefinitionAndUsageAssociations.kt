@@ -84,7 +84,7 @@ fun createItemDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedOccurrence"),
-            derivationConstraint = "computeItemDefinitionDefinedItem"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "itemDefinition",

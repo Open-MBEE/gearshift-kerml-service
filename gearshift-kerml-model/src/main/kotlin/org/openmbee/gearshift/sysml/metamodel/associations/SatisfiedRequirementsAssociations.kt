@@ -16,10 +16,61 @@
 package org.openmbee.gearshift.sysml.metamodel.associations
 
 import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 38: Satisfied Requirements
  */
 fun createSatisfiedRequirementsAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // SatisfyRequirementUsage has satisfiedRequirement : RequirementUsage [1..1] {derived, redefines assertedConstraint}
+    val requirementSatisfactionSatisfiedRequirementAssociation = MetaAssociation(
+        name = "requirementSatisfactionSatisfiedRequirementAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "requirementSatisfaction",
+            type = "SatisfyRequirementUsage",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true,
+            subsets = listOf("constraintAssertion"),
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "satisfiedRequirement",
+            type = "RequirementUsage",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("assertedConstraint"),
+            derivationConstraint = "deriveSatisfyRequirementUsageSatisfiedRequirement"
+        )
+    )
+
+    // SatisfyRequirementUsage has satisfyingFeature : Usage [1..1] {derived}
+    val satisfiedRequirementSatisfyingFeatureAssociation = MetaAssociation(
+        name = "satisfiedRequirementSatisfyingFeatureAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "satisfiedRequirement",
+            type = "SatisfyRequirementUsage",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "satisfyingFeature",
+            type = "Usage",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveSatisfyRequirementUsageSatisfyingFeature"
+        )
+    )
+
+    return listOf(
+        requirementSatisfactionSatisfiedRequirementAssociation,
+        satisfiedRequirementSatisfyingFeatureAssociation
+    )
 }

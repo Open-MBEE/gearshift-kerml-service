@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openmbee.gearshift.sysml.metamodel.associations
-
-import org.openmbee.mdm.framework.meta.MetaAssociation
+package org.openmbee.gearshift.sysml.metamodel
 
 /**
- * Figure 24: Control Nodes
+ * TriggerKind enumerates the kinds of triggers that can be represented by a TriggerInvocationExpression.
  */
-fun createControlNodesAssociations(): List<MetaAssociation> {
-    return emptyList()
+enum class TriggerKind(val literal: String) {
+    AFTER("after"),
+    AT("at"),
+    WHEN("when")
 }

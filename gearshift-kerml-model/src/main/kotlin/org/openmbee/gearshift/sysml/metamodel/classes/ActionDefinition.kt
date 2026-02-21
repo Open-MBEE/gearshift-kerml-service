@@ -15,17 +15,43 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML ActionDefinition metaclass.
- * Specializes: OccurrenceDefinition, Behavior
- * A definition of an action.
+ * SysML ActionDefinition metaclass.
+ * Specializes: Behavior, OccurrenceDefinition
+ * An ActionDefinition is a Definition that is also a Behavior that defines an Action performed by a system
+ * or part of a system.
  */
 fun createActionDefinitionMetaClass() = MetaClass(
     name = "ActionDefinition",
     isAbstract = false,
-    superclasses = listOf("OccurrenceDefinition", "Behavior"),
+    superclasses = listOf("Behavior", "OccurrenceDefinition"),
     attributes = emptyList(),
-    description = "A definition of an action"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkActionDefinitionSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Actions::Action')",
+            description = "An ActionDefinition must directly or indirectly specialize the ActionDefinition Actions::Action from the Systems Model Library."
+        ),
+        MetaConstraint(
+            name = "deriveActionDefinitionAction",
+            type = ConstraintType.DERIVATION,
+            expression = "usage->selectByKind(ActionUsage)",
+            description = "The actions of an ActionDefinition are those of its usages that are ActionUsages."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "actionDefinitionActionBinding",
+            baseConcept = "Actions::Action",
+            bindingKind = BindingKind.SPECIALIZES
+        )
+    ),
+    description = "An ActionDefinition is a Definition that is also a Behavior that defines an Action performed by a system or part of a system."
 )

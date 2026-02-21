@@ -84,7 +84,7 @@ fun createPartDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedItem"),
-            derivationConstraint = "computePartDefinitionDefinedPart"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "partDefinition",

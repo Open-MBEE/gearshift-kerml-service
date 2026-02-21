@@ -16,10 +16,36 @@
 package org.openmbee.gearshift.sysml.metamodel.associations
 
 import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 28: Terminate Actions
  */
 fun createTerminateActionsAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // TerminateActionUsage has terminatedOccurrenceArgument : Expression [0..1] {derived}
+    val terminateActionUsageTerminatedOccurrenceArgument = MetaAssociation(
+        name = "terminateActionUsageTerminatedOccurrenceArgument",
+        sourceEnd = MetaAssociationEnd(
+            name = "terminateActionUsage",
+            type = "TerminateActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = "#opposite"
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "terminatedOccurrenceArgument",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveTerminateActionUsageTerminatedOccurrenceArgument"
+        )
+    )
+
+    return listOf(
+        terminateActionUsageTerminatedOccurrenceArgument
+    )
 }

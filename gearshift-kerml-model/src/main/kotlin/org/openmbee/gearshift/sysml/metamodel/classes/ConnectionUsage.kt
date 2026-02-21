@@ -15,17 +15,55 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML ConnectionUsage metaclass.
- * Specializes: ConnectorAsUsage, PartUsage
- * A connector usage that is also a part usage.
+ * SysML ConnectionUsage metaclass.
+ * Specializes: PartUsage, ConnectorAsUsage
+ * A ConnectionUsage is a ConnectorAsUsage that is also a PartUsage. Nominally, if its type is a
+ * ConnectionDefinition, then a ConnectionUsage is a Usage of that ConnectionDefinition, representing a
+ * connection between parts of a system. However, other kinds of kernel AssociationStructures are also allowed,
+ * to permit use of AssociationStructures from the Kernel Model Libraries.
  */
 fun createConnectionUsageMetaClass() = MetaClass(
     name = "ConnectionUsage",
     isAbstract = false,
-    superclasses = listOf("ConnectorAsUsage", "PartUsage"),
+    superclasses = listOf("PartUsage", "ConnectorAsUsage"),
     attributes = emptyList(),
-    description = "A connector usage that is also a part usage"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkConnectionUsageBinarySpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                ownedEndFeature->size() = 2 implies
+                specializesFromLibrary('Connections::binaryConnections')
+            """.trimIndent(),
+            description = "A binary ConnectionUsage must directly or indirectly specialize the ConnectionUsage Connections::binaryConnections from the Systems Model Library."
+        ),
+        MetaConstraint(
+            name = "checkConnectionUsageSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Connections::connections')",
+            description = "A ConnectionUsage must directly or indirectly specialize the ConnectionUsage Connections::connections from the Systems Model Library."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "connectionUsageConnectionsBinding",
+            baseConcept = "Connections::connections",
+            bindingKind = BindingKind.SUBSETS
+        ),
+        SemanticBinding(
+            name = "connectionUsageBinaryConnectionsBinding",
+            baseConcept = "Connections::binaryConnections",
+            bindingKind = BindingKind.SUBSETS,
+            condition = BindingCondition.PropertyEquals("ownedEndFeature->size()", "2")
+        )
+    ),
+    description = "A ConnectionUsage is a ConnectorAsUsage that is also a PartUsage."
 )

@@ -84,7 +84,7 @@ fun createAttributeDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedUsage"),
-            derivationConstraint = "computeAttributeDefinitionDefinedAttribute"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "attributeDefinition",

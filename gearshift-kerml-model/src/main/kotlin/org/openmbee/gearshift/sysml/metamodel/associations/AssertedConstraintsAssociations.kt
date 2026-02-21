@@ -16,10 +16,36 @@
 package org.openmbee.gearshift.sysml.metamodel.associations
 
 import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 36: Asserted Constraints
  */
 fun createAssertedConstraintsAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // AssertConstraintUsage has assertedConstraint : ConstraintUsage [1..1] {derived}
+    val constraintAssertionAssertedConstraintAssociation = MetaAssociation(
+        name = "constraintAssertionAssertedConstraintAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "constraintAssertion",
+            type = "AssertConstraintUsage",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "assertedConstraint",
+            type = "ConstraintUsage",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveAssertConstraintUsageAssertedConstraint"
+        )
+    )
+
+    return listOf(
+        constraintAssertionAssertedConstraintAssociation
+    )
 }

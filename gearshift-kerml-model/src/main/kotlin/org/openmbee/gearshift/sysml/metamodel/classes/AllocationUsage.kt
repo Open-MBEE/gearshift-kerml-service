@@ -15,17 +15,37 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML AllocationUsage metaclass.
+ * SysML AllocationUsage metaclass.
  * Specializes: ConnectionUsage
- * A connection usage representing an allocation.
+ * An AllocationUsage is a usage of an AllocationDefinition asserting the allocation of the source feature to
+ * the target feature.
  */
 fun createAllocationUsageMetaClass() = MetaClass(
     name = "AllocationUsage",
     isAbstract = false,
     superclasses = listOf("ConnectionUsage"),
     attributes = emptyList(),
-    description = "A connection usage representing an allocation"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkAllocationUsageSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Allocations::allocations')",
+            description = "An AllocationUsage must directly or indirectly specialize the AllocationUsage Allocations::allocations from the Systems Model Library."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "allocationUsageAllocationsBinding",
+            baseConcept = "Allocations::allocations",
+            bindingKind = BindingKind.SUBSETS
+        )
+    ),
+    description = "An AllocationUsage is a usage of an AllocationDefinition asserting the allocation of the source feature to the target feature."
 )

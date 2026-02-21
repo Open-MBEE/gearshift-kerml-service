@@ -15,17 +15,31 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 
 /**
- * KerML AttributeDefinition metaclass.
+ * SysML AttributeDefinition metaclass.
  * Specializes: Definition, DataType
- * A definition of an attribute.
+ * An AttributeDefinition is a Definition and a DataType of information about a quality or
+ * characteristic of a system or part of a system that has no independent identity other than
+ * its value. All features of an AttributeDefinition must be referential (non-composite).
+ * As a DataType, an AttributeDefinition must specialize, directly or indirectly, the base
+ * DataType Base::DataValue from the Kernel Semantic Library.
  */
 fun createAttributeDefinitionMetaClass() = MetaClass(
     name = "AttributeDefinition",
     isAbstract = false,
     superclasses = listOf("Definition", "DataType"),
     attributes = emptyList(),
-    description = "A definition of an attribute"
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateAttributeDefinitionFeatures",
+            type = ConstraintType.VERIFICATION,
+            expression = "feature->forAll(not isComposite)",
+            description = "All features of an AttributeDefinition must be non-composite."
+        )
+    ),
+    description = "An AttributeDefinition is a Definition and a DataType of information about a quality or characteristic of a system or part of a system."
 )

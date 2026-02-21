@@ -84,7 +84,7 @@ fun createPortDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedOccurrence"),
-            derivationConstraint = "computePortDefinitionDefinedPort"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "portDefinition",

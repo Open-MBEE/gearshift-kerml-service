@@ -18,14 +18,14 @@ package org.openmbee.gearshift.sysml.metamodel.classes
 import org.openmbee.mdm.framework.meta.MetaClass
 
 /**
- * KerML EnumerationUsage metaclass.
+ * SysML EnumerationUsage metaclass.
  * Specializes: AttributeUsage
- * An attribute usage for an enumeration value.
+ * An EnumerationUsage is an AttributeUsage whose attributeDefinition is an EnumerationDefinition.
  */
 fun createEnumerationUsageMetaClass() = MetaClass(
     name = "EnumerationUsage",
     isAbstract = false,
     superclasses = listOf("AttributeUsage"),
     attributes = emptyList(),
-    description = "An attribute usage for an enumeration value"
+    description = "An EnumerationUsage is an AttributeUsage whose attributeDefinition is an EnumerationDefinition."
 )

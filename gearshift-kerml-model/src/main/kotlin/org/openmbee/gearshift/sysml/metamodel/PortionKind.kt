@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.openmbee.gearshift.sysml.metamodel.associations
+package org.openmbee.gearshift.sysml.metamodel
 
-import org.openmbee.mdm.framework.meta.MetaAssociation
+import com.fasterxml.jackson.annotation.JsonValue
 
 /**
- * Figure 18: Connectors as Usages
+ * SysML PortionKind enumeration.
+ * Specifies the kind of temporal portion of an Occurrence that can be represented
+ * by an OccurrenceUsage.
  */
-fun createConnectorsAsUsagesAssociations(): List<MetaAssociation> {
-    return emptyList()
+enum class PortionKind(@JsonValue val value: String) {
+    SNAPSHOT("snapshot"),
+    TIMESLICE("timeslice")
 }

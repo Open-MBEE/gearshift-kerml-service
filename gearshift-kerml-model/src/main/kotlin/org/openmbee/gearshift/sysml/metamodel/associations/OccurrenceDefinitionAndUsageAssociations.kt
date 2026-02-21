@@ -83,7 +83,7 @@ fun createOccurrenceDefinitionAndUsageAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isNavigable = false,
             isDerived = true,
-            derivationConstraint = "computeOccurrenceDefinitionIndividualUsage"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "individualDefinition",
@@ -107,7 +107,7 @@ fun createOccurrenceDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedUsage"),
-            derivationConstraint = "computeOccurrenceDefinitionDefinedOccurrence"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "occurrenceDefinition",

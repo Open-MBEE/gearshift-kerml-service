@@ -15,17 +15,53 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingCondition
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML InterfaceDefinition metaclass.
+ * SysML InterfaceDefinition metaclass.
  * Specializes: ConnectionDefinition
- * A definition of an interface.
+ * An InterfaceDefinition is a ConnectionDefinition all of whose ends are PortUsages, defining an
+ * interface between elements that interact through such ports.
  */
 fun createInterfaceDefinitionMetaClass() = MetaClass(
     name = "InterfaceDefinition",
     isAbstract = false,
     superclasses = listOf("ConnectionDefinition"),
     attributes = emptyList(),
-    description = "A definition of an interface"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkInterfaceDefinitionBinarySpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                ownedEndFeature->size() = 2 implies
+                specializesFromLibrary('Interfaces::BinaryInterface')
+            """.trimIndent(),
+            description = "A binary InterfaceDefinition must directly or indirectly specialize the InterfaceDefinition Interfaces::BinaryInterface from the Systems Model Library."
+        ),
+        MetaConstraint(
+            name = "checkInterfaceDefinitionSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Interfaces::Interface')",
+            description = "An InterfaceDefinition must directly or indirectly specialize the InterfaceDefinition Interfaces::Interface from the Systems Model Library."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "interfaceDefinitionInterfaceBinding",
+            baseConcept = "Interfaces::Interface",
+            bindingKind = BindingKind.SPECIALIZES
+        ),
+        SemanticBinding(
+            name = "interfaceDefinitionBinaryInterfaceBinding",
+            baseConcept = "Interfaces::BinaryInterface",
+            bindingKind = BindingKind.SPECIALIZES,
+            condition = BindingCondition.PropertyEquals("ownedEndFeature->size()", "2")
+        )
+    ),
+    description = "An InterfaceDefinition is a ConnectionDefinition all of whose ends are PortUsages, defining an interface between elements that interact through such ports."
 )

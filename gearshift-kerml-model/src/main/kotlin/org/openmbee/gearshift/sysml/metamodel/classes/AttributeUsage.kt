@@ -15,17 +15,68 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaProperty
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML AttributeUsage metaclass.
+ * SysML AttributeUsage metaclass.
  * Specializes: Usage
- * A usage that represents an attribute.
+ * An AttributeUsage is a Usage whose type is a DataType. Nominally, if the type is an
+ * AttributeDefinition, an AttributeUsage is a usage of an AttributeDefinition to represent
+ * the value of some system quality or characteristic. However, other kinds of kernel DataTypes
+ * are also allowed, to permit use of DataTypes from the Kernel Model Libraries. An AttributeUsage
+ * itself as well as all its nested features must be referential (non-composite).
  */
 fun createAttributeUsageMetaClass() = MetaClass(
     name = "AttributeUsage",
     isAbstract = false,
     superclasses = listOf("Usage"),
-    attributes = emptyList(),
-    description = "A usage that represents an attribute"
+    attributes = listOf(
+        MetaProperty(
+            name = "isReference",
+            type = "Boolean",
+            isDerived = true,
+            redefines = listOf("isReference"),
+            derivationConstraint = "deriveAttributeUsageIsReference",
+            description = "Always true for an AttributeUsage."
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkAttributeUsageSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Base::dataValues')",
+            description = "An AttributeUsage must directly or indirectly specialize Base::dataValues from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "deriveAttributeUsageIsReference",
+            type = ConstraintType.DERIVATION,
+            expression = "true",
+            description = "Always true for an AttributeUsage."
+        ),
+        MetaConstraint(
+            name = "validateAttributeUsageFeatures",
+            type = ConstraintType.VERIFICATION,
+            expression = "feature->forAll(not isComposite)",
+            description = "All features of an AttributeUsage must be non-composite."
+        ),
+        MetaConstraint(
+            name = "validateAttributeUsageIsReference",
+            type = ConstraintType.VERIFICATION,
+            expression = "isReference",
+            description = "An AttributeUsage is always referential."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "attributeUsageDataValuesBinding",
+            baseConcept = "Base::dataValues",
+            bindingKind = BindingKind.SUBSETS
+        )
+    ),
+    description = "An AttributeUsage is a Usage whose type is a DataType, representing the value of some system quality or characteristic."
 )

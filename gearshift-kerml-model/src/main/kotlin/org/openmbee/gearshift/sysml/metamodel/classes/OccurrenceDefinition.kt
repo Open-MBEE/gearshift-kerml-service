@@ -15,13 +15,18 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
 import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
- * KerML OccurrenceDefinition metaclass.
+ * SysML OccurrenceDefinition metaclass.
  * Specializes: Definition, Class
- * A definition of an occurrence.
+ * An OccurrenceDefinition is a Definition of a Class of individuals that have an independent life
+ * over time and potentially an extent over space. This includes both structural things and behaviors
+ * that act on such structures. If isIndividual is true, then the OccurrenceDefinition is constrained
+ * to have (at most) a single instance that is the entire life of a single individual.
  */
 fun createOccurrenceDefinitionMetaClass() = MetaClass(
     name = "OccurrenceDefinition",
@@ -31,8 +36,26 @@ fun createOccurrenceDefinitionMetaClass() = MetaClass(
         MetaProperty(
             name = "isIndividual",
             type = "Boolean",
-            description = "Whether this defines an individual occurrence"
+            description = "Whether this OccurrenceDefinition is constrained to represent at most one thing."
         )
     ),
-    description = "A definition of an occurrence"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkOccurrenceDefinitionIndividualSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "isIndividual implies specializesFromLibrary('Occurrences::Life')",
+            description = "An OccurrenceDefinition with isIndividual = true must directly or indirectly specialize Occurrences::Life from the Kernel Semantic Library."
+        ),
+        MetaConstraint(
+            name = "checkOccurrenceDefinitionMultiplicitySpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                isIndividual implies
+                multiplicity <> null and
+                multiplicity.specializesFromLibrary('Base::zeroOrOne')
+            """.trimIndent(),
+            description = "An OccurrenceDefinition with isIndividual = true must have a multiplicity that specializes Base::zeroOrOne from the Kernel Semantic Library."
+        )
+    ),
+    description = "An OccurrenceDefinition is a Definition of a Class of individuals that have an independent life over time and potentially an extent over space."
 )

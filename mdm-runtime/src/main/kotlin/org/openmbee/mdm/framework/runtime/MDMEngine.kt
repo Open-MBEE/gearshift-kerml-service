@@ -438,10 +438,16 @@ open class MDMEngine(
         // Check if it's an association end
         val associationEnd = findAssociationEnd(metaClass, propertyName)
         if (associationEnd != null) {
-            val (_, end, _) = associationEnd
-            // Check if it's a derived association end
-            if (end.isDerived && end.derivationConstraint != null) {
+            val (association, end, _) = associationEnd
+            // Derived association ends with named constraints are computed via OCL.
+            // #opposite ends skip OCL and use inverse graph/instance lookup instead.
+            if (end.isDerived && end.derivationConstraint != null
+                && end.derivationConstraint != MetaAssociationEnd.OPPOSITE_END
+            ) {
                 return computeDerivedAssociationEnd(element, end)
+            }
+            if (end.isDerived && end.derivationConstraint == MetaAssociationEnd.OPPOSITE_END) {
+                return resolveOppositeEnd(element, end, association)
             }
             val results = navigateAssociation(element, propertyName)
             return normalizeForMultiplicity(results, end, element, propertyName)
@@ -841,10 +847,16 @@ open class MDMEngine(
         // Check if it's an association end (on the view class)
         val associationEnd = findAssociationEndOnClass(viewMetaClass, propertyName)
         if (associationEnd != null) {
-            val (_, end, _) = associationEnd
-            // Check if it's a derived association end
-            if (end.isDerived && end.derivationConstraint != null) {
+            val (association, end, _) = associationEnd
+            // Derived association ends with named constraints are computed via OCL.
+            // #opposite ends skip OCL and use inverse graph/instance lookup instead.
+            if (end.isDerived && end.derivationConstraint != null
+                && end.derivationConstraint != MetaAssociationEnd.OPPOSITE_END
+            ) {
                 return computeDerivedAssociationEndAs(element, end, viewMetaClass)
+            }
+            if (end.isDerived && end.derivationConstraint == MetaAssociationEnd.OPPOSITE_END) {
+                return resolveOppositeEnd(element, end, association)
             }
             val results = navigateAssociation(element, propertyName)
             return normalizeForMultiplicity(results, end, element, propertyName)
@@ -1018,6 +1030,71 @@ open class MDMEngine(
         }
 
         return null
+    }
+
+    /**
+     * Resolve a non-navigable end marked with [MetaAssociationEnd.OPPOSITE_END] by
+     * looking up the inverse of the opposite end.
+     *
+     * Fast path: if the opposite end has stored links, use a direct graph reverse lookup.
+     * Slow path: if the opposite end is also derived, scan all instances of this end's
+     * type, evaluate the opposite end property on each, and filter for the current element.
+     */
+    private fun resolveOppositeEnd(
+        element: MDMObject,
+        end: MetaAssociationEnd,
+        association: MetaAssociation
+    ): Any? {
+        val cacheKey = "assoc:${end.name}"
+        if (element.derivedCache.containsKey(cacheKey)) {
+            return element.derivedCache[cacheKey]
+        }
+
+        val elementId = element.id
+            ?: return normalizeForMultiplicity(emptyList(), end, element, end.name)
+
+        val isSourceEnd = end.name == association.sourceEnd.name
+        val oppositeEnd = if (isSourceEnd) association.targetEnd else association.sourceEnd
+
+        // Fast path: graph reverse lookup for stored links
+        val graphResults = if (isSourceEnd) {
+            graph.getSources(elementId, association.name)
+        } else {
+            graph.getTargets(elementId, association.name)
+        }
+
+        if (graphResults.isNotEmpty()) {
+            val resolved = graphResults.mapNotNull { getElement(it) }
+            val result = normalizeForMultiplicity(resolved, end, element, end.name)
+            element.derivedCache[cacheKey] = result
+            return result
+        }
+
+        // Slow path: opposite end is derived — scan instances and filter
+        if (oppositeEnd.isDerived) {
+            val candidates = getElementsByClass(end.type)
+            val matching = candidates.filter { candidate ->
+                val oppositeValue = getProperty(candidate, oppositeEnd.name)
+                containsElement(oppositeValue, elementId)
+            }
+            val result = normalizeForMultiplicity(matching, end, element, end.name)
+            element.derivedCache[cacheKey] = result
+            return result
+        }
+
+        val result = normalizeForMultiplicity(emptyList(), end, element, end.name)
+        element.derivedCache[cacheKey] = result
+        return result
+    }
+
+    /**
+     * Check whether a property value (single element or collection) contains an element with
+     * the given ID.
+     */
+    private fun containsElement(value: Any?, elementId: String): Boolean = when (value) {
+        is MDMObject -> value.id == elementId
+        is Collection<*> -> value.any { (it as? MDMObject)?.id == elementId }
+        else -> false
     }
 
     /**

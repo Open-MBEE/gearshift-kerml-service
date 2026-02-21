@@ -33,7 +33,7 @@ fun createEventOccurrencesAssociations(): List<MetaAssociation> {
             upperBound = -1,
             isNavigable = false,
             isDerived = true,
-            derivationConstraint = "computeOccurrenceUsageReferencingOccurrence"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "eventOccurrence",

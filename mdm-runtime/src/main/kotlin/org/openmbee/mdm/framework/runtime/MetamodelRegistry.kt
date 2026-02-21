@@ -113,6 +113,26 @@ class MetamodelRegistry {
      * Register a MetaAssociation in the registry.
      */
     fun registerAssociation(association: MetaAssociation) {
+        // Validate #opposite usage: must not be on a navigable end, and both ends cannot be #opposite
+        val src = association.sourceEnd
+        val tgt = association.targetEnd
+        if (src.derivationConstraint == MetaAssociationEnd.OPPOSITE_END && src.isNavigable) {
+            throw IllegalArgumentException(
+                "Association '${association.name}': #opposite must not be used on a navigable end (sourceEnd '${src.name}')"
+            )
+        }
+        if (tgt.derivationConstraint == MetaAssociationEnd.OPPOSITE_END && tgt.isNavigable) {
+            throw IllegalArgumentException(
+                "Association '${association.name}': #opposite must not be used on a navigable end (targetEnd '${tgt.name}')"
+            )
+        }
+        if (src.derivationConstraint == MetaAssociationEnd.OPPOSITE_END
+            && tgt.derivationConstraint == MetaAssociationEnd.OPPOSITE_END
+        ) {
+            throw IllegalArgumentException(
+                "Association '${association.name}': both ends cannot use #opposite (would create circular derivation)"
+            )
+        }
         associations[association.name] = association
         logger.debug { "Registered MetaAssociation: ${association.name}" }
     }

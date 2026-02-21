@@ -16,10 +16,153 @@
 package org.openmbee.gearshift.sysml.metamodel.associations
 
 import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 26: Send and Accept Actions
  */
 fun createSendAndAcceptActionsAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // SendActionUsage has payloadArgument : Expression [1..1] {derived}
+    val sendingActionUsagePayloadArgumentAssociation = MetaAssociation(
+        name = "sendingActionUsagePayloadArgumentAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "sendingActionUsage",
+            type = "SendActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "payloadArgument",
+            type = "Expression",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveSendActionUsagePayloadArgument"
+        )
+    )
+
+    // SendActionUsage has senderArgument : Expression [0..1] {derived}
+    val senderActionUsageSenderArgumentAssociation = MetaAssociation(
+        name = "senderActionUsageSenderArgumentAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "senderActionUsage",
+            type = "SendActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "senderArgument",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveSendActionUsageSenderArgument"
+        )
+    )
+
+    // SendActionUsage has receiverArgument : Expression [0..1] {derived}
+    val sendActionUsageReceiverArgumentAssociation = MetaAssociation(
+        name = "sendActionUsageReceiverArgumentAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "sendActionUsage",
+            type = "SendActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "receiverArgument",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveSendActionUsageReceiverArgument"
+        )
+    )
+
+    // AcceptActionUsage has receiverArgument : Expression [0..1] {derived}
+    val acceptActionUsageReceiverArgumentAssociation = MetaAssociation(
+        name = "acceptActionUsageReceiverArgumentAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "acceptActionUsage",
+            type = "AcceptActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "receiverArgument",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveAcceptActionUsageReceiverArgument"
+        )
+    )
+
+    // AcceptActionUsage has payloadArgument : Expression [0..1] {derived}
+    val acceptingActionUsagePayloadArgumentAssociation = MetaAssociation(
+        name = "acceptingActionUsagePayloadArgumentAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "acceptingActionUsage",
+            type = "AcceptActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "payloadArgument",
+            type = "Expression",
+            lowerBound = 0,
+            upperBound = 1,
+            isDerived = true,
+            derivationConstraint = "deriveAcceptActionUsagePayloadArgument"
+        )
+    )
+
+    // AcceptActionUsage has payloadParameter : ReferenceUsage [1..1] {derived, subsets nestedReference, parameter}
+    val owningAcceptActionUsagePayloadParameterAssociation = MetaAssociation(
+        name = "owningAcceptActionUsagePayloadParameterAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "owningAcceptActionUsage",
+            type = "AcceptActionUsage",
+            lowerBound = 0,
+            upperBound = 1,
+            isNavigable = false,
+            isDerived = true,
+            subsets = listOf("referenceOwningUsage"),
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "payloadParameter",
+            type = "ReferenceUsage",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            subsets = listOf("nestedReference", "parameter"),
+            derivationConstraint = "deriveAcceptActionUsagePayloadParameter"
+        )
+    )
+
+    return listOf(
+        acceptActionUsageReceiverArgumentAssociation,
+        acceptingActionUsagePayloadArgumentAssociation,
+        owningAcceptActionUsagePayloadParameterAssociation,
+        sendActionUsageReceiverArgumentAssociation,
+        senderActionUsageSenderArgumentAssociation,
+        sendingActionUsagePayloadArgumentAssociation
+    )
 }

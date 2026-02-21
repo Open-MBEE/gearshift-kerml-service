@@ -15,17 +15,71 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML PortDefinition metaclass.
- * Specializes: OccurrenceDefinition, Structure
- * A definition of a port.
+ * SysML PortDefinition metaclass.
+ * Specializes: Structure, OccurrenceDefinition
+ * A PortDefinition defines a point at which external entities can connect to and interact with a
+ * system or part of a system. Any ownedUsages of a PortDefinition, other than PortUsages, must
+ * not be composite.
  */
 fun createPortDefinitionMetaClass() = MetaClass(
     name = "PortDefinition",
     isAbstract = false,
-    superclasses = listOf("OccurrenceDefinition", "Structure"),
+    superclasses = listOf("Structure", "OccurrenceDefinition"),
     attributes = emptyList(),
-    description = "A definition of a port"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkPortDefinitionSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('Ports::Port')",
+            description = "A PortDefinition must directly or indirectly specialize the PortDefinition Ports::Port from the Systems Model Library."
+        ),
+        MetaConstraint(
+            name = "derivePortDefinitionConjugatedPortDefinition",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                let conjugatedPortDefinitions : OrderedSet(ConjugatedPortDefinition) =
+                    ownedMember->selectByKind(ConjugatedPortDefinition) in
+                if conjugatedPortDefinitions->isEmpty() then null
+                else conjugatedPortDefinitions->first()
+                endif
+            """.trimIndent(),
+            description = "The conjugatedPortDefinition of a PortDefinition is the ownedMember that is a ConjugatedPortDefinition."
+        ),
+        MetaConstraint(
+            name = "validatePortDefinitionConjugatedPortDefinition",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                not oclIsKindOf(ConjugatedPortDefinition) implies
+                ownedMember->
+                    selectByKind(ConjugatedPortDefinition)->
+                    size() = 1
+            """.trimIndent(),
+            description = "Unless it is a ConjugatedPortDefinition, a PortDefinition must have exactly one ownedMember that is a ConjugatedPortDefinition."
+        ),
+        MetaConstraint(
+            name = "validatePortDefinitionOwnedUsagesNotComposite",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                ownedUsage->
+                    reject(oclIsKindOf(PortUsage))->
+                    forAll(not isComposite)
+            """.trimIndent(),
+            description = "The ownedUsages of a PortDefinition that are not PortUsages must not be composite."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "portDefinitionPortBinding",
+            baseConcept = "Ports::Port",
+            bindingKind = BindingKind.SPECIALIZES
+        )
+    ),
+    description = "A PortDefinition defines a point at which external entities can connect to and interact with a system or part of a system."
 )

@@ -84,7 +84,7 @@ fun createEnumerationDefinitionAndUsageAssociations(): List<MetaAssociation> {
             isNavigable = false,
             isDerived = true,
             subsets = listOf("definedAttribute"),
-            derivationConstraint = "computeEnumerationDefinitionDefinedEnumeration"
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
         ),
         targetEnd = MetaAssociationEnd(
             name = "enumerationDefinition",

@@ -16,10 +16,38 @@
 package org.openmbee.gearshift.sysml.metamodel.associations
 
 import org.openmbee.mdm.framework.meta.MetaAssociation
+import org.openmbee.mdm.framework.meta.MetaAssociationEnd
 
 /**
  * Figure 25: Performed Actions
  */
 fun createPerformedActionsAssociations(): List<MetaAssociation> {
-    return emptyList()
+
+    // PerformActionUsage has performedAction : ActionUsage [1..1] {derived, redefines eventOccurrence}
+    val performingActionPerformedActionAssociation = MetaAssociation(
+        name = "performingActionPerformedActionAssociation",
+        sourceEnd = MetaAssociationEnd(
+            name = "performingAction",
+            type = "PerformActionUsage",
+            lowerBound = 0,
+            upperBound = -1,
+            isNavigable = false,
+            isDerived = true,
+            subsets = listOf("referencingOccurrence"),
+            derivationConstraint = MetaAssociationEnd.OPPOSITE_END
+        ),
+        targetEnd = MetaAssociationEnd(
+            name = "performedAction",
+            type = "ActionUsage",
+            lowerBound = 1,
+            upperBound = 1,
+            isDerived = true,
+            redefines = listOf("eventOccurrence"),
+            derivationConstraint = "derivePerformActionUsagePerformedAction"
+        )
+    )
+
+    return listOf(
+        performingActionPerformedActionAssociation
+    )
 }

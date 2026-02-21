@@ -222,6 +222,29 @@ fun createDefinitionMetaClass() = MetaClass(
             type = ConstraintType.DERIVATION,
             expression = "ownedMembership->selectByKind(VariantMembership)",
             description = "The variantMemberships of a Definition are those ownedMemberships that are VariantMemberships."
+        ),
+        MetaConstraint(
+            name = "validateDefinitionVariationIsAbstract",
+            type = ConstraintType.VERIFICATION,
+            expression = "isVariation implies isAbstract",
+            description = "If a Definition is a variation, then it must be abstract."
+        ),
+        MetaConstraint(
+            name = "validateDefinitionVariationOwnedFeatureMembership",
+            type = ConstraintType.VERIFICATION,
+            expression = "isVariation implies ownedFeatureMembership->isEmpty()",
+            description = "If a Definition is a variation, then it must not have any ownedFeatureMemberships."
+        ),
+        MetaConstraint(
+            name = "validateDefinitionVariationSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = """
+                isVariation implies
+                not ownedSpecialization.specific->exists(
+                    oclIsKindOf(Definition) and
+                    oclAsType(Definition).isVariation)
+            """.trimIndent(),
+            description = "A variation Definition may not specialize any other variation Definition."
         )
     ),
     description = "A classifier that defines something"

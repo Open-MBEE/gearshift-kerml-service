@@ -18,14 +18,16 @@ package org.openmbee.gearshift.kerml.metamodel.classes.kernel
 import org.openmbee.mdm.framework.meta.MetaClass
 
 /**
- * KerML ConnectorAsUsage metaclass.
- * Specializes: Usage, Connector
- * A usage that is also a connector.
+ * SysML ConnectorAsUsage metaclass.
+ * Specializes: Connector, Usage
+ * A ConnectorAsUsage is both a Connector and a Usage. ConnectorAsUsage cannot itself be instantiated in a
+ * SysML model, but it is a base class for the concrete classes BindingConnectorAsUsage, SuccessionAsUsage,
+ * ConnectionUsage and FlowConnectionUsage.
  */
 fun createConnectorAsUsageMetaClass() = MetaClass(
     name = "ConnectorAsUsage",
-    isAbstract = false,
-    superclasses = listOf("Usage", "Connector"),
+    isAbstract = true,
+    superclasses = listOf("Connector", "Usage"),
     attributes = emptyList(),
-    description = "A usage that is also a connector"
+    description = "A ConnectorAsUsage is both a Connector and a Usage."
 )

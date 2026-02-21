@@ -15,17 +15,37 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.MetaProperty
 
 /**
- * KerML EnumerationDefinition metaclass.
+ * SysML EnumerationDefinition metaclass.
  * Specializes: AttributeDefinition
- * A definition of an enumeration type.
+ * An EnumerationDefinition is an AttributeDefinition all of whose instances are given by an
+ * explicit list of enumeratedValues. This is realized by requiring that the EnumerationDefinition
+ * have isVariation = true, with the enumeratedValues being its variants.
  */
 fun createEnumerationDefinitionMetaClass() = MetaClass(
     name = "EnumerationDefinition",
     isAbstract = false,
     superclasses = listOf("AttributeDefinition"),
-    attributes = emptyList(),
-    description = "A definition of an enumeration type"
+    attributes = listOf(
+        MetaProperty(
+            name = "isVariation",
+            type = "Boolean",
+            redefines = listOf("isVariation"),
+            description = "An EnumerationDefinition is considered semantically to be a variation whose allowed variants are its enumeratedValues."
+        )
+    ),
+    constraints = listOf(
+        MetaConstraint(
+            name = "validateEnumerationDefinitionIsVariation",
+            type = ConstraintType.VERIFICATION,
+            expression = "isVariation",
+            description = "An EnumerationDefinition must be a variation."
+        )
+    ),
+    description = "An EnumerationDefinition is an AttributeDefinition all of whose instances are given by an explicit list of enumeratedValues."
 )
