@@ -15,17 +15,49 @@
  */
 package org.openmbee.gearshift.sysml.metamodel.classes
 
+import org.openmbee.mdm.framework.meta.BindingKind
+import org.openmbee.mdm.framework.meta.ConstraintType
 import org.openmbee.mdm.framework.meta.MetaClass
+import org.openmbee.mdm.framework.meta.MetaConstraint
+import org.openmbee.mdm.framework.meta.SemanticBinding
 
 /**
- * KerML VerificationCaseDefinition metaclass.
+ * SysML VerificationCaseDefinition metaclass.
  * Specializes: CaseDefinition
- * A definition of a verification case.
+ * A VerificationCaseDefinition is a CaseDefinition for the purpose of verification of the subject
+ * of the case against its requirements.
  */
 fun createVerificationCaseDefinitionMetaClass() = MetaClass(
     name = "VerificationCaseDefinition",
     isAbstract = false,
     superclasses = listOf("CaseDefinition"),
-    attributes = emptyList(),
-    description = "A definition of a verification case"
+    constraints = listOf(
+        MetaConstraint(
+            name = "checkVerificationCaseSpecialization",
+            type = ConstraintType.VERIFICATION,
+            expression = "specializesFromLibrary('VerificationCases::VerificationCase')",
+            description = "A VerificationCaseDefinition must directly or indirectly specialize the base VerificationCaseDefinition VerificationCases::VerificationCase from the Systems Model Library."
+        ),
+        MetaConstraint(
+            name = "deriveVerificationCaseDefinitionVerifiedRequirement",
+            type = ConstraintType.DERIVATION,
+            expression = """
+                if objectiveRequirement = null then OrderedSet{}
+                else
+                    objectiveRequirement.featureMembership->
+                        selectByKind(RequirementVerificationMembership).
+                        verifiedRequirement->asOrderedSet()
+                endif
+            """.trimIndent(),
+            description = "The verifiedRequirements of a VerificationCaseDefinition are the verifiedRequirements of its RequirementVerificationMemberships."
+        )
+    ),
+    semanticBindings = listOf(
+        SemanticBinding(
+            name = "verificationCaseDefinitionVerificationCaseBinding",
+            baseConcept = "VerificationCases::VerificationCase",
+            bindingKind = BindingKind.SPECIALIZES
+        )
+    ),
+    description = "A VerificationCaseDefinition is a CaseDefinition for the purpose of verification of the subject of the case against its requirements."
 )
